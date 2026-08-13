@@ -6,9 +6,11 @@ The prototype established the look and the three-tab shape. This spec establishe
 
 ---
 
+> **Revised 2026-08-13**, same day, after review. Two additions changed the shape of the app: **links are now created automatically by the app rather than by the user**, and a **map** was added as a fourth tab. Four visual revisions to the prototype were also confirmed. See `docs/decisions.md` §10–12.
+
 ## Scope
 
-**In:** three tabs (stream / books / review) · text, voice, and camera-OCR capture · book search and ISBN scan · zettel note links · threaded follow-ups · stars · full-text search · Markdown export · one daily notification · light and dark.
+**In:** four tabs (stream / books / map / review) · text, voice, and camera-OCR capture · book search and ISBN scan · **automatic semantic linking** · threaded follow-ups · stars · full-text search · Markdown export · one daily notification · light and dark.
 
 **Out of v1:** iCloud sync (designed for, not enabled) · Kindle and Apple Books import · widgets · Share extension · iPad · any account system · any paid tier.
 
@@ -64,6 +66,20 @@ Each card: metadata, the note at 17/1.7, the source, linked notes, then the acti
 
 The set ends on a closing card with `[↻] keep going`, which extends past the day's eight for anyone who wants more.
 
+### Map
+
+A fourth tab, two views over one renderer.
+
+**Global** — the whole library as one shape. Notes are nodes; **each book is a hub node its notes attach to**, which is what makes the view meaningful on day one instead of a scatter of lonely dots. Above ~150 nodes it collapses to book hubs and expands one on tap.
+
+**Local** — reachable from any note. Two hops out, capped around 25 nodes. Legible at any library size, and it answers the question you actually have while reading a note.
+
+Selecting a node previews its note in a panel at the foot; tap through to open it. Holding an edge deletes that connection, permanently — the pair goes on a suppression list so it isn't re-suggested.
+
+Visual language is in `docs/design-system.md` under *Map*. In short: nodes are the note id in mono type, books are bracketed and bolder, edges are hairlines, and selection inverts to filled ink. No color, no circles, no shadows.
+
+`GraphLayout` is force-directed (spring-electrical, ~300 iterations), **pure**, and runs on a background actor. Positions are cached and recomputed only when the graph changes. Plain O(N²) repulsion is fine under ~2,000 nodes; above that, bucket it on a grid.
+
 ### Search
 
 One field, full-text across note bodies, follow-ups, book titles, authors, and tags. Results are note rows grouped by book. `#tag` in the query filters by tag.
@@ -71,6 +87,53 @@ One field, full-text across note bodies, follow-ups, book titles, authors, and t
 ### Settings
 
 Notification time and on/off · Markdown export · appearance (system / light / dark) · about.
+
+---
+
+## Automatic linking
+
+**The user never links anything.** Notes connect themselves as they're written; there is no prompt, no accept/dismiss flow, no syntax to learn.
+
+### Embedding
+
+`NoteEmbedding` vectorizes each note with **`NLContextualEmbedding`** (iOS 17+), which captures meaning rather than vocabulary — a passage on impermanence can connect to a note on anchoring without sharing a word. Entirely on-device: no network, no key, nothing sent anywhere.
+
+It requires a one-time asset download (`requestEmbeddingAssets`). Until that completes, fall back to `NLEmbedding.sentenceEmbedding(for: .english)` — lower quality, no setup, present since iOS 14. **The app must work on first launch either way.**
+
+Vectors are mean-pooled to a single sentence vector and stored on `Note` as `Data` (packed `Float32`), which keeps the model CloudKit-safe.
+
+### Scoring
+
+```
+score = 0.8 · cosine(a, b) + 0.2 · tagOverlap(a, b)
+```
+
+Same-book is deliberately **not** boosted — books are already hub nodes in the map, so rewarding it again would clump each book into a ball.
+
+Three constraints keep the graph readable rather than a hairball:
+
+| | |
+|---|---|
+| **Floor** | an edge needs `score ≥ 0.55` |
+| **Mutual k-NN** | each note must be in the other's top 8 — this is what stops one broadly-worded note attaching to everything |
+| **Degree cap** | at most 6 edges per note, strongest kept |
+
+Recomputation is incremental on save: embed the new note, compare against every stored vector. At 5,000 notes that's a few million float operations — microseconds. A full rebuild is O(N²) but still seconds on a background actor, offered in settings as *rebuild connections*.
+
+`AffinityEngine` takes vectors and tags and returns edges. **No SwiftData inside it.**
+
+### One kind of link
+
+Automatic and manual links **render identically**. No dotted lines, no "suggested" badge, nothing to interpret. The state exists only so override works:
+
+- `isPinned` — user-created; never pruned by a recompute
+- `isSuppressed` — user-deleted; never re-suggested
+
+Neither is ever surfaced in the UI.
+
+Manual creation lives on the keyboard accessory bar while composing (`→ link · # tag · p. page`) and on the review card, opening a search sheet over notes.
+
+**Backlinks always show.** Edges store direction but display both ways, or half of every note's connections are invisible.
 
 ---
 
@@ -122,8 +185,9 @@ SwiftData. Every property defaulted, every relationship optional, no unique cons
   var lastSurfacedAt: Date?
   var surfaceCount: Int = 0
   var isStarred: Bool = false
+  var embedding: Data?                    // packed Float32
+  var embeddedAt: Date?                   // nil ⇒ needs (re)embedding
   var book: Book?
-  @Relationship var links: [Note]? = []
   @Relationship(deleteRule: .cascade, inverse: \FollowUp.note) var followUps: [FollowUp]? = []
 }
 
@@ -132,7 +196,18 @@ SwiftData. Every property defaulted, every relationship optional, no unique cons
   var createdAt: Date = Date.now
   var note: Note?
 }
+
+@Model final class NoteEdge {
+  var from: Note?
+  var to: Note?
+  var score: Double = 0                   // 0 for manual
+  var isPinned: Bool = false              // user-created; never pruned
+  var isSuppressed: Bool = false          // user-deleted; never re-suggested
+  var createdAt: Date = Date.now
+}
 ```
+
+Connections are their own model rather than a bare `[Note]` relationship, because they now carry score and override state.
 
 `statusRaw` and `kindRaw` are stored as strings with typed computed accessors — SwiftData handles enums poorly across schema changes, and raw strings stay readable in the store.
 
@@ -148,6 +223,9 @@ SwiftData. Every property defaulted, every relationship optional, no unique cons
 
 | Service | Framework | Notes |
 |---|---|---|
+| `NoteEmbedding` | `NaturalLanguage` | `NLContextualEmbedding` with an `NLEmbedding` fallback. On-device |
+| `AffinityEngine` | — | Pure. Vectors + tags → edges |
+| `GraphLayout` | — | Pure. Nodes + edges → positions. Background actor |
 | `SpeechTranscription` | `Speech` + `AVFoundation` | `SFSpeechRecognizer`, on-device only. `AVAudioEngine` tap drives the live waveform |
 | `TextScanner` | `VisionKit` | `DataScannerViewController`, text mode, tap-to-select |
 | `BarcodeScanner` | `VisionKit` | Same controller, `.barcode(symbologies: [.ean13])` |
@@ -166,12 +244,18 @@ Notification bodies carry **the note's actual text**, so they're readable from t
 
 Swift Testing (`@Test` / `#expect`), covering the logic that's worth isolating:
 
+- `AffinityEngine` — the floor; mutual k-NN rejecting a hub note that's mildly similar to everything; the degree cap; pinned edges surviving a recompute; suppressed pairs never returning
+- `GraphLayout` — deterministic given a seed, no overlapping nodes, convergence inside the iteration budget
 - `ReviewSetBuilder` — stability within a day, the 8 cap, the 2-per-book cap, starred weighting, currently-reading inclusion, and behavior with fewer than 8 notes
 - `BookLookup` — Open Library response parsing against captured fixtures, including missing-author and missing-page-count responses
 - `MarkdownExport` — output shape, link rendering, follow-up nesting
 - `shortID` allocation — monotonic across deletes
 
 Views aren't unit tested. They're verified by screenshot in both appearances against the archived prototype.
+
+**Tests cannot tell you whether the links are any good.** They prove `AffinityEngine` respects its constraints; whether the connections are *defensible* needs a human. Phase 6 ends by dumping each seed note's top 5 connections and reading them — if they don't hold up, the weights or the floor get tuned before the map is built on top.
+
+Seed data expands to **~40 notes**. A twelve-note map proves nothing about whether the layout works.
 
 ---
 
@@ -180,18 +264,28 @@ Views aren't unit tested. They're verified by screenshot in both appearances aga
 Each phase ends in something runnable, so the look can be judged before more is built on it.
 
 0. Documentation — `CLAUDE.md`, `README.md`, this spec, `docs/design-system.md`, `docs/decisions.md`
-1. Scaffold, fonts, `Theme`, `Glyphs`, components, static three-tab shell → **screenshot both appearances against the prototype before continuing**
-2. Models, seed data, Inbox, stream feed, tag chips, note links
+1. Scaffold, fonts, `Theme`, `Glyphs`, components, static four-tab shell → **screenshot both appearances against the prototype before continuing**
+2. Models, seed data, Inbox, stream feed with the margin rule, tag chips
 3. Capture bar — text, then voice with waveform and on-device transcription
 4. Books — list, detail, add by search and ISBN, full capture sheet
 5. Review — paged cards, `ReviewSetBuilder`, stars, follow-ups, share card
-6. Search, Markdown export, settings, daily notification
-7. Camera OCR capture
-8. App icon, empty states, haptics, Dynamic Type, install on device
+6. Linking — `NoteEmbedding`, `AffinityEngine`, embed-on-save, backfill, backlinks in the UI → **read real output before continuing**
+7. Map — `GraphLayout`, `Canvas` renderer, local view, global view, hub collapse, edge deletion
+8. Search, Markdown export, settings, daily notification
+9. Camera OCR capture
+10. App icon, empty states, haptics, Dynamic Type, install on device
 
 ---
 
 ## Risks
+
+**Nobody types a link, so nobody learns the habit.** If automatic linking underdelivers there's no fallback behavior to lean on — which is exactly why phase 6 gates on reading real output before phase 7 builds the map on top of it.
+
+**`NLContextualEmbedding` assets may be unavailable on a fresh device.** The `NLEmbedding` fallback covers it at lower quality. Worth checking what a genuinely first-launch device does.
+
+**Embeddings are English-first.** Notes in other languages will link poorly. Acceptable for v1, but state it plainly if it ever reaches a listing.
+
+**Four tabs pushes against "simple."** Still the iOS norm, but the map has to earn its place. If it doesn't, it moves back inside Books as a view toggle.
 
 **The name.** "Marginalia" is a natural fit and likely contested on the App Store. Worth checking before the listing pass. Doesn't block anything now — the bundle id can change.
 

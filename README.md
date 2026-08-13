@@ -6,19 +6,24 @@ Notes from books. A native iOS app for capturing what you read and actually runn
 
 Most reading apps are built around highlights you never revisit. marginalia is built around the opposite assumption: the value isn't in capturing the passage, it's in meeting it again six weeks later next to a thought you'd forgotten you had.
 
-**Three tabs.**
+**Four tabs.**
 
 - **stream** — every note across every book, newest first, filterable by tag. A capture bar sits at the bottom the whole time: type a thought, or hold to record one. Captures without a book land in an Inbox to file later.
 - **books** — your library and each book's notes. Add a book by searching for it or scanning the barcode on the back cover.
+- **map** — everything you've read as a single graph. Notes are nodes, books are the hubs they hang from.
 - **review** — a set of about eight older notes chosen fresh each day, one per screen, swiped through. Star the good ones so they come back more often. Add a follow-up thought and the note grows a thread instead of sitting still.
 
-Notes carry ids (`n.11`) and link to each other, so a thought from one book can point at a passage in another.
+**You never link anything by hand.** As you write, the app reads each note and connects it to the ones that mean something similar — a passage from Marcus Aurelius on impermanence can find a Kahneman note on anchoring without sharing a single word. The web builds itself while you read. You can always add a connection it missed, or delete one you disagree with, but you're never asked to.
 
-**Capture is the part that has to be frictionless**, so there are four ways in: type it, speak it (transcribed on-device, no network, no API key), point the camera at a printed page and tap the passage, or write it directly against a book.
+That happens entirely on your phone. No network, no API key, nothing sent anywhere.
+
+**Capture has to be frictionless**, so there are four ways in: type it, speak it (transcribed on-device), point the camera at a printed page and tap the passage, or write it directly against a book.
 
 ## Design
 
-The interface is built on the OpenCode design system, which permits itself very little: one monospace typeface, a near-white page, hairline rules, and no shadows anywhere. Icons are ASCII markers — `[+]` reading, `[x]` finished, `[q]` quote, `[t]` thought, `[v]` voice, `[↻]` review. There is no cover art and no color-coding; the only saturated color in the app is the red recording dot.
+The interface is built on the OpenCode design system, which permits itself very little: one monospace typeface, a near-white page, hairline rules, and no shadows anywhere. Icons are ASCII markers — `[+]` reading, `[x]` finished, `[q]` quote, `[t]` thought, `[v]` voice, `[◇]` map, `[↻]` review. There is no cover art and no color-coding; the only saturated color in the app is the red recording dot.
+
+Notes sit beside a margin with their id in it, and quotes are marked by a rule on the leading edge rather than a box — the app is named after marks made in a margin, and the layout is meant to earn that. The map inherits the same restraint: nodes are the note ids themselves in mono type, edges are hairlines, and selecting one inverts it to solid ink. No colored dots.
 
 The full token reference is in [`docs/design-system.md`](docs/design-system.md), and the original prototype is archived at [`docs/prototype/Marginalia.dc.html`](docs/prototype/Marginalia.dc.html) — open it in a browser to see where the app came from.
 
@@ -57,9 +62,10 @@ Microphone, speech recognition, and camera permissions are each requested the fi
 ```
 Marginalia/
   Design/       theme, typography, ASCII glyph vocabulary, shared components
-  Model/        SwiftData models — Book, Note, FollowUp
-  Features/     Stream · Capture · Books · Review · Search · Settings
-  Services/     transcription, OCR, barcode, book lookup, notifications, export
+  Model/        SwiftData models — Book, Note, FollowUp, NoteEdge
+  Features/     Stream · Capture · Books · Map · Review · Search · Settings
+  Services/     embedding, affinity, graph layout, transcription, OCR,
+                barcode, book lookup, notifications, export
 docs/
   design-system.md    the full token and component reference
   decisions.md        what was chosen and why
@@ -69,7 +75,7 @@ docs/
 
 ## Data
 
-Notes live on your device in SwiftData. Nothing is sent anywhere — transcription runs on-device, and the only network call the app makes is looking up a book you searched for.
+Notes live on your device in SwiftData. Nothing is sent anywhere — transcription and the linking that builds the map both run on-device, and the only network call the app makes is looking up a book you searched for.
 
 iCloud sync is designed for but not yet enabled; the data model is already shaped to CloudKit's constraints so turning it on is a configuration change rather than a migration.
 
@@ -79,11 +85,13 @@ Everything exports to Markdown with `[[n.05]]` wiki-links, so your notes open in
 
 Shipping toward a first App Store release:
 
-- [ ] Design system and three-tab shell
-- [ ] Stream, tag filters, note links
+- [ ] Design system and four-tab shell
+- [ ] Stream, the margin, tag filters
 - [ ] Text and voice capture
 - [ ] Books, book detail, search and ISBN scan to add
 - [ ] Review — daily set, stars, follow-up threads, share as image
+- [ ] Automatic linking — on-device embeddings and the affinity engine
+- [ ] Map — local and global graph
 - [ ] Full-text search, Markdown export, daily notification
 - [ ] Camera OCR capture
 - [ ] App icon, empty states, device polish

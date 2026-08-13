@@ -4,15 +4,18 @@ Working context for Claude Code in this repository. Read this before touching an
 
 ## What this is
 
-**marginalia** — a native iOS app for notes taken from books. Three tabs:
+**marginalia** — a native iOS app for notes taken from books. Four tabs:
 
 - **stream** — every note across every book, newest first, filterable by tag. A persistent capture bar sits at the bottom for text or voice.
 - **books** — the library, and each book's notes.
+- **map** — the whole library as a graph. Notes are nodes, books are hubs, edges are connections the app found on its own.
 - **review** — a daily set of ~8 older notes, one per screen, swiped through. Resurfacing what you already thought.
 
-Notes are zettel-style: they carry ids (`n.11`), link to each other (`n.01 → n.07`), and accumulate threaded follow-ups. Quick captures with no book land in an **Inbox**.
+Notes are zettel-style: they carry ids (`n.11`), connect to each other, and accumulate threaded follow-ups. Quick captures with no book land in an **Inbox**.
 
-Built from a Claude Design prototype. The prototype is archived at `docs/prototype/Marginalia.dc.html` and is the visual source of truth — open it in a browser to check any layout question.
+**Nobody creates links by hand.** The app connects notes by meaning as they're written — see *Linking* below. Manual linking exists only as override.
+
+Built from a Claude Design prototype, archived at `docs/prototype/Marginalia.dc.html`. It is the authority on **look**; `docs/specs/` is the authority on **behavior** and overrides it where they disagree.
 
 ## Stack
 
@@ -24,13 +27,15 @@ The look comes from the **OpenCode design system**. It is severe on purpose, and
 
 1. **No raw color literals in views.** Every color comes from `Theme`. Not `Color.gray`, not `#f8f7f7`, not `.secondary`. If a color you need isn't in `Theme`, add it there with both appearances defined, then use it. This rule is the only reason dark mode works.
 2. **No shadows. Anywhere.** Not on cards, sheets, buttons, or bars. Separation is done with hairlines (`Theme.hairline`, 1px) and surface tint (`Theme.surfaceSoft`) — nothing else. `--elevation-1` in the source system is a hairline, not a shadow.
-3. **ASCII markers, not SF Symbols.** `[+] [x] [-] [~] [=] [↻] [q] [t] [v] [s]` and the arrows `→ ←`. Use the named cases in `Glyphs`, never a literal. There are no icons in this app.
-4. **Radius 4px on interactive elements only.** Buttons, inputs, chips, quote blocks. Everything else is square. Never a pill, never a circle, never 26pt iOS-style card corners.
+3. **ASCII markers, not SF Symbols.** `[+] [x] [-] [~] [=] [◇] [↻] [q] [t] [v] [s]` and the arrows `→ ←`. Use the named cases in `Glyphs`, never a literal. There are no icons in this app.
+4. **Radius 4px on interactive elements only.** Buttons, inputs, chips. Everything else is square. Never a pill, never a circle, never 26pt iOS-style card corners.
 5. **One font.** JetBrains Mono at every size and weight — body, headings, numbers, buttons. There is no sans face and no italic in this system.
 6. **No cover art, no images, no color-coding.** Books are title + author + status marker + note count. The absence of imagery is the identity; a row of cover thumbnails would make this a different app.
-7. **Lowercase chrome.** Tab labels, the wordmark, and placeholder text are lowercase (`stream`, `books`, `add a thought…`). Screen titles are sentence case (`Daily review`, `Books`).
+7. **Lowercase chrome.** Tab labels, the wordmark, screen titles, and placeholder text are all lowercase (`stream`, `books`, `map`, `add a thought…`).
+8. **One header per screen.** The wordmark appears on **stream only**. Every other screen gets a single header with its own name — never a wordmark row stacked above a title row.
+9. **Support Dynamic Type.** Every size in `Typography` scales with the reader's setting. Never a hardcoded `.system(size:)`.
 
-Colors, condensed — but read `Theme.swift` for the authoritative list:
+Colors, condensed — but `Theme.swift` is authoritative:
 
 | token | light | dark |
 |---|---|---|
@@ -44,18 +49,41 @@ Colors, condensed — but read `Theme.swift` for the authoritative list:
 | `hairline` | ink @ 12% | paper @ 12% |
 | `danger` | `#ff3b30` | `#ff453a` |
 
-`danger` is the one saturated color in the app. It is used for the recording dot and destructive confirmations. Nothing else.
+`danger` is the one saturated color in the app — the recording dot and destructive confirmations. Nothing else.
+
+**Two layout devices carry the identity**, both new since the prototype and both described in `docs/design-system.md`:
+
+- **The margin** — stream and book-detail rows put the note id in a 48pt column with a hairline down its trailing edge. The app is named after marks made in a margin; this is that margin.
+- **The quote rule** — quotes get a 2pt `ink` rule on the leading edge, *not* a filled block. Quote text is `ink`; thought bodies are `textBody`.
+
+## Linking — automatic
+
+Notes connect themselves. The user is never asked to link anything and there is no accept/dismiss flow.
+
+- `NoteEmbedding` vectorizes each note with `NLContextualEmbedding`, falling back to `NLEmbedding.sentenceEmbedding` when Apple's assets aren't downloaded yet. **The app must work on first launch either way.** On-device only — no network, no key.
+- `AffinityEngine` scores pairs `0.8 · cosine + 0.2 · tagOverlap`. Same-book is deliberately **not** boosted; books are already hub nodes and rewarding it again just clumps each book into a ball.
+- Three constraints keep the graph from becoming a hairball: a **floor** of `score ≥ 0.55`, **mutual k-NN** (each note in the other's top 8), and a **degree cap** of 6.
+- **Automatic and manual links render identically.** `isPinned` and `isSuppressed` on `NoteEdge` exist only to make override work — never surface them in the UI, never draw a manual link differently.
+- **Backlinks are always shown.** Edges store direction but display both ways, or half of every note's connections are invisible.
 
 ## Data model rules
 
-Every `@Model` must stay **CloudKit-compatible**, even though sync is currently off. Enabling it later should be a container-configuration change, not a migration.
+Every `@Model` must stay **CloudKit-compatible**, even though sync is off. Enabling it later should be a container-configuration change, not a migration.
 
 - Every stored property has a default value.
 - Every relationship is optional (`[Note]? = []`, `Book?`).
 - **No `@Attribute(.unique)`** — CloudKit rejects unique constraints.
-- No `@Attribute(.allowsCloudEncryption)` unless deliberately chosen.
+- Embeddings are stored as `Data` (packed `Float32`), not `[Float]`.
 
-`Note.shortID` is a monotonic `Int` from `UserDefaults`, rendered as `n.11`. Ids are never reused after a delete.
+`Note.shortID` is a monotonic `Int` from `UserDefaults`, rendered as `n.11`. Ids are never reused after a delete — a dangling `→ n.07` pointing at a *different* note is worse than one pointing at nothing.
+
+## Keep these pure
+
+Three types take plain values and return plain values, with no SwiftData inside. That's what makes them testable, and it's not negotiable:
+
+- **`ReviewSetBuilder`** — `[Note]` + `Date` → the day's set (day-stable, ≤8, ≤2 per book, starred weighted, ≥1 currently-reading)
+- **`AffinityEngine`** — vectors + tags → edges
+- **`GraphLayout`** — nodes + edges → positions
 
 ## File map
 
@@ -64,13 +92,16 @@ Marginalia/
   MarginaliaApp.swift        @main, ModelContainer, root TabView
   Design/
     Theme.swift              every hex, light + dark. The only place colors live
-    Typography.swift         font registration + type scale
+    Typography.swift         font registration + Dynamic Type scale
     Glyphs.swift             the ASCII vocabulary, named
     Components/              shared views — see docs/design-system.md
-  Model/                     Book, Note, FollowUp, container config + seed
+  Model/                     Book, Note, FollowUp, NoteEdge, container + seed
   Features/
-    Stream/  Capture/  Books/  Review/  Search/  Settings/
+    Stream/  Capture/  Books/  Map/  Review/  Search/  Settings/
   Services/
+    NoteEmbedding            NLContextualEmbedding + fallback
+    AffinityEngine           scoring, mutual k-NN, pinning, suppression
+    GraphLayout              force-directed, pure, background actor
     SpeechTranscription      SFSpeechRecognizer, on-device only
     TextScanner              VisionKit → passage text
     BarcodeScanner           VisionKit → ISBN
@@ -106,15 +137,17 @@ Tests use **Swift Testing** (`@Test`, `#expect`), not XCTest.
 ## Working notes
 
 - **Verify visually, not by reasoning.** After a UI change, screenshot the simulator in *both* appearances and actually look at the images. Dark mode regressions are invisible in code review and obvious in a screenshot.
-- **`ReviewSetBuilder` is pure.** It takes `[Note]` and a `Date` and returns the day's set. Keep SwiftData out of it — that's what makes it testable, and its rules (day-stable, ≤8, ≤2 per book, starred weighted, at least one currently-reading) are all covered by tests.
+- **Tests can't tell you whether the links are any good.** They prove `AffinityEngine` respects its floor, its k-NN rule, and its degree cap. Whether the connections are *defensible* needs a human reading real output — dump each seed note's top 5 and judge them before building the map on top.
 - **Permissions are requested at first use**, never at launch. Microphone, speech recognition, and camera each prompt at the moment the feature is invoked.
 - **The simulator cannot test** microphone, transcription, camera OCR, or barcode scanning. Those need the device. Don't claim they work from a simulator run.
-- **Open Library needs no API key** and imposes no attribution requirement. Manual book entry must always remain available as a fallback — treat lookup failure as routine, not exceptional.
+- **Open Library needs no API key** and imposes no attribution requirement. Manual book entry must always remain available — treat lookup failure as routine, not exceptional.
+- **Seed ~40 notes**, not 12. A sparse map proves nothing about whether the layout works.
 
 ## Don't
 
-- Don't add a dependency without asking. The app currently has zero.
+- Don't add a dependency without asking. The app has zero.
 - Don't introduce SF Symbols, cover images, shadows, gradients, or a second typeface.
+- Don't draw automatic and manual links differently. That was decided against deliberately.
 - Don't enable CloudKit until the paid Apple Developer account is confirmed — it will fail to provision.
-- Don't reformat or "clean up" the archived prototype in `docs/prototype/`. It's a reference artifact.
+- Don't reformat the archived prototype in `docs/prototype/`. It's a reference artifact.
 - Don't re-litigate settled decisions. `docs/decisions.md` records what was chosen and why.
