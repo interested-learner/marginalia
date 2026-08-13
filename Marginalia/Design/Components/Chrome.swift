@@ -1,0 +1,141 @@
+import SwiftUI
+
+/// One header per screen.
+///
+/// The wordmark appears on **stream only** — every other screen gets a single
+/// header carrying its own name. Never stack a wordmark row above a title row;
+/// that was the prototype's arrangement and it spent ~50pt restating what the
+/// tab bar already says.
+struct ScreenHeader: View {
+    enum Style { case wordmark(subtitle: String), title(String) }
+
+    let style: Style
+    var trailing: String?
+
+    var body: some View {
+        VStack(spacing: 0) {
+            HStack(alignment: .firstTextBaseline, spacing: 8) {
+                switch style {
+                case .wordmark(let subtitle):
+                    Text("marginalia")
+                        .font(Typography.wordmark)
+                        .foregroundStyle(Theme.ink)
+                    Text("· \(subtitle)")
+                        .font(Typography.meta)
+                        .foregroundStyle(Theme.textAsh)
+                case .title(let name):
+                    Text(name)
+                        .font(Typography.screenTitle)
+                        .foregroundStyle(Theme.ink)
+                }
+
+                Spacer(minLength: 8)
+
+                if let trailing {
+                    Text(trailing)
+                        .font(Typography.meta)
+                        .foregroundStyle(Theme.textAsh)
+                }
+            }
+            .padding(.horizontal, 20)
+            .padding(.top, 54)
+            .padding(.bottom, 12)
+
+            Hairline()
+        }
+        .background(Theme.canvas)
+    }
+}
+
+/// Four tabs. The active one is marked by a 2pt ink border on its *top* edge,
+/// offset up 1pt so it overlaps the container hairline — the indicator sits
+/// above the tab, not below it.
+struct TabBar: View {
+    @Binding var selection: Tab
+
+    var body: some View {
+        VStack(spacing: 0) {
+            Hairline()
+            HStack(spacing: 0) {
+                ForEach(Tab.allCases, id: \.self) { tab in
+                    let active = tab == selection
+                    Button {
+                        selection = tab
+                    } label: {
+                        Text("\(tab.glyph) \(tab.label)")
+                            .font(active ? Typography.tabLabelActive : Typography.tabLabel)
+                            .foregroundStyle(active ? Theme.ink : Theme.textMute)
+                            .frame(maxWidth: .infinity, minHeight: 52)
+                            .overlay(alignment: .top) {
+                                Rectangle()
+                                    .fill(active ? Theme.ink : .clear)
+                                    .frame(height: 2)
+                                    .offset(y: -1)
+                            }
+                            .contentShape(Rectangle())
+                    }
+                    .buttonStyle(.plain)
+                }
+            }
+            .padding(.bottom, 26)          // clears the home indicator
+        }
+        .background(Theme.canvas)
+    }
+}
+
+enum Tab: CaseIterable {
+    case stream, books, map, review
+
+    var label: String {
+        switch self {
+        case .stream: "stream"
+        case .books: "books"
+        case .map: "map"
+        case .review: "review"
+        }
+    }
+
+    init?(argument: String?) {
+        guard let match = Tab.allCases.first(where: { $0.label == argument }) else { return nil }
+        self = match
+    }
+
+    var glyph: String {
+        switch self {
+        case .stream: Glyphs.tabStream
+        case .books: Glyphs.tabBooks
+        case .map: Glyphs.tabMap
+        case .review: Glyphs.tabReview
+        }
+    }
+}
+
+/// `[x] no notes yet — capture the first one`
+struct EmptyState: View {
+    let message: String
+    var glyph: String = Glyphs.finished
+
+    var body: some View {
+        Text("\(glyph) \(message)")
+            .font(Typography.noteBody)
+            .foregroundStyle(Theme.textAsh)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(.horizontal, 20)
+            .padding(.vertical, 24)
+    }
+}
+
+/// A date group header in the stream: `today · wed aug 13`, `yesterday`, `earlier`.
+struct GroupHeader: View {
+    let label: String
+
+    var body: some View {
+        Text(label)
+            .font(Typography.meta)
+            .foregroundStyle(Theme.textAsh)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(.horizontal, 20)
+            .padding(.top, 16)
+            .padding(.bottom, 6)
+    }
+}

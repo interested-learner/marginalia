@@ -80,7 +80,8 @@ ASCII markers replace icons entirely. Defined as named cases in `Design/Glyphs.s
 | `[s]` | Scanned note |
 | `[●]` | Record — the dot is `danger`, the brackets are `ink` |
 | `■` | Stop |
-| `→` `←` | Note link, navigation |
+| `[*]` `[ ]` | Starred / not starred |
+| `→` `←` | Connection, navigation |
 | `▁▂▃▄▅▆▇` | Recording waveform |
 | `█` `░` | Progress bar fill and track |
 
@@ -225,6 +226,8 @@ A knowledge graph in a system with no color and no images. The constraint is the
 - **Edges are `hairline`**, 1px, at the same 12% as every divider in the app.
 - **Selection inverts.** The node fills `ink` with its text in `onInk`, and its edges go to full-opacity `ink` while every other edge stays at hairline. That is the entire interaction vocabulary — no highlight color, no glow, no shadow.
 - **Connection count shows as weight** — 400 → 500 → 700 — never as node size. Varying node size would introduce a visual dimension the rest of the app doesn't have.
+Actions use the same vocabulary — `[+] add a thought`, `[ ] star`, `→ open book`. Never a dingbat like `★` or `✎`; those read as icons, and this system has none.
+
 - **A selected node previews its note** in a panel at the foot, above the tab bar, separated by a `hairline`. Tappable through to the note.
 
 Nodes need a 44pt minimum hit target even though the drawn text is smaller.
