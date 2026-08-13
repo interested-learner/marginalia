@@ -1,0 +1,228 @@
+/* ============================================================
+   OpenCode Design System — Colors & Typography
+   ------------------------------------------------------------
+   The entire identity rests on ONE font (Berkeley Mono) and a
+   warm cream canvas. All CSS vars exposed here are taken
+   directly from the captured tokens.
+   ============================================================ */
+
+/* Berkeley Mono is a paid commercial font. We load JetBrains
+   Mono as the closest open-source substitute. If you have a
+   licensed Berkeley Mono webfont, drop the .woff2 files into
+   /fonts/ and update the @font-face below. */
+
+@import url("https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&family=IBM+Plex+Mono:wght@400;500;700&display=swap");
+
+:root {
+  /* ----------  FONT FAMILY  ----------
+     Single-font system. There is no sans, no display, no italic. */
+  --font-mono:
+    "Berkeley Mono", "JetBrains Mono", "IBM Plex Mono",
+    ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas,
+    "Liberation Mono", "Courier New", monospace;
+
+  --font-body: var(--font-mono);
+  --font-display: var(--font-mono);
+  --font-code: var(--font-mono);
+
+  /* ----------  TYPE SCALE  ---------- */
+  --type-display-xl-size: 38px;
+  --type-display-xl-weight: 700;
+  --type-display-xl-lh: 1.5;
+
+  --type-heading-md-size: 16px;
+  --type-heading-md-weight: 700;
+  --type-heading-md-lh: 1.5;
+
+  --type-body-md-size: 16px;
+  --type-body-md-weight: 400;
+  --type-body-md-lh: 1.5;
+
+  --type-body-strong-size: 16px;
+  --type-body-strong-weight: 500;
+  --type-body-strong-lh: 1.5;
+
+  --type-body-tight-size: 16px;
+  --type-body-tight-weight: 500;
+  --type-body-tight-lh: 1;
+
+  --type-link-md-size: 16px;
+  --type-link-md-weight: 400;
+  --type-link-md-lh: 1.5;
+
+  --type-button-md-size: 16px;
+  --type-button-md-weight: 500;
+  --type-button-md-lh: 2;
+
+  --type-caption-md-size: 14px;
+  --type-caption-md-weight: 400;
+  --type-caption-md-lh: 2;
+
+  /* ----------  COLORS — BRAND & INK  ---------- */
+  --color-primary: #201d1d;
+  --color-ink: #201d1d;
+  --color-ink-deep: #0f0000;
+  --color-on-primary: #fdfcfc;
+  --color-on-dark: #fdfcfc;
+
+  /* ----------  COLORS — SURFACES  ---------- */
+  --color-canvas: #fdfcfc;
+  --color-surface-soft: #f8f7f7;
+  --color-surface-card: #f1eeee;
+  --color-surface-dark: #201d1d;
+  --color-surface-dark-elevated: #302c2c;
+
+  /* ----------  COLORS — DIVIDERS  ---------- */
+  --color-hairline: rgba(15, 0, 0, 0.12);
+  --color-hairline-strong: #646262;
+
+  /* ----------  COLORS — TEXT LADDER  ---------- */
+  --color-text-ink: #201d1d;
+  --color-text-charcoal: #302c2c;
+  --color-text-body: #424245;
+  --color-text-mute: #646262;
+  --color-text-stone: #6e6e73;
+  --color-text-ash: #9a9898;
+
+  /* ----------  COLORS — APPLE HIG SEMANTIC RAMP  ----------
+     Reserved for the in-product TUI. Marketing chrome stays
+     monochrome. Use these inside terminal/editor mockups only. */
+  --color-accent: #007aff;
+  --color-accent-hover: #0056b3;
+  --color-accent-active: #004085;
+
+  --color-danger: #ff3b30;
+  --color-danger-hover: #d70015;
+  --color-danger-active: #a50011;
+
+  --color-warning: #ff9f0a;
+  --color-warning-hover: #cc7f08;
+  --color-warning-active: #995f06;
+
+  --color-success: #30d158;
+
+  /* ----------  RADII  ----------
+     Two values: 4px on interactive, 0 on everything else. */
+  --radius-none: 0px;
+  --radius-sm: 4px;
+  --radius-full: 9999px;
+
+  /* ----------  SPACING  ----------
+     8px base, with 1/2/4 finer steps and a 96px section rhythm. */
+  --space-xxs: 1px;
+  --space-xs: 4px;
+  --space-sm: 8px;
+  --space-md: 12px;
+  --space-lg: 16px;
+  --space-xl: 24px;
+  --space-xxl: 32px;
+  --space-section: 96px;
+
+  /* ----------  LAYOUT  ---------- */
+  --content-max: 960px;
+  --content-frame-max: 1100px;
+
+  /* ----------  ELEVATION  ----------
+     Level 0/1/2 are flat-or-hairline. The system has no shadows. */
+  --elevation-0: none;
+  --elevation-1: 0 0 0 1px var(--color-hairline);
+  --elevation-2: 0 0 0 1px var(--color-hairline-strong);
+}
+
+/* ============================================================
+   BASE / SEMANTIC ELEMENTS
+   ============================================================ */
+
+html, body {
+  background: var(--color-canvas);
+  color: var(--color-text-ink);
+  font-family: var(--font-body);
+  font-size: var(--type-body-md-size);
+  font-weight: var(--type-body-md-weight);
+  line-height: var(--type-body-md-lh);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+h1, .h1, .display-xl {
+  font-family: var(--font-display);
+  font-size: var(--type-display-xl-size);
+  font-weight: var(--type-display-xl-weight);
+  line-height: var(--type-display-xl-lh);
+  color: var(--color-text-ink);
+  margin: 0;
+  text-wrap: pretty;
+}
+
+h2, h3, h4, h5, h6, .heading-md {
+  font-family: var(--font-display);
+  font-size: var(--type-heading-md-size);
+  font-weight: var(--type-heading-md-weight);
+  line-height: var(--type-heading-md-lh);
+  color: var(--color-text-ink);
+  margin: 0;
+}
+
+p, .body-md {
+  font-family: var(--font-body);
+  font-size: var(--type-body-md-size);
+  font-weight: var(--type-body-md-weight);
+  line-height: var(--type-body-md-lh);
+  color: var(--color-text-body);
+  margin: 0;
+  text-wrap: pretty;
+}
+
+.body-strong { font-weight: var(--type-body-strong-weight); }
+.body-tight  { line-height: var(--type-body-tight-lh); }
+
+.caption,
+.caption-md {
+  font-size: var(--type-caption-md-size);
+  font-weight: var(--type-caption-md-weight);
+  line-height: var(--type-caption-md-lh);
+  color: var(--color-text-mute);
+}
+
+a, .link-inline {
+  color: var(--color-text-ink);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+code, pre, kbd, samp {
+  font-family: var(--font-mono);
+  font-size: inherit;
+}
+
+hr {
+  border: 0;
+  border-top: 1px solid var(--color-hairline);
+  margin: 0;
+}
+
+/* ============================================================
+   UTILITY CLASSES
+   ============================================================ */
+
+.canvas    { background: var(--color-canvas); }
+.surface-soft { background: var(--color-surface-soft); }
+.surface-card { background: var(--color-surface-card); }
+.surface-dark {
+  background: var(--color-surface-dark);
+  color: var(--color-on-dark);
+}
+.surface-dark-elevated {
+  background: var(--color-surface-dark-elevated);
+  color: var(--color-on-dark);
+}
+
+.ink     { color: var(--color-text-ink); }
+.charcoal{ color: var(--color-text-charcoal); }
+.body    { color: var(--color-text-body); }
+.mute    { color: var(--color-text-mute); }
+.stone   { color: var(--color-text-stone); }
+.ash     { color: var(--color-text-ash); }
+
+.hairline-top    { border-top: 1px solid var(--color-hairline); }
+.hairline-bottom { border-bottom: 1px solid var(--color-hairline); }

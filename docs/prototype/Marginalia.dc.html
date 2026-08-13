@@ -1,0 +1,741 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<meta name="design_doc_mode" content="canvas">
+<link rel="stylesheet" href="_ds/opencode-design-system-019deec9-ede7-700e-b48c-4a7a33ec0e6c/colors_and_type.css">
+<script src="_ds/opencode-design-system-019deec9-ede7-700e-b48c-4a7a33ec0e6c/_ds_bundle.js"></script>
+<style>body{margin:0;background:#fdfcfc}a{color:#201d1d;text-decoration:underline;text-underline-offset:2px}a:hover{color:#0f0000}button{font-family:inherit}::selection{background:#201d1d;color:#fdfcfc}
+.dv-turn{padding:40px 44px 32px;font-family:var(--font-mono)}
+.dv-thd{display:flex;align-items:baseline;gap:10px;margin:0 0 8px}
+.dv-tid{font:700 11px var(--font-mono);padding:3px 7px;background:#201d1d;color:#fdfcfc;border-radius:4px;text-decoration:none}
+.dv-tname{font:700 14px/1.4 var(--font-mono);color:#201d1d}
+.dv-opts{display:flex;flex-wrap:nowrap;gap:36px;align-items:flex-start;margin-top:24px;width:max-content}
+.dv-opt{flex:none;display:flex;flex-direction:column;gap:10px;scroll-margin-top:16px}
+.dv-oid{font:700 11px var(--font-mono);padding:3px 7px;background:rgba(15,0,0,0.08);color:#201d1d;border-radius:4px;text-decoration:none}
+.dv-olabel{display:flex;align-items:baseline;gap:8px;font:400 12.5px/1.4 var(--font-mono);color:#646262;max-width:410px}
+.dv-opt:target .dv-oid{background:#201d1d;color:#fdfcfc}
+.dv-next{margin:28px 0 0;font:13px/1.6 var(--font-mono);color:#9a9898}</style>
+</helmet>
+<section class="dv-turn" id="t2">
+  <div class="dv-thd"><a class="dv-tid" href="#t2">2</a><span class="dv-tname">Stream developed into the interactive prototype — from <a class="dv-oid" href="#1b">1b</a></span></div>
+  <div class="dv-opts">
+    <div class="dv-opt" id="2a">
+      <div class="dv-olabel"><a class="dv-oid" href="#2a">2a</a>Interactive — stream home across all books with tag filters, persistent capture bar (type or hold-to-record), books and review tabs. Quick captures land in Inbox.</div>
+      <x-import component-from-global-scope="IOSDevice" from="./ios-frame.jsx" hint-size="410px,860px">
+        <div style="display:flex;flex-direction:column;height:100%;background:#fdfcfc;font-family:var(--font-mono);color:#201d1d">
+          <div style="display:flex;align-items:baseline;gap:8px;padding:54px 20px 12px;border-bottom:1px solid var(--color-hairline)">
+            <span style="font-size:16px;font-weight:700">marginalia</span>
+            <span style="font-size:13px;color:#9a9898">&#183; {{ sub2 }}</span>
+          </div>
+
+          <sc-if value="{{ isStream2 }}" hint-placeholder-val="{{ true }}">
+            <div style="display:flex;flex-wrap:wrap;gap:8px;padding:12px 20px;border-bottom:1px solid var(--color-hairline)">
+              <sc-for list="{{ chips2 }}" as="c" hint-placeholder-count="4">
+                <button onClick="{{ c.on }}" style="{{ c.style }}">{{ c.label }}</button>
+              </sc-for>
+            </div>
+            <div style="flex:1;overflow-y:auto;min-height:0">
+              <sc-for list="{{ streamRows }}" as="r" hint-placeholder-count="6">
+                <sc-if value="{{ r.isHeader }}" hint-placeholder-val="{{ false }}">
+                  <div style="padding:16px 20px 6px;font-size:12.5px;color:#9a9898">{{ r.label }}</div>
+                </sc-if>
+                <sc-if value="{{ r.isNote }}" hint-placeholder-val="{{ true }}">
+                  <div style="display:grid;grid-template-columns:48px 1fr;padding:12px 20px;border-bottom:1px solid var(--color-hairline)">
+                    <span style="font-size:12.5px;color:#9a9898;padding-top:2px">{{ r.idLabel }}</span>
+                    <span style="display:flex;flex-direction:column;gap:6px">
+                      <span style="font-size:12.5px;color:#9a9898">{{ r.meta }}</span>
+                      <sc-if value="{{ r.isQuote }}" hint-placeholder-val="{{ false }}">
+                        <span style="background:#f8f7f7;border-radius:4px;padding:12px 14px;font-size:14px;line-height:1.65;color:#302c2c">&#8220;{{ r.text }}&#8221;</span>
+                      </sc-if>
+                      <sc-if value="{{ r.isPlain }}" hint-placeholder-val="{{ true }}">
+                        <span style="font-size:14px;line-height:1.65;color:#424245">{{ r.text }}</span>
+                      </sc-if>
+                      <span style="display:flex;gap:12px;flex-wrap:wrap;align-items:baseline">
+                        <button onClick="{{ r.openBook }}" style="background:none;border:none;padding:2px 0;font-size:13px;color:#646262;cursor:pointer;text-align:left">{{ r.source }}</button>
+                        <sc-for list="{{ r.links }}" as="l" hint-placeholder-count="0">
+                          <button onClick="{{ l.on }}" style="background:none;border:none;padding:2px 0;font-size:13px;color:#646262;text-decoration:underline;text-underline-offset:2px;cursor:pointer">{{ l.label }}</button>
+                        </sc-for>
+                      </span>
+                    </span>
+                  </div>
+                </sc-if>
+              </sc-for>
+            </div>
+            <sc-if value="{{ qcIdle }}" hint-placeholder-val="{{ true }}">
+              <div style="display:flex;gap:8px;padding:12px 20px;border-top:1px solid var(--color-hairline)">
+                <input value="{{ qcText }}" onChange="{{ onQcText }}" onKeyDown="{{ qcKey }}" placeholder="add a thought&#8230;" style="flex:1;min-width:0;padding:12px 14px;background:#f8f7f7;border:1px solid var(--color-hairline);border-radius:4px;font-family:inherit;font-size:14px;color:#201d1d;outline:none" style-focus="background:#fdfcfc;border-color:#201d1d">
+                <button onClick="{{ qcSubmit }}" style="{{ qcSaveStyle }}">[+]</button>
+                <button onClick="{{ startRec2 }}" style="width:48px;background:#fdfcfc;border:1px solid var(--color-hairline);border-radius:4px;font-size:14px;color:#201d1d;cursor:pointer" style-active="background:#f8f7f7">[<span style="color:#ff3b30">&#9679;</span>]</button>
+              </div>
+            </sc-if>
+            <sc-if value="{{ qcRecording }}" hint-placeholder-val="{{ false }}">
+              <div style="display:flex;align-items:center;gap:12px;padding:12px 20px;border-top:1px solid var(--color-hairline)">
+                <span style="flex:1;font-size:14px;letter-spacing:2px;color:#201d1d;overflow:hidden;white-space:nowrap">{{ recWave2 }}</span>
+                <span style="font-size:13px;color:#646262"><span style="color:#ff3b30">&#9679;</span> {{ recTimer2 }}</span>
+                <button onClick="{{ stopRec2 }}" style="padding:10px 16px;background:#201d1d;border:none;border-radius:4px;font-size:13px;font-weight:500;color:#fdfcfc;cursor:pointer" style-active="background:#0f0000">&#9632; stop</button>
+              </div>
+            </sc-if>
+            <sc-if value="{{ qcTranscribing }}" hint-placeholder-val="{{ false }}">
+              <div style="display:flex;align-items:center;justify-content:center;padding:22px 20px;border-top:1px solid var(--color-hairline);font-size:14px;color:#646262">[&#8635;] transcribing&#8230;</div>
+            </sc-if>
+          </sc-if>
+
+          <sc-if value="{{ isBooks2 }}" hint-placeholder-val="{{ false }}">
+            <div style="flex:1;overflow-y:auto;min-height:0">
+              <div style="display:flex;align-items:baseline;gap:8px;padding:20px 20px 10px;border-bottom:1px solid var(--color-hairline)">
+                <span style="font-size:18px;font-weight:700">Books</span>
+                <span style="font-size:14px;color:#9a9898">{{ libraryCount2 }}</span>
+              </div>
+              <sc-for list="{{ books2 }}" as="b" hint-placeholder-count="5">
+                <button onClick="{{ b.open }}" style="display:flex;flex-direction:column;gap:3px;width:100%;text-align:left;padding:14px 20px;background:none;border:none;border-bottom:1px solid var(--color-hairline);cursor:pointer" style-active="background:#f8f7f7">
+                  <span style="display:flex;align-items:baseline;gap:10px;width:100%">
+                    <span style="font-size:13px;color:#646262">{{ b.marker }}</span>
+                    <span style="font-size:15px;font-weight:700;color:#201d1d;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{{ b.title }}</span>
+                    <span style="font-size:13px;color:#9a9898">{{ b.count }}</span>
+                  </span>
+                  <span style="display:flex;gap:8px;padding-left:34px">
+                    <span style="font-size:13px;color:#646262">{{ b.author }}</span>
+                    <span style="font-size:13px;color:#9a9898">&#183; {{ b.statusLabel }}</span>
+                  </span>
+                </button>
+              </sc-for>
+            </div>
+          </sc-if>
+
+          <sc-if value="{{ isBookDetail2 }}" hint-placeholder-val="{{ false }}">
+            <div style="flex:1;overflow-y:auto;min-height:0">
+              <button onClick="{{ goBooks2 }}" style="display:block;padding:14px 20px 6px;background:none;border:none;font-size:14px;color:#646262;cursor:pointer;text-align:left">&#8592; books</button>
+              <div style="padding:4px 20px 16px;display:flex;flex-direction:column;gap:4px;border-bottom:1px solid var(--color-hairline)">
+                <span style="font-size:18px;font-weight:700;line-height:1.4">{{ bookTitle2 }}</span>
+                <span style="font-size:14px;color:#646262">{{ bookAuthor2 }}</span>
+                <span style="font-size:13px;color:#9a9898">{{ bookMeta2 }}</span>
+              </div>
+              <sc-for list="{{ notes2 }}" as="n" hint-placeholder-count="3">
+                <div style="padding:16px 20px;border-bottom:1px solid var(--color-hairline);display:flex;flex-direction:column;gap:8px">
+                  <span style="font-size:12.5px;color:#9a9898">{{ n.meta }}</span>
+                  <sc-if value="{{ n.isQuote }}" hint-placeholder-val="{{ false }}">
+                    <div style="background:#f8f7f7;border-radius:4px;padding:12px 14px;font-size:14px;line-height:1.65;color:#302c2c">&#8220;{{ n.text }}&#8221;</div>
+                  </sc-if>
+                  <sc-if value="{{ n.isPlain }}" hint-placeholder-val="{{ true }}">
+                    <div style="font-size:14px;line-height:1.65;color:#424245">{{ n.text }}</div>
+                  </sc-if>
+                  <sc-if value="{{ n.hasLinks }}" hint-placeholder-val="{{ false }}">
+                    <span style="display:flex;gap:14px;flex-wrap:wrap">
+                      <sc-for list="{{ n.links }}" as="l" hint-placeholder-count="1">
+                        <button onClick="{{ l.on }}" style="background:none;border:none;padding:4px 0;font-size:13px;color:#646262;text-decoration:underline;text-underline-offset:2px;cursor:pointer">{{ l.label }}</button>
+                      </sc-for>
+                    </span>
+                  </sc-if>
+                </div>
+              </sc-for>
+              <sc-if value="{{ bookIsEmpty2 }}" hint-placeholder-val="{{ false }}">
+                <div style="padding:24px 20px;font-size:14px;color:#9a9898">[x] no notes yet</div>
+              </sc-if>
+            </div>
+          </sc-if>
+
+          <sc-if value="{{ isReview2 }}" hint-placeholder-val="{{ false }}">
+            <div style="flex:1;display:flex;flex-direction:column;padding:20px;min-height:0">
+              <div style="display:flex;justify-content:space-between;align-items:baseline">
+                <span style="font-size:18px;font-weight:700">Daily review</span>
+                <span style="font-size:13px;color:#9a9898">{{ reviewPos2 }}</span>
+              </div>
+              <div style="flex:1;display:flex;flex-direction:column;justify-content:center;gap:16px;padding:24px 0">
+                <span style="font-size:12.5px;color:#9a9898">{{ revMeta2 }}</span>
+                <div style="font-size:17px;line-height:1.7;color:#201d1d;text-wrap:pretty">{{ revText2 }}</div>
+                <span style="font-size:14px;color:#646262">&#8212; {{ revSource2 }}</span>
+                <sc-if value="{{ revHasLinks2 }}" hint-placeholder-val="{{ false }}">
+                  <span style="display:flex;gap:14px;flex-wrap:wrap;align-items:baseline">
+                    <span style="font-size:13px;color:#9a9898">linked:</span>
+                    <sc-for list="{{ revLinks2 }}" as="l" hint-placeholder-count="1">
+                      <button onClick="{{ l.on }}" style="background:none;border:none;padding:4px 0;font-size:13px;color:#646262;text-decoration:underline;text-underline-offset:2px;cursor:pointer">{{ l.label }}</button>
+                    </sc-for>
+                  </span>
+                </sc-if>
+                <button onClick="{{ revOpenBook2 }}" style="align-self:flex-start;background:none;border:none;padding:8px 0;font-size:14px;color:#201d1d;text-decoration:underline;text-underline-offset:2px;cursor:pointer">open book &#8594;</button>
+              </div>
+              <div style="display:flex;flex-direction:column;gap:12px;padding-bottom:8px">
+                <div style="font-size:14px;color:#646262;letter-spacing:1px">{{ reviewBar2 }}</div>
+                <div style="display:flex;gap:8px">
+                  <button onClick="{{ revPrev2 }}" style="flex:1;padding:10px 0;background:#fdfcfc;border:1px solid var(--color-hairline);border-radius:4px;font-size:14px;font-weight:500;color:#201d1d;cursor:pointer" style-active="background:#f8f7f7">&#8592; prev</button>
+                  <button onClick="{{ revNext2 }}" style="flex:1;padding:10px 0;background:#201d1d;border:1px solid #201d1d;border-radius:4px;font-size:14px;font-weight:500;color:#fdfcfc;cursor:pointer" style-active="background:#0f0000">next &#8594;</button>
+                </div>
+              </div>
+            </div>
+          </sc-if>
+
+          <div style="display:flex;border-top:1px solid var(--color-hairline);padding-bottom:26px">
+            <sc-for list="{{ tabs2 }}" as="t" hint-placeholder-count="3">
+              <button onClick="{{ t.on }}" style="{{ t.style }}">{{ t.label }}</button>
+            </sc-for>
+          </div>
+        </div>
+      </x-import>
+    </div>
+  </div>
+  <p class="dv-next">Try next: "merge <a class="dv-oid" href="#1c">1c</a>'s card into <a class="dv-oid" href="#2a">2a</a>'s review tab" &#183; "add search to <a class="dv-oid" href="#2a">2a</a>" &#183; "let quick captures pick a book"</p>
+</section>
+<section class="dv-turn" id="t1">
+  <div class="dv-thd"><a class="dv-tid" href="#t1">1</a><span class="dv-tname">marginalia — book notes app · three directions</span></div>
+  <sc-if value="{{ showDesignNotes }}" hint-placeholder-val="{{ true }}">
+    <div style="max-width:640px;font-size:13px;line-height:1.7;color:#424245;display:flex;flex-direction:column;gap:6px">
+      <span>[+] OpenCode system: one mono face, cream canvas, hairlines, zero shadows, ASCII markers as icons</span>
+      <span>[+] Per your answers: zettel-style linked notes (n.01 &#8594; n.07), fast text + voice capture, review as core loop</span>
+      <span>[-] Assumed: transcription is on-device and instant-ish; Kindle import out of scope for v1</span>
+    </div>
+  </sc-if>
+  <div class="dv-opts">
+
+    <div class="dv-opt" id="1a">
+      <div class="dv-olabel"><a class="dv-oid" href="#1a">1a</a>Interactive prototype — books-first. Tap everything: open books, follow note links, record a voice note, save it.</div>
+      <x-import component-from-global-scope="IOSDevice" from="./ios-frame.jsx" hint-size="410px,860px">
+        <div style="display:flex;flex-direction:column;height:100%;background:#fdfcfc;font-family:var(--font-mono);color:#201d1d">
+          <div style="display:flex;align-items:baseline;gap:8px;padding:54px 20px 12px;border-bottom:1px solid var(--color-hairline)">
+            <span style="font-size:16px;font-weight:700">marginalia</span>
+            <span style="font-size:13px;color:#9a9898">&#183; notes from books</span>
+          </div>
+          <div style="flex:1;overflow-y:auto;min-height:0">
+
+            <sc-if value="{{ isLibrary }}" hint-placeholder-val="{{ true }}">
+              <div style="display:flex;align-items:baseline;gap:8px;padding:20px 20px 4px">
+                <span style="font-size:18px;font-weight:700">Library</span>
+                <span style="font-size:14px;color:#9a9898">{{ libraryCount }}</span>
+              </div>
+              <div style="display:flex;gap:4px;padding:4px 12px 0;border-bottom:1px solid var(--color-hairline)">
+                <sc-for list="{{ filters }}" as="f" hint-placeholder-count="3">
+                  <button onClick="{{ f.on }}" style="{{ f.style }}">{{ f.label }}</button>
+                </sc-for>
+              </div>
+              <sc-for list="{{ filteredBooks }}" as="b" hint-placeholder-count="5">
+                <button onClick="{{ b.open }}" style="display:flex;flex-direction:column;gap:3px;width:100%;text-align:left;padding:14px 20px;background:none;border:none;border-bottom:1px solid var(--color-hairline);cursor:pointer" style-active="background:#f8f7f7">
+                  <span style="display:flex;align-items:baseline;gap:10px;width:100%">
+                    <span style="font-size:13px;color:#646262">{{ b.marker }}</span>
+                    <span style="font-size:15px;font-weight:700;color:#201d1d;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{{ b.title }}</span>
+                    <span style="font-size:13px;color:#9a9898">{{ b.count }}</span>
+                  </span>
+                  <span style="display:flex;gap:8px;padding-left:34px">
+                    <span style="font-size:13px;color:#646262">{{ b.author }}</span>
+                    <span style="font-size:13px;color:#9a9898">&#183; {{ b.statusLabel }}</span>
+                  </span>
+                </button>
+              </sc-for>
+            </sc-if>
+
+            <sc-if value="{{ isBook }}" hint-placeholder-val="{{ false }}">
+              <button onClick="{{ goLibrary }}" style="display:block;padding:14px 20px 6px;background:none;border:none;font-size:14px;color:#646262;cursor:pointer;text-align:left">&#8592; library</button>
+              <div style="padding:4px 20px 16px;display:flex;flex-direction:column;gap:4px;border-bottom:1px solid var(--color-hairline)">
+                <span style="font-size:18px;font-weight:700;line-height:1.4">{{ bookTitle }}</span>
+                <span style="font-size:14px;color:#646262">{{ bookAuthor }}</span>
+                <span style="font-size:13px;color:#9a9898">{{ bookMeta }}</span>
+                <button onClick="{{ addNoteHere }}" style="margin-top:10px;align-self:flex-start;padding:8px 14px;background:#fdfcfc;border:1px solid var(--color-hairline);border-radius:4px;font-size:14px;font-weight:500;color:#201d1d;cursor:pointer" style-active="background:#f8f7f7">[+] add note</button>
+              </div>
+              <sc-for list="{{ notes }}" as="n" hint-placeholder-count="3">
+                <div style="padding:16px 20px;border-bottom:1px solid var(--color-hairline);display:flex;flex-direction:column;gap:8px">
+                  <span style="font-size:12.5px;color:#9a9898">{{ n.meta }}</span>
+                  <sc-if value="{{ n.isQuote }}" hint-placeholder-val="{{ false }}">
+                    <div style="background:#f8f7f7;border-radius:4px;padding:12px 14px;font-size:14px;line-height:1.65;color:#302c2c">&#8220;{{ n.text }}&#8221;</div>
+                  </sc-if>
+                  <sc-if value="{{ n.isPlain }}" hint-placeholder-val="{{ true }}">
+                    <div style="font-size:14px;line-height:1.65;color:#424245">{{ n.text }}</div>
+                  </sc-if>
+                  <sc-if value="{{ n.hasLinks }}" hint-placeholder-val="{{ false }}">
+                    <span style="display:flex;gap:14px;flex-wrap:wrap">
+                      <sc-for list="{{ n.links }}" as="l" hint-placeholder-count="1">
+                        <button onClick="{{ l.on }}" style="background:none;border:none;padding:4px 0;font-size:13px;color:#646262;text-decoration:underline;text-underline-offset:2px;cursor:pointer">{{ l.label }}</button>
+                      </sc-for>
+                    </span>
+                  </sc-if>
+                </div>
+              </sc-for>
+              <sc-if value="{{ bookIsEmpty }}" hint-placeholder-val="{{ false }}">
+                <div style="padding:24px 20px;font-size:14px;color:#9a9898">[x] no notes yet — capture the first one</div>
+              </sc-if>
+            </sc-if>
+
+            <sc-if value="{{ isCapture }}" hint-placeholder-val="{{ false }}">
+              <div style="padding:20px;display:flex;flex-direction:column;gap:16px">
+                <span style="font-size:18px;font-weight:700">New note</span>
+                <div style="display:flex;gap:8px">
+                  <button onClick="{{ setQuote }}" style="{{ quoteBtnStyle }}">[q] quote</button>
+                  <button onClick="{{ setThought }}" style="{{ thoughtBtnStyle }}">[t] thought</button>
+                  <button onClick="{{ setVoice }}" style="{{ voiceBtnStyle }}">[v] voice</button>
+                </div>
+                <button onClick="{{ cycleBook }}" style="display:flex;justify-content:space-between;align-items:center;gap:8px;padding:12px 14px;background:#fdfcfc;border:1px solid var(--color-hairline);border-radius:4px;font-size:14px;color:#201d1d;cursor:pointer;text-align:left" style-active="background:#f8f7f7">
+                  <span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">book &#183; {{ captureBookTitle }}</span>
+                  <span style="color:#646262">&#9660;</span>
+                </button>
+                <sc-if value="{{ capIsText }}" hint-placeholder-val="{{ true }}">
+                  <textarea value="{{ capText }}" onChange="{{ onCapText }}" placeholder="{{ capPlaceholder }}" style="height:150px;resize:none;background:#f8f7f7;border:1px solid var(--color-hairline);border-radius:4px;padding:12px 14px;font-family:inherit;font-size:15px;line-height:1.6;color:#201d1d;outline:none" style-focus="background:#fdfcfc;border-color:#201d1d"></textarea>
+                </sc-if>
+                <sc-if value="{{ capIsVoice }}" hint-placeholder-val="{{ false }}">
+                  <sc-if value="{{ recIdle }}" hint-placeholder-val="{{ true }}">
+                    <div style="height:150px;display:flex;align-items:center;justify-content:center;background:#f8f7f7;border:1px solid var(--color-hairline);border-radius:4px">
+                      <button onClick="{{ startRec }}" style="padding:12px 20px;background:#fdfcfc;border:1px solid var(--color-hairline);border-radius:4px;font-size:15px;font-weight:500;cursor:pointer;color:#201d1d" style-active="background:#f1eeee"><span style="color:#ff3b30">&#9679;</span> record</button>
+                    </div>
+                  </sc-if>
+                  <sc-if value="{{ recRecording }}" hint-placeholder-val="{{ false }}">
+                    <div style="height:150px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;background:#f8f7f7;border:1px solid #201d1d;border-radius:4px">
+                      <span style="font-size:16px;letter-spacing:2px;color:#201d1d">{{ recWave }}</span>
+                      <span style="font-size:13px;color:#646262"><span style="color:#ff3b30">&#9679;</span> recording &#183; {{ recTimer }}</span>
+                      <button onClick="{{ stopRec }}" style="padding:8px 18px;background:#201d1d;border:none;border-radius:4px;font-size:14px;font-weight:500;color:#fdfcfc;cursor:pointer" style-active="background:#0f0000">&#9632; stop</button>
+                    </div>
+                  </sc-if>
+                  <sc-if value="{{ recTranscribing }}" hint-placeholder-val="{{ false }}">
+                    <div style="height:150px;display:flex;align-items:center;justify-content:center;background:#f8f7f7;border:1px solid var(--color-hairline);border-radius:4px;font-size:14px;color:#646262">[&#8635;] transcribing&#8230;</div>
+                  </sc-if>
+                  <sc-if value="{{ recDone }}" hint-placeholder-val="{{ false }}">
+                    <div style="display:flex;flex-direction:column;gap:8px">
+                      <span style="font-size:12.5px;color:#9a9898">[v] transcribed &#183; edit before saving</span>
+                      <textarea value="{{ capText }}" onChange="{{ onCapText }}" style="height:120px;resize:none;background:#fdfcfc;border:1px solid #201d1d;border-radius:4px;padding:12px 14px;font-family:inherit;font-size:15px;line-height:1.6;color:#201d1d;outline:none"></textarea>
+                    </div>
+                  </sc-if>
+                </sc-if>
+                <div style="display:flex;gap:8px">
+                  <input value="{{ capPage }}" onChange="{{ onCapPage }}" placeholder="p." style="width:90px;padding:12px 14px;background:#f8f7f7;border:1px solid var(--color-hairline);border-radius:4px;font-family:inherit;font-size:14px;color:#201d1d;outline:none" style-focus="background:#fdfcfc;border-color:#201d1d">
+                  <input value="{{ capTag }}" onChange="{{ onCapTag }}" placeholder="#tag" style="flex:1;padding:12px 14px;background:#f8f7f7;border:1px solid var(--color-hairline);border-radius:4px;font-family:inherit;font-size:14px;color:#201d1d;outline:none" style-focus="background:#fdfcfc;border-color:#201d1d">
+                </div>
+                <button onClick="{{ onSave }}" style="{{ saveStyle }}" style-active="background:#0f0000">Save note</button>
+              </div>
+            </sc-if>
+
+            <sc-if value="{{ isReview }}" hint-placeholder-val="{{ false }}">
+              <div style="display:flex;flex-direction:column;height:100%;padding:20px">
+                <div style="display:flex;justify-content:space-between;align-items:baseline">
+                  <span style="font-size:18px;font-weight:700">Daily review</span>
+                  <span style="font-size:13px;color:#9a9898">{{ reviewPos }}</span>
+                </div>
+                <div style="flex:1;display:flex;flex-direction:column;justify-content:center;gap:16px;padding:24px 0">
+                  <span style="font-size:12.5px;color:#9a9898">{{ revMeta }}</span>
+                  <div style="font-size:17px;line-height:1.7;color:#201d1d;text-wrap:pretty">{{ revText }}</div>
+                  <span style="font-size:14px;color:#646262">&#8212; {{ revSource }}</span>
+                  <sc-if value="{{ revHasLinks }}" hint-placeholder-val="{{ false }}">
+                    <span style="display:flex;gap:14px;flex-wrap:wrap;align-items:baseline">
+                      <span style="font-size:13px;color:#9a9898">linked:</span>
+                      <sc-for list="{{ revLinks }}" as="l" hint-placeholder-count="1">
+                        <button onClick="{{ l.on }}" style="background:none;border:none;padding:4px 0;font-size:13px;color:#646262;text-decoration:underline;text-underline-offset:2px;cursor:pointer">{{ l.label }}</button>
+                      </sc-for>
+                    </span>
+                  </sc-if>
+                  <button onClick="{{ revOpenBook }}" style="align-self:flex-start;background:none;border:none;padding:8px 0;font-size:14px;color:#201d1d;text-decoration:underline;text-underline-offset:2px;cursor:pointer">open book &#8594;</button>
+                </div>
+                <div style="display:flex;flex-direction:column;gap:12px;padding-bottom:8px">
+                  <div style="font-size:14px;color:#646262;letter-spacing:1px">{{ reviewBar }}</div>
+                  <div style="display:flex;gap:8px">
+                    <button onClick="{{ revPrev }}" style="flex:1;padding:10px 0;background:#fdfcfc;border:1px solid var(--color-hairline);border-radius:4px;font-size:14px;font-weight:500;color:#201d1d;cursor:pointer" style-active="background:#f8f7f7">&#8592; prev</button>
+                    <button onClick="{{ revNext }}" style="flex:1;padding:10px 0;background:#201d1d;border:1px solid #201d1d;border-radius:4px;font-size:14px;font-weight:500;color:#fdfcfc;cursor:pointer" style-active="background:#0f0000">next &#8594;</button>
+                  </div>
+                </div>
+              </div>
+            </sc-if>
+
+          </div>
+          <div style="display:flex;border-top:1px solid var(--color-hairline);padding-bottom:26px">
+            <sc-for list="{{ tabs }}" as="t" hint-placeholder-count="3">
+              <button onClick="{{ t.on }}" style="{{ t.style }}">{{ t.label }}</button>
+            </sc-for>
+          </div>
+        </div>
+      </x-import>
+    </div>
+
+    <div class="dv-opt" id="1b">
+      <div class="dv-olabel"><a class="dv-oid" href="#1b">1b</a>Stream — one chronological feed across all books, tag filters, persistent capture bar. Static.</div>
+      <x-import component-from-global-scope="IOSDevice" from="./ios-frame.jsx" hint-size="410px,860px">
+        <div style="display:flex;flex-direction:column;height:100%;background:#fdfcfc;font-family:var(--font-mono);color:#201d1d">
+          <div style="display:flex;align-items:baseline;gap:8px;padding:54px 20px 12px;border-bottom:1px solid var(--color-hairline)">
+            <span style="font-size:16px;font-weight:700">marginalia</span>
+            <span style="font-size:13px;color:#9a9898">&#183; stream</span>
+          </div>
+          <div style="display:flex;gap:8px;padding:12px 20px;border-bottom:1px solid var(--color-hairline);overflow:hidden">
+            <span style="padding:6px 12px;background:#201d1d;color:#fdfcfc;border-radius:4px;font-size:13px;font-weight:500">all</span>
+            <span style="padding:6px 12px;border:1px solid var(--color-hairline);border-radius:4px;font-size:13px;color:#646262">#systems</span>
+            <span style="padding:6px 12px;border:1px solid var(--color-hairline);border-radius:4px;font-size:13px;color:#646262">#quality</span>
+            <span style="padding:6px 12px;border:1px solid var(--color-hairline);border-radius:4px;font-size:13px;color:#646262">#design</span>
+          </div>
+          <div style="flex:1;overflow-y:auto;min-height:0">
+            <div style="padding:16px 20px 6px;font-size:12.5px;color:#9a9898">today &#183; wed aug 13</div>
+            <div style="display:grid;grid-template-columns:48px 1fr;gap:4px 0;padding:12px 20px;border-bottom:1px solid var(--color-hairline)">
+              <span style="font-size:12.5px;color:#9a9898;padding-top:2px">n.11</span>
+              <span style="display:flex;flex-direction:column;gap:6px">
+                <span style="font-size:12.5px;color:#9a9898">[v] voice &#183; 2 min ago</span>
+                <span style="font-size:14px;line-height:1.65;color:#424245">Attention is a finite budget and switching costs are paid in comprehension &#8212; same as context switching in engineering work.</span>
+                <span style="font-size:13px;color:#646262">Thinking, Fast and Slow &#183; p.214 &#183; #systems</span>
+              </span>
+            </div>
+            <div style="display:grid;grid-template-columns:48px 1fr;gap:4px 0;padding:12px 20px;border-bottom:1px solid var(--color-hairline)">
+              <span style="font-size:12.5px;color:#9a9898;padding-top:2px">n.10</span>
+              <span style="display:flex;flex-direction:column;gap:6px">
+                <span style="font-size:12.5px;color:#9a9898">[t] thought &#183; 1 hr ago</span>
+                <span style="font-size:14px;line-height:1.65;color:#424245">Good error messages assume the user is competent and the system is at fault. Applies to people too.</span>
+                <span style="font-size:13px;color:#646262">The Design of Everyday Things &#183; p.65 &#183; #design &#183; &#8594; n.09</span>
+              </span>
+            </div>
+            <div style="padding:16px 20px 6px;font-size:12.5px;color:#9a9898">yesterday</div>
+            <div style="display:grid;grid-template-columns:48px 1fr;gap:4px 0;padding:12px 20px;border-bottom:1px solid var(--color-hairline)">
+              <span style="font-size:12.5px;color:#9a9898;padding-top:2px">n.09</span>
+              <span style="display:flex;flex-direction:column;gap:6px">
+                <span style="font-size:12.5px;color:#9a9898">[q] quote</span>
+                <span style="background:#f8f7f7;border-radius:4px;padding:12px 14px;font-size:14px;line-height:1.65;color:#302c2c">&#8220;Confine thyself to the present.&#8221;</span>
+                <span style="font-size:13px;color:#646262">Meditations &#183; p.47 &#183; #stoicism</span>
+              </span>
+            </div>
+            <div style="display:grid;grid-template-columns:48px 1fr;gap:4px 0;padding:12px 20px;border-bottom:1px solid var(--color-hairline)">
+              <span style="font-size:12.5px;color:#9a9898;padding-top:2px">n.08</span>
+              <span style="display:flex;flex-direction:column;gap:6px">
+                <span style="font-size:12.5px;color:#9a9898">[t] thought</span>
+                <span style="font-size:14px;line-height:1.65;color:#424245">Gumption traps map exactly onto debugging morale. Setbacks are part of the work, not interruptions to it.</span>
+                <span style="font-size:13px;color:#646262">Zen and the Art of Motorcycle Maintenance &#183; p.160 &#183; #craft &#183; &#8594; n.03</span>
+              </span>
+            </div>
+          </div>
+          <div style="display:flex;gap:8px;padding:12px 20px;border-top:1px solid var(--color-hairline)">
+            <span style="flex:1;padding:12px 14px;background:#f8f7f7;border:1px solid var(--color-hairline);border-radius:4px;font-size:14px;color:#9a9898">add a thought&#8230;</span>
+            <span style="width:48px;display:flex;align-items:center;justify-content:center;background:#201d1d;border-radius:4px;font-size:14px;color:#fdfcfc">[<span style="color:#ff3b30">&#9679;</span>]</span>
+          </div>
+          <div style="display:flex;border-top:1px solid var(--color-hairline);padding-bottom:26px">
+            <span style="flex:1;min-height:52px;display:flex;align-items:center;justify-content:center;border-top:2px solid #201d1d;margin-top:-1px;font-size:13px;font-weight:700;color:#201d1d">[~] stream</span>
+            <span style="flex:1;min-height:52px;display:flex;align-items:center;justify-content:center;font-size:13px;color:#646262">[=] books</span>
+            <span style="flex:1;min-height:52px;display:flex;align-items:center;justify-content:center;font-size:13px;color:#646262">[&#8635;] review</span>
+          </div>
+        </div>
+      </x-import>
+    </div>
+
+    <div class="dv-opt" id="1c">
+      <div class="dv-olabel"><a class="dv-oid" href="#1c">1c</a>Index card — review as the home screen: one note per card, keep/skip/later, link trail. Static.</div>
+      <x-import component-from-global-scope="IOSDevice" from="./ios-frame.jsx" hint-size="410px,860px">
+        <div style="display:flex;flex-direction:column;height:100%;background:#fdfcfc;font-family:var(--font-mono);color:#201d1d">
+          <div style="display:flex;align-items:baseline;gap:8px;padding:54px 20px 12px;border-bottom:1px solid var(--color-hairline)">
+            <span style="font-size:16px;font-weight:700">marginalia</span>
+            <span style="font-size:13px;color:#9a9898">&#183; review</span>
+          </div>
+          <div style="flex:1;display:flex;flex-direction:column;padding:20px;min-height:0">
+            <div style="display:flex;justify-content:space-between;align-items:baseline">
+              <span style="font-size:18px;font-weight:700">Daily review</span>
+              <span style="font-size:13px;color:#9a9898">3 of 10</span>
+            </div>
+            <div style="flex:1;display:flex;flex-direction:column;justify-content:center">
+              <div style="border:1px solid var(--color-hairline);padding:28px 24px;display:flex;flex-direction:column;gap:16px">
+                <span style="font-size:12.5px;color:#9a9898">n.05 &#183; [q] quote &#183; #stoicism</span>
+                <span style="font-size:20px;line-height:1.65;color:#201d1d;text-wrap:pretty">&#8220;The universe is transformation: life is opinion.&#8221;</span>
+                <span style="font-size:14px;color:#646262">&#8212; Meditations, Marcus Aurelius</span>
+                <hr style="border:0;border-top:1px solid var(--color-hairline)">
+                <span style="font-size:13px;color:#646262">linked: <span style="text-decoration:underline;text-underline-offset:2px">&#8594; n.04</span> &#160; <span style="text-decoration:underline;text-underline-offset:2px">&#8594; n.06</span></span>
+              </div>
+              <div style="margin-top:16px;font-size:14px;color:#646262;letter-spacing:1px">[&#9608;&#9608;&#9608;&#9617;&#9617;&#9617;&#9617;&#9617;&#9617;&#9617;]</div>
+            </div>
+            <div style="display:flex;flex-direction:column;gap:10px;padding-bottom:8px">
+              <div style="display:flex;gap:8px">
+                <span style="flex:1;min-height:48px;display:flex;align-items:center;justify-content:center;background:#201d1d;border-radius:4px;font-size:14px;font-weight:500;color:#fdfcfc">[x] keep</span>
+                <span style="flex:1;min-height:48px;display:flex;align-items:center;justify-content:center;border:1px solid var(--color-hairline);border-radius:4px;font-size:14px;font-weight:500;color:#201d1d">[-] skip</span>
+                <span style="flex:1;min-height:48px;display:flex;align-items:center;justify-content:center;border:1px solid var(--color-hairline);border-radius:4px;font-size:14px;font-weight:500;color:#201d1d">[&#8635;] later</span>
+              </div>
+              <span style="text-align:center;font-size:12.5px;color:#9a9898">kept notes resurface in 7 days</span>
+            </div>
+          </div>
+          <div style="display:flex;border-top:1px solid var(--color-hairline);padding-bottom:26px">
+            <span style="flex:1;min-height:52px;display:flex;align-items:center;justify-content:center;border-top:2px solid #201d1d;margin-top:-1px;font-size:13px;font-weight:700;color:#201d1d">[&#8635;] review</span>
+            <span style="flex:1;min-height:52px;display:flex;align-items:center;justify-content:center;font-size:13px;color:#646262">[=] books</span>
+            <span style="flex:1;min-height:52px;display:flex;align-items:center;justify-content:center;font-size:13px;color:#646262">[+] capture</span>
+          </div>
+        </div>
+      </x-import>
+    </div>
+
+  </div>
+  <p class="dv-next">Try next: "develop <a class="dv-oid" href="#1b">1b</a> into the interactive prototype" &#183; "merge <a class="dv-oid" href="#1c">1c</a>'s card into <a class="dv-oid" href="#1a">1a</a>'s review tab" &#183; "add a search / graph screen"</p>
+</section>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;startScreen&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;options&quot;:[&quot;library&quot;,&quot;capture&quot;,&quot;review&quot;],&quot;default&quot;:&quot;library&quot;,&quot;tsType&quot;:&quot;string&quot;,&quot;section&quot;:&quot;Behavior&quot;},&quot;showPageNumbers&quot;:{&quot;editor&quot;:&quot;boolean&quot;,&quot;default&quot;:true,&quot;tsType&quot;:&quot;boolean&quot;,&quot;section&quot;:&quot;Notes&quot;},&quot;showDesignNotes&quot;:{&quot;editor&quot;:&quot;boolean&quot;,&quot;default&quot;:true,&quot;tsType&quot;:&quot;boolean&quot;,&quot;section&quot;:&quot;Presentation&quot;}}">
+class Component extends DCLogic {
+  constructor(props) {
+    super(props);
+    this.state = {
+      screen: props.startScreen ?? 'library',
+      filter: 'all', bookId: null, reviewIdx: 0, nextId: 12,
+      tab2: 'stream', tag2: 'all', view2: 'list', bookId2: null, reviewIdx2: 0,
+      qc: { text: '' }, rec2: { status: 'idle', wave: '', ticks: 0 },
+      cap: { type: 'q', bookId: 'b1', text: '', page: '', tag: '' },
+      rec: { status: 'idle', wave: '', ticks: 0 },
+      books: [
+        { id: 'b1', title: 'Thinking, Fast and Slow', author: 'Daniel Kahneman', status: 'reading', progress: 'p.214/499', notes: [
+          { id: 'n11', type: 'v', text: 'Attention is a finite budget and switching costs are paid in comprehension \u2014 same as context switching in engineering work.', page: '214', tag: '#systems', links: [], when: 'today', ago: '2 min ago' },
+          { id: 'n01', type: 't', text: "System 1 isn't a bug. Most of what I call 'thinking' is pattern-matching that already happened before I noticed.", page: '24', tag: '#systems', links: ['n07'], when: 'earlier' },
+          { id: 'n02', type: 't', text: 'Anchoring explains why the first number spoken in a planning meeting decides the whole budget. Never open with an estimate you don\u2019t believe.', page: '119', tag: '#negotiation', links: [], when: 'earlier' },
+          { id: 'n03', type: 't', text: 'The planning fallacy \u2014 I do this with every side project. The outside view: look at how long similar projects actually took, not how this one feels.', page: '250', tag: '#planning', links: ['n08'], when: 'yesterday' }
+        ]},
+        { id: 'b2', title: 'Meditations', author: 'Marcus Aurelius', status: 'finished', progress: '', notes: [
+          { id: 'n04', type: 'q', text: 'Confine thyself to the present.', page: '47', tag: '#stoicism', links: [], when: 'earlier' },
+          { id: 'n05', type: 'q', text: 'The universe is transformation: life is opinion.', page: '52', tag: '#stoicism', links: ['n04'], when: 'earlier' },
+          { id: 'n06', type: 't', text: 'He keeps returning to the same few moves: zoom out, accept, act. It reads like a notebook of reminders, not arguments.', page: '', tag: '#stoicism', links: ['n04'], when: 'yesterday' }
+        ]},
+        { id: 'b3', title: 'Zen and the Art of Motorcycle Maintenance', author: 'Robert M. Pirsig', status: 'reading', progress: 'p.184/418', notes: [
+          { id: 'n07', type: 't', text: 'Quality can\u2019t be defined but you know it when you see it \u2014 the same problem as \u201cgood taste\u201d in code review.', page: '184', tag: '#quality', links: ['n01', 'n09'], when: 'yesterday' },
+          { id: 'n08', type: 't', text: 'Gumption traps map exactly onto debugging morale. Setbacks are part of the work, not interruptions to it.', page: '160', tag: '#craft', links: ['n03'], when: 'yesterday' }
+        ]},
+        { id: 'b4', title: 'The Beginning of Infinity', author: 'David Deutsch', status: 'queued', progress: '', notes: [] },
+        { id: 'b5', title: 'The Design of Everyday Things', author: 'Don Norman', status: 'finished', progress: '', notes: [
+          { id: 'n09', type: 't', text: 'Affordances vs signifiers \u2014 the door-handle problem shows up in CLI design too: flags nobody can discover.', page: '13', tag: '#design', links: ['n07'], when: 'earlier' },
+          { id: 'n10', type: 't', text: 'Good error messages assume the user is competent and the system is at fault. Applies to people too.', page: '65', tag: '#design', links: ['n09'], when: 'today', ago: '1 hr ago' }
+        ]},
+        { id: 'b0', title: 'Inbox', author: 'quick captures, unfiled', status: 'inbox', progress: '', notes: [] }
+      ]
+    };
+  }
+  componentWillUnmount() { clearInterval(this._wt); clearTimeout(this._tt); clearInterval(this._wt2); clearTimeout(this._tt2); }
+  jumpTo2(noteId) {
+    const b = this.state.books.find(b => b.notes.some(n => n.id === noteId));
+    if (b) this.setState({ tab2: 'books', view2: 'detail', bookId2: b.id });
+  }
+  linksFor2(n) {
+    return (n.links || []).map(lid => ({ label: '\u2192 ' + this.fmtId(lid), on: () => this.jumpTo2(lid) }));
+  }
+  startRec2() {
+    clearInterval(this._wt2);
+    this.setState({ rec2: { status: 'recording', wave: '', ticks: 0 } });
+    const bars = '\u2581\u2582\u2583\u2584\u2585\u2586\u2587';
+    this._wt2 = setInterval(() => {
+      const w = Array.from({ length: 18 }, () => bars[Math.floor(Math.random() * bars.length)]).join('');
+      this.setState(s => ({ rec2: { ...s.rec2, wave: w, ticks: s.rec2.ticks + 1 } }));
+    }, 200);
+  }
+  stopRec2() {
+    clearInterval(this._wt2);
+    this.setState(s => ({ rec2: { ...s.rec2, status: 'transcribing' } }));
+    this._tt2 = setTimeout(() => {
+      this.setState({
+        rec2: { status: 'idle', wave: '', ticks: 0 },
+        qc: { text: 'The narrative fallacy: we compress what happened into a story, then trust the story more than the record.' }
+      });
+    }, 900);
+  }
+  qcSubmit() {
+    const S = this.state, text = S.qc.text.trim();
+    if (!text) return;
+    const note = { id: 'n' + S.nextId, type: 't', text, page: '', tag: '', links: [], when: 'today', ago: 'just now' };
+    this.setState({
+      books: S.books.map(b => b.id === 'b0' ? { ...b, notes: [note, ...b.notes] } : b),
+      nextId: S.nextId + 1, qc: { text: '' }
+    });
+  }
+  markerFor(s) { return s === 'reading' ? '[+]' : s === 'finished' ? '[x]' : '[-]'; }
+  typeLabel(t) { return t === 'q' ? '[q] quote' : t === 'v' ? '[v] voice' : '[t] thought'; }
+  fmtId(id) { return 'n.' + id.slice(1); }
+  noteMeta(n) {
+    const parts = [this.fmtId(n.id), this.typeLabel(n.type)];
+    if ((this.props.showPageNumbers ?? true) && n.page) parts.push('p.' + n.page);
+    if (n.tag) parts.push(n.tag);
+    return parts.join(' \u00b7 ');
+  }
+  jumpTo(noteId) {
+    const b = this.state.books.find(b => b.notes.some(n => n.id === noteId));
+    if (b) this.setState({ screen: 'book', bookId: b.id });
+  }
+  linksFor(n) {
+    return (n.links || []).map(lid => ({ label: '\u2192 ' + this.fmtId(lid), on: () => this.jumpTo(lid) }));
+  }
+  segStyle(active) {
+    return { flex: 1, minHeight: '44px', padding: '10px 0', borderRadius: '4px', fontSize: '14px', fontWeight: 500, cursor: 'pointer',
+      background: active ? '#201d1d' : '#fdfcfc', color: active ? '#fdfcfc' : '#646262',
+      border: active ? '1px solid #201d1d' : '1px solid rgba(15,0,0,0.12)' };
+  }
+  startRec() {
+    clearInterval(this._wt);
+    this.setState({ rec: { status: 'recording', wave: '', ticks: 0 } });
+    const bars = '\u2581\u2582\u2583\u2584\u2585\u2586\u2587';
+    this._wt = setInterval(() => {
+      const w = Array.from({ length: 22 }, () => bars[Math.floor(Math.random() * bars.length)]).join('');
+      this.setState(s => ({ rec: { ...s.rec, wave: w, ticks: s.rec.ticks + 1 } }));
+    }, 200);
+  }
+  stopRec() {
+    clearInterval(this._wt);
+    this.setState(s => ({ rec: { ...s.rec, status: 'transcribing' } }));
+    this._tt = setTimeout(() => {
+      this.setState(s => ({
+        rec: { ...s.rec, status: 'done' },
+        cap: { ...s.cap, text: 'Attention is a finite budget and switching costs are paid in comprehension \u2014 same as context switching in engineering work.' }
+      }));
+    }, 900);
+  }
+  renderVals() {
+    const S = this.state, set = (p) => this.setState(p);
+    const books = S.books;
+    const filters = ['all', 'reading', 'finished'].map(f => ({
+      label: f, on: () => set({ filter: f }),
+      style: { padding: '10px 8px', minHeight: '40px', background: 'none', border: 'none', cursor: 'pointer', fontSize: '14px', marginBottom: '-1px',
+        borderBottom: S.filter === f ? '2px solid #201d1d' : '2px solid transparent',
+        fontWeight: S.filter === f ? 700 : 400, color: S.filter === f ? '#201d1d' : '#646262' }
+    }));
+    const filteredBooks = books.filter(b => S.filter === 'all' || b.status === S.filter).map(b => ({
+      title: b.title, author: b.author, marker: this.markerFor(b.status), statusLabel: b.status,
+      count: '[' + b.notes.length + ']', open: () => set({ screen: 'book', bookId: b.id })
+    }));
+    const cur = books.find(b => b.id === S.bookId) || books[0];
+    const metaParts = [cur.notes.length + (cur.notes.length === 1 ? ' note' : ' notes'), cur.status];
+    if (cur.progress) metaParts.push(cur.progress);
+    const capBook = books.find(b => b.id === S.cap.bookId) || books[0];
+    const pool = books.flatMap(b => b.notes.map(n => ({ n, b })));
+    const ri = pool.length ? ((S.reviewIdx % pool.length) + pool.length) % pool.length : 0;
+    const rev = pool[ri];
+    const filled = pool.length ? Math.round(((ri + 1) / pool.length) * 10) : 0;
+    const canSave = S.cap.text.trim().length > 0;
+    const tabDefs = [['library', '[=] library'], ['capture', '[+] capture'], ['review', '[\u21bb] review']];
+    const onScreen = S.screen === 'book' ? 'library' : S.screen;
+    const secs = Math.floor(S.rec.ticks / 5);
+    // ---- 2a: stream prototype ----
+    const all2 = books.flatMap(b => b.notes.map(n => ({ n, b })));
+    const tags2 = ['all', ...Array.from(new Set(all2.map(x => x.n.tag).filter(Boolean)))];
+    const chips2 = tags2.map(t => ({
+      label: t, on: () => set({ tag2: t }),
+      style: { padding: '8px 12px', minHeight: '36px', borderRadius: '4px', fontSize: '13px', cursor: 'pointer',
+        background: S.tag2 === t ? '#201d1d' : '#fdfcfc', color: S.tag2 === t ? '#fdfcfc' : '#646262',
+        border: S.tag2 === t ? '1px solid #201d1d' : '1px solid rgba(15,0,0,0.12)', fontWeight: S.tag2 === t ? 500 : 400 }
+    }));
+    const inTag = all2.filter(x => S.tag2 === 'all' || x.n.tag === S.tag2);
+    const num = id => parseInt(id.slice(1), 10);
+    const streamRows = [];
+    [['today', 'today \u00b7 wed aug 13'], ['yesterday', 'yesterday'], ['earlier', 'earlier']].forEach(([w, label]) => {
+      const group = inTag.filter(x => (x.n.when || 'earlier') === w).sort((a, b2) => num(b2.n.id) - num(a.n.id));
+      if (!group.length) return;
+      streamRows.push({ isHeader: true, isNote: false, label });
+      group.forEach(({ n, b }) => {
+        const srcParts = [b.title];
+        if ((this.props.showPageNumbers ?? true) && n.page) srcParts.push('p.' + n.page);
+        if (n.tag) srcParts.push(n.tag);
+        streamRows.push({
+          isHeader: false, isNote: true, idLabel: this.fmtId(n.id),
+          meta: this.typeLabel(n.type) + (n.ago ? ' \u00b7 ' + n.ago : ''),
+          text: n.text, isQuote: n.type === 'q', isPlain: n.type !== 'q',
+          source: srcParts.join(' \u00b7 '), links: this.linksFor2(n),
+          openBook: () => set({ tab2: 'books', view2: 'detail', bookId2: b.id })
+        });
+      });
+    });
+    const cur2 = books.find(b => b.id === S.bookId2) || books[0];
+    const meta2 = [cur2.notes.length + (cur2.notes.length === 1 ? ' note' : ' notes'), cur2.status];
+    if (cur2.progress) meta2.push(cur2.progress);
+    const ri2 = all2.length ? ((S.reviewIdx2 % all2.length) + all2.length) % all2.length : 0;
+    const rev2 = all2[ri2];
+    const filled2 = all2.length ? Math.round(((ri2 + 1) / all2.length) * 10) : 0;
+    const qcCan = S.qc.text.trim().length > 0;
+    const secs2 = Math.floor(S.rec2.ticks / 5);
+    const tabDefs2 = [['stream', '[~] stream'], ['books', '[=] books'], ['review', '[\u21bb] review']];
+    const vals2 = {
+      sub2: S.tab2 === 'stream' ? 'stream' : S.tab2 === 'books' ? 'books' : 'review',
+      isStream2: S.tab2 === 'stream',
+      isBooks2: S.tab2 === 'books' && S.view2 === 'list',
+      isBookDetail2: S.tab2 === 'books' && S.view2 === 'detail',
+      isReview2: S.tab2 === 'review',
+      chips2, streamRows,
+      qcIdle: S.rec2.status === 'idle', qcRecording: S.rec2.status === 'recording',
+      qcTranscribing: S.rec2.status === 'transcribing',
+      recWave2: S.rec2.wave || '\u2581'.repeat(18),
+      recTimer2: '0:' + String(secs2).padStart(2, '0'),
+      startRec2: () => this.startRec2(), stopRec2: () => this.stopRec2(),
+      qcText: S.qc.text, onQcText: e => set({ qc: { text: e.target.value } }),
+      qcKey: e => { if (e.key === 'Enter') this.qcSubmit(); },
+      qcSubmit: () => this.qcSubmit(),
+      qcSaveStyle: { width: '48px', background: qcCan ? '#201d1d' : '#9a9898', border: 'none', borderRadius: '4px', fontSize: '14px', color: '#fdfcfc', cursor: qcCan ? 'pointer' : 'default' },
+      libraryCount2: '[' + books.length + ']',
+      books2: books.map(b => ({
+        title: b.title, author: b.author, marker: this.markerFor(b.status), statusLabel: b.status,
+        count: '[' + b.notes.length + ']', open: () => set({ view2: 'detail', bookId2: b.id })
+      })),
+      goBooks2: () => set({ view2: 'list' }),
+      bookTitle2: cur2.title, bookAuthor2: cur2.author, bookMeta2: meta2.join(' \u00b7 '),
+      bookIsEmpty2: cur2.notes.length === 0,
+      notes2: cur2.notes.map(n => {
+        const links = this.linksFor2(n);
+        return { meta: this.noteMeta(n), text: n.text, isQuote: n.type === 'q', isPlain: n.type !== 'q', hasLinks: links.length > 0, links };
+      }),
+      reviewPos2: all2.length ? (ri2 + 1) + ' of ' + all2.length : '0 of 0',
+      revMeta2: rev2 ? this.noteMeta(rev2.n) : '',
+      revText2: rev2 ? (rev2.n.type === 'q' ? '\u201c' + rev2.n.text + '\u201d' : rev2.n.text) : '[x] nothing to review yet',
+      revSource2: rev2 ? rev2.b.title + ', ' + rev2.b.author : '',
+      revHasLinks2: rev2 ? this.linksFor2(rev2.n).length > 0 : false,
+      revLinks2: rev2 ? this.linksFor2(rev2.n) : [],
+      revOpenBook2: () => { if (rev2) set({ tab2: 'books', view2: 'detail', bookId2: rev2.b.id }); },
+      revPrev2: () => set({ reviewIdx2: S.reviewIdx2 - 1 }),
+      revNext2: () => set({ reviewIdx2: S.reviewIdx2 + 1 }),
+      reviewBar2: '[' + '\u2588'.repeat(filled2) + '\u2591'.repeat(10 - filled2) + ']',
+      tabs2: tabDefs2.map(([id, label]) => ({
+        label, on: () => set({ tab2: id, view2: id === 'books' ? 'list' : S.view2 }),
+        style: { flex: 1, minHeight: '52px', padding: '12px 0', background: 'none', border: 'none', cursor: 'pointer', fontSize: '13px',
+          borderTop: S.tab2 === id ? '2px solid #201d1d' : '2px solid transparent', marginTop: '-1px',
+          fontWeight: S.tab2 === id ? 700 : 400, color: S.tab2 === id ? '#201d1d' : '#646262' }
+      }))
+    };
+    return {
+      ...vals2,
+      showDesignNotes: this.props.showDesignNotes ?? true,
+      isLibrary: S.screen === 'library', isBook: S.screen === 'book',
+      isCapture: S.screen === 'capture', isReview: S.screen === 'review',
+      libraryCount: '[' + books.length + ']', filters, filteredBooks,
+      goLibrary: () => set({ screen: 'library' }),
+      bookTitle: cur.title, bookAuthor: cur.author, bookMeta: metaParts.join(' \u00b7 '),
+      bookIsEmpty: cur.notes.length === 0,
+      notes: cur.notes.map(n => {
+        const links = this.linksFor(n);
+        return { meta: this.noteMeta(n), text: n.text, isQuote: n.type === 'q', isPlain: n.type !== 'q', hasLinks: links.length > 0, links };
+      }),
+      addNoteHere: () => set({ screen: 'capture', cap: { ...S.cap, bookId: cur.id } }),
+      setQuote: () => set({ cap: { ...S.cap, type: 'q' } }),
+      setThought: () => set({ cap: { ...S.cap, type: 't' } }),
+      setVoice: () => set({ cap: { ...S.cap, type: 'v' }, rec: { status: 'idle', wave: '', ticks: 0 } }),
+      quoteBtnStyle: this.segStyle(S.cap.type === 'q'),
+      thoughtBtnStyle: this.segStyle(S.cap.type === 't'),
+      voiceBtnStyle: this.segStyle(S.cap.type === 'v'),
+      capIsText: S.cap.type !== 'v', capIsVoice: S.cap.type === 'v',
+      recIdle: S.rec.status === 'idle', recRecording: S.rec.status === 'recording',
+      recTranscribing: S.rec.status === 'transcribing', recDone: S.rec.status === 'done',
+      recWave: S.rec.wave || '\u2581\u2581\u2581\u2581\u2581\u2581\u2581\u2581\u2581\u2581\u2581\u2581\u2581\u2581\u2581\u2581\u2581\u2581\u2581\u2581\u2581\u2581',
+      recTimer: '0:' + String(secs).padStart(2, '0'),
+      startRec: () => this.startRec(), stopRec: () => this.stopRec(),
+      captureBookTitle: capBook.title,
+      cycleBook: () => { const i = books.findIndex(b => b.id === capBook.id); set({ cap: { ...S.cap, bookId: books[(i + 1) % books.length].id } }); },
+      capText: S.cap.text, onCapText: e => set({ cap: { ...S.cap, text: e.target.value } }),
+      capPage: S.cap.page, onCapPage: e => set({ cap: { ...S.cap, page: e.target.value.replace(/[^0-9]/g, '') } }),
+      capTag: S.cap.tag, onCapTag: e => set({ cap: { ...S.cap, tag: e.target.value } }),
+      capPlaceholder: S.cap.type === 't' ? 'What did it make you think?' : 'Copy the passage exactly\u2026',
+      saveStyle: { padding: '0 14px', minHeight: '48px', lineHeight: 2, background: canSave ? '#201d1d' : '#9a9898', border: 'none', borderRadius: '4px', fontSize: '16px', fontWeight: 500, color: '#fdfcfc', cursor: canSave ? 'pointer' : 'default' },
+      onSave: () => {
+        if (!canSave) return;
+        const tag = S.cap.tag.trim() ? (S.cap.tag.trim().startsWith('#') ? S.cap.tag.trim() : '#' + S.cap.tag.trim()) : '';
+        const note = { id: 'n' + S.nextId, type: S.cap.type, text: S.cap.text.trim(), page: S.cap.page, tag, links: [] };
+        set({
+          books: books.map(b => b.id === capBook.id ? { ...b, notes: [note, ...b.notes] } : b),
+          screen: 'book', bookId: capBook.id, nextId: S.nextId + 1,
+          cap: { ...S.cap, text: '', page: '', tag: '' },
+          rec: { status: 'idle', wave: '', ticks: 0 }
+        });
+      },
+      reviewPos: pool.length ? (ri + 1) + ' of ' + pool.length : '0 of 0',
+      revMeta: rev ? this.noteMeta(rev.n) : '',
+      revText: rev ? (rev.n.type === 'q' ? '\u201c' + rev.n.text + '\u201d' : rev.n.text) : '[x] nothing to review yet',
+      revSource: rev ? rev.b.title + ', ' + rev.b.author : '',
+      revHasLinks: rev ? this.linksFor(rev.n).length > 0 : false,
+      revLinks: rev ? this.linksFor(rev.n) : [],
+      revOpenBook: () => { if (rev) set({ screen: 'book', bookId: rev.b.id }); },
+      revPrev: () => set({ reviewIdx: S.reviewIdx - 1 }),
+      revNext: () => set({ reviewIdx: S.reviewIdx + 1 }),
+      reviewBar: '[' + '\u2588'.repeat(filled) + '\u2591'.repeat(10 - filled) + ']',
+      tabs: tabDefs.map(([id, label]) => ({
+        label, on: () => set({ screen: id }),
+        style: { flex: 1, minHeight: '52px', padding: '12px 0', background: 'none', border: 'none', cursor: 'pointer', fontSize: '13px',
+          borderTop: onScreen === id ? '2px solid #201d1d' : '2px solid transparent', marginTop: '-1px',
+          fontWeight: onScreen === id ? 700 : 400, color: onScreen === id ? '#201d1d' : '#646262' }
+      }))
+    };
+  }
+}
+</script>
+</body>
+</html>
