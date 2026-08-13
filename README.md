@@ -51,7 +51,7 @@ xcodebuild -scheme Marginalia \
   build test
 ```
 
-The app seeds a small library on first launch so there's something to look at.
+There are no dependencies to install and no project file to generate — clone and build.
 
 To run on your own iPhone: connect it, pick it as the destination, and set your team under **Signing & Capabilities**. You'll need to trust the developer certificate on the phone the first time (Settings → General → VPN & Device Management).
 
@@ -83,9 +83,9 @@ Everything exports to Markdown with `[[n.05]]` wiki-links, so your notes open in
 
 ## Roadmap
 
-Shipping toward a first App Store release:
+Shipping toward a first App Store release. Current state and what's next in [`docs/planning.md`](docs/planning.md).
 
-- [ ] Design system and four-tab shell
+- [x] Design system and four-tab shell
 - [ ] Stream, the margin, tag filters
 - [ ] Text and voice capture
 - [ ] Books, book detail, search and ISBN scan to add

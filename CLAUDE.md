@@ -2,6 +2,10 @@
 
 Working context for Claude Code in this repository. Read this before touching any file.
 
+> **Starting a session?** Read [`docs/planning.md`](docs/planning.md) first — it says what's built, what's next, and what's temporary scaffolding waiting to be replaced.
+>
+> **Phase 1 is complete.** The app builds, runs in both appearances, and passes its tests, but every screen renders static sample data. Phase 2 is the SwiftData model.
+
 ## What this is
 
 **marginalia** — a native iOS app for notes taken from books. Four tabs:
@@ -27,7 +31,7 @@ The look comes from the **OpenCode design system**. It is severe on purpose, and
 
 1. **No raw color literals in views.** Every color comes from `Theme`. Not `Color.gray`, not `#f8f7f7`, not `.secondary`. If a color you need isn't in `Theme`, add it there with both appearances defined, then use it. This rule is the only reason dark mode works.
 2. **No shadows. Anywhere.** Not on cards, sheets, buttons, or bars. Separation is done with hairlines (`Theme.hairline`, 1px) and surface tint (`Theme.surfaceSoft`) — nothing else. `--elevation-1` in the source system is a hairline, not a shadow.
-3. **ASCII markers, not SF Symbols.** `[+] [x] [-] [~] [=] [◇] [↻] [q] [t] [v] [s]` and the arrows `→ ←`. Use the named cases in `Glyphs`, never a literal. There are no icons in this app.
+3. **ASCII markers, not SF Symbols.** `[+] [x] [-] [~] [=] [◇] [↻] [q] [t] [v] [s]` and the arrows `→ ←`. Use the named cases in `Glyphs`, never a literal. There are no icons in this app — **and no dingbats either**: `★`, `✎`, `✓` and their kin read as icons and are just as forbidden. Every marker is bracket-plus-character, so `[ ] star` and `[+] add a thought`. Box-drawing and block characters (`▁▂▃▄▅▆▇`, `█░`, `■`) are fine; they're terminal furniture, not pictures.
 4. **Radius 4px on interactive elements only.** Buttons, inputs, chips. Everything else is square. Never a pill, never a circle, never 26pt iOS-style card corners.
 5. **One font.** JetBrains Mono at every size and weight — body, headings, numbers, buttons. There is no sans face and no italic in this system.
 6. **No cover art, no images, no color-coding.** Books are title + author + status marker + note count. The absence of imagery is the identity; a row of cover thumbnails would make this a different app.
@@ -112,7 +116,11 @@ Marginalia/
 MarginaliaTests/
 ```
 
-`Marginalia.xcodeproj` uses **synchronized file groups** (`PBXFileSystemSynchronizedRootGroup`, Xcode 16+). New `.swift` files under `Marginalia/` are picked up automatically — **do not hand-edit the project file to add sources.**
+`Marginalia.xcodeproj` uses **synchronized file groups** (`PBXFileSystemSynchronizedRootGroup`, Xcode 16+). New `.swift` files under `Marginalia/` are picked up automatically — **do not hand-edit the project file to add sources.** If you're about to touch `project.pbxproj`, you almost certainly don't need to.
+
+`Support/Info.plist` sits outside the synchronized group deliberately, so it isn't copied in as a resource.
+
+**`Features/Stream/SampleData.swift` is temporary.** Phase 1 renders every screen from it so the design could be judged before the model existed. Phase 2 deletes it. `NoteRowData` and `BookRowData` stay — keeping views ignorant of SwiftData is deliberate.
 
 ## Commands
 
@@ -130,9 +138,15 @@ xcrun simctl launch booted com.marginalia.app
 # check both appearances — do this after any UI change
 xcrun simctl ui booted appearance dark      # or: light
 xcrun simctl io booted screenshot /tmp/marginalia.png
+
+# the simulator can't be tapped from the command line, so to screenshot
+# any tab that isn't stream:
+xcrun simctl launch booted com.marginalia.app -startTab map
 ```
 
 Tests use **Swift Testing** (`@Test`, `#expect`), not XCTest.
+
+**Run `build test`, not `build`.** A broken test target can fail to link while `build` alone still reports success — that happened in phase 1 and went unnoticed until the suite was actually run.
 
 ## Working notes
 

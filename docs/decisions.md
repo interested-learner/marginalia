@@ -134,3 +134,13 @@ Made after the intent behind the design was clearer, not as second-guessing.
 **Quotes get a rule, not a fill.** A 2pt ink rule on the leading edge replaces the gray block. The filled block was the one element borrowed from messaging UI rather than print; a rule beside quoted matter is the printer's convention and what you'd actually draw next to a passage. It also drops a surface color from the system and reads better in dark, where a fill competes with the page. Quote text moves to `ink` and thought bodies stay `textBody`, so the two stay distinct without the block.
 
 **Type up one step.** Body 14→15, metadata 12.5→13, review 17→18, buttons 14→15. The prototype's sizes came from a browser mockup about 410px wide; on a phone they're tight for an app you read in, and 12.5pt metadata is genuinely hard for anyone over about forty — a real consideration for this audience. Dynamic Type support throughout, which App Store review increasingly expects.
+
+## 13. No dingbats either
+
+**2026-08-13 · settled** · clarifies §the glyph rule, after violating it
+
+The first pass at the review card used `★` for star and `✎` for add-a-thought. Both are dingbats, and a dingbat is a picture — which makes them icons, which this system doesn't have. The rule was "ASCII markers, not SF Symbols," and the letter of it was satisfied while the spirit wasn't.
+
+Every marker is **bracket-plus-character**: `[ ] star`, `[*] starred`, `[+] add a thought`. Box-drawing and block characters stay allowed — `▁▂▃▄▅▆▇`, `█░`, `■`, `→` — because they're terminal furniture rather than pictures, and the prototype already used them.
+
+Recorded because it's an easy rule to satisfy superficially, and the failure looks fine in isolation. It only reads wrong beside the rest of the vocabulary.
