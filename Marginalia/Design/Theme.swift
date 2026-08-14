@@ -9,7 +9,16 @@ import SwiftUI
 ///
 /// Light values are the prototype's exactly. Dark values are their counterparts,
 /// tuned so contrast holds. See `docs/design-system.md`.
-enum Theme {
+///
+/// **`nonisolated` is load-bearing, not tidiness.** Every token below is a
+/// dynamic `UIColor`, and UIKit stores its provider closure and calls back on
+/// whatever thread is resolving the color — for SwiftUI that is regularly
+/// `com.apple.SwiftUI.AsyncRenderer`, not main. The project defaults to
+/// `MainActor` isolation, so without this the closure is `@MainActor`, Swift 6
+/// traps entering it from the renderer, and the app dies with `EXC_BREAKPOINT`
+/// somewhere unrelated to whatever you last changed. `ThemeIsolationTests`
+/// resolves a color off the main thread on purpose to keep it that way.
+nonisolated enum Theme {
 
     // MARK: Surfaces
 

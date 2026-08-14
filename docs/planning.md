@@ -197,6 +197,7 @@ Learned the hard way in phases 1 and 2.
 |---|---|
 | `CLAUDE.md` | The rules. Design constraints, model constraints, commands, what not to do |
 | `docs/planning.md` | This file — state and what's next |
+| `docs/issues.md` | What's broken or fragile right now, and what to change. **Read it when a build hangs or the app crashes** |
 | `docs/specs/2026-08-13-marginalia-design.md` | What the app does. Authority on behavior |
 | `docs/design-system.md` | Every token and component spec. Authority on visual values |
 | `docs/decisions.md` | Why things were chosen. 13 entries. Settled — don't reopen without a changed premise |
