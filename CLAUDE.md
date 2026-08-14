@@ -74,6 +74,14 @@ Notes connect themselves. The user is never asked to link anything and there is 
 - **Automatic and manual links render identically.** `isPinned` and `isSuppressed` on `NoteEdge` exist only to make override work — never surface them in the UI, never draw a manual link differently.
 - **Backlinks are always shown.** Edges store direction but display both ways, or half of every note's connections are invisible.
 
+## The map — three views, one renderer
+
+- **`MapGraph` decides what's in a view; `GraphLayout` decides where it goes.** Both are pure. `MapView` is the only part that touches the store, and it's where the library is flattened into the three plain lists `MapGraph` takes.
+- **The library, two hops from a note, or one book.** Above 150 nodes the library view collapses to book hubs and expands one on tap — that's the answer to the hairball and it ships with the map, not after it (`docs/decisions.md` §11).
+- **A local view never hops *through* a book.** One hop through a hub is every note in it, and the view stops being local. Hubs come back at the end, attached to whatever notes were reached.
+- **`GraphLayout` is told the shape of the box and the size of every label**, and both matter. A graph laid out square and drawn into a box twice as tall squeezes every horizontal gap by half; a hub spaced as if it were a point sits straight through the note beside it. Both were seen on screen before they were understood.
+- **Deleting a connection doesn't delete the edge.** `Eraser.suppress` sets `isSuppressed` and keeps the row, because the next recompute — and every recompute is a full one — would otherwise score the same pair, find it just as strong, and draw the line straight back. Suppression *is* the memory of the deletion.
+
 ## Data model rules
 
 Every `@Model` must stay **CloudKit-compatible**, even though sync is off. Enabling it later should be a container-configuration change, not a migration.
@@ -129,11 +137,14 @@ Marginalia/
     Capture/                 CaptureBar, CaptureSheet, VoiceCapture, AudioLevels
     Review/                  ReviewView, ReviewCard + ShareCard, ReviewSetBuilder,
                              FollowUpSheet
-    Books/  Map/  Search/  Settings/
+    Map/                     MapView, and MapGraph — which nodes belong in a
+                             view and which lines join them. Pure
+    Books/  Search/  Settings/
   Services/
     NoteEmbedding            NLContextualEmbedding + fallback, and the packing
     AffinityEngine           scoring, mutual k-NN, pinning, suppression. Pure
-    GraphLayout              force-directed, pure, background actor
+    GraphLayout              force-directed, pure, off the main actor. Told the
+                             shape of the box and the size of every label
     SpeechTranscription      SFSpeechRecognizer, on-device only
     TextScanner              VisionKit → passage text
     BarcodeScanner           VisionKit → ISBN
@@ -167,6 +178,11 @@ MarginaliaTests/
 | `-reviewEnd 1` | opens review on the closing card |
 | `-followUp 1` | opens the follow-up composer over the current card |
 | `-confirmDelete <book\|note>` | opens the delete confirmation over book detail |
+| `-confirmDelete connection` | with `-startTab map`, the disconnect confirmation |
+| `-mapSelect <id>` | opens the map with `n.<id>` selected — the panel, and an inverted node |
+| `-mapNote <id>` | opens the map two hops out from `n.<id>` |
+| `-mapBook "<title>"` | opens the map on that book alone — matched on any part of the title |
+| `-mapCollapse 1` | forces the book-hub view, which needs 150 nodes otherwise |
 | `-tinyLibrary <n>` | seeds `n` notes instead of forty — **uninstall first** |
 | `-storeFailure 1` | opens the "library won't open" screen |
 
@@ -223,6 +239,7 @@ Tests use **Swift Testing** (`@Test`, `#expect`), not XCTest.
 - **The day's review set is built once and held in `@State`.** Rebuilding it every redraw would reshuffle the deck the moment the reader starred something, because a star is one of the things the set is scored on.
 - **Don't name a property `set`.** `private var counter: String { set.count … }` fails to parse — Swift reads `set` at the start of a property body as the setter keyword.
 - **`Spacer` collapses inside a `ScrollView`.** Content there sizes to itself, so vertical centering is a `.frame(minHeight:)` against a `GeometryReader`, which is how the review card does it.
+- **A cancelled `.task(id:)` still finishes what it was awaiting.** `Task.detached` is not cancelled with its awaiter, so the superseded pass resumes when the detached work completes and writes its result — after the new one. On the map that drew one book's nine notes at the coordinates they'd had in the whole-library graph: a clump in the corner of an empty screen, with a perfectly correct header above it. **Guard on `Task.isCancelled` before assigning**, in any `.task(id:)` that hands work to a detached task.
 - **`Synchronization.Mutex` can't be captured in a closure** — it's non-copyable. Where an audio callback has to hand a value back, `OSAllocatedUnfairLock` is what works (see `VoiceCapture.peak`).
 
 ## Don't

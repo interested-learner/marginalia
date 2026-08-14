@@ -2,19 +2,21 @@
 
 Where the project stands and what happens next. **Read this first in a new session**, then `CLAUDE.md` for the rules.
 
-Last updated 2026-08-14, after phase 6.
+Last updated 2026-08-14, after phase 7.
 
 ---
 
 ## State
 
-The app **builds clean, runs on the simulator in both appearances — Debug and Release — and passes 273 tests (one of them a recorded known issue — see phase 6 below).** Every screen reads from SwiftData, and the app writes notes, books *and* follow-ups: `[+]` in the stream bar files a thought into the Inbox with a fresh id, the full sheet files one against a book, books arrive by Open Library search or barcode or by hand, and review pages through a day-stable set of eight whose actions all do something.
+The app **builds clean, runs on the simulator in both appearances — Debug and Release — and passes 321 tests (one of them a recorded known issue — see phase 6 below).** Every screen reads from SwiftData, and the app writes notes, books *and* follow-ups: `[+]` in the stream bar files a thought into the Inbox with a fresh id, the full sheet files one against a book, books arrive by Open Library search or barcode or by hand, and review pages through a day-stable set of eight whose actions all do something.
 
 **And now removes them.** Notes, books and follow-ups all delete, through `Eraser` and the app's own confirmation — see the issues pass below.
 
 **And now connects them.** Phase 6 landed: every note is vectorized on save, `AffinityEngine` scores every pair, and the connections that survive its three constraints are written as edges and drawn on the stream, on book detail and on the review card. Nobody was asked to link anything.
 
-**Still inert:** everything on the map except the preview panel.
+**And now draws them.** Phase 7 landed: the map is the real graph. `GraphLayout` places every node, `MapGraph` decides which nodes belong in a view, and there are three of them — the whole library, two hops out from one note, and one book on its own. Nothing on that screen is hand-placed any more.
+
+**Nothing in the app is scaffolding now.** Every tab reads and writes the store, and the placeholder that survived five phases is gone.
 
 History is one commit per phase on `main` — `git log --oneline` is the authority, not this file. Remote: `interested-learner/marginalia` (public). `gh` is **not** installed on this machine.
 
@@ -29,12 +31,44 @@ History is one commit per phase on `main` — `git log --oneline` is the authori
 | 4 | Books — list, detail, add by search and ISBN | **done** (barcode needs a device) |
 | 5 | Review — paged cards, `ReviewSetBuilder`, stars, follow-ups | **done** |
 | 6 | Linking — embeddings + `AffinityEngine` | **done** · output read; see below |
-| 7 | Map — `GraphLayout`, real graph | **next** |
-| 8 | Search, export, settings, notifications | |
+| 7 | Map — `GraphLayout`, real graph | **done** (its gestures need a finger) |
+| 8 | Search, export, settings, notifications | **next** |
 | 9 | Camera OCR capture | |
 | 10 | Polish, app icon, device install | |
 
 Full detail for every phase is in `docs/specs/2026-08-13-marginalia-design.md`. The reasoning behind the choices is in `docs/decisions.md` — **don't re-litigate those.**
+
+---
+
+## What phase 7 built
+
+- **`GraphLayout`** — spring-electrical, pure, off the main actor, exactly as the spec asks. Every pair pushes apart, every edge pulls together, a per-axis gravity keeps the eight notes nothing connected to from being shoved off the page, and a falling temperature makes it settle rather than oscillate. **Nothing in it is random**: nodes start on a phyllotaxis spiral, which is evenly spread and already asymmetric, so the same graph lays out the same way every launch. That's the same rule `AffinityEngine` breaks its ties by, and for the same reason.
+- **It's told the shape of the box and the size of every label**, and both were learned from a screenshot rather than reasoned out in advance. A graph laid out square and drawn into a box twice as tall has every horizontal gap squeezed by half — that put `[Design]` through `n.05`. Spacing a hub as if it were a point put `[Meditations]` through `n.10`. Neither is visible in code and both are obvious in an image, which is the third time this project has learned that.
+- **The convergence number is the force, not the step.** How far a node last *moved* is capped by the cooling schedule and shrinks toward zero whether or not the graph settled — a number that cannot report a failure. What's still pushing on a node can. Switching to it immediately found that gravity was too weak and the outermost nodes were pinned against the box, permanently mid-shove: it looked settled and wasn't, and the residual was seven times what it should have been. Gravity is now derived rather than tuned — the value that balances the library's outward push at exactly half the box.
+- **The budget grows with the library.** Three hundred passes settle forty-six nodes and do not settle a hundred and twenty, and a graph still moving when the budget ran out is laid out *badly*, not slowly. It's O(passes · N²) with a tiny constant — forty-six nodes is three milliseconds — so the budget is `6 × count` and stays free.
+- **`MapGraph`** — pure, and the other half of the same split `AffinityEngine` and `LinkWriter` have: this decides which nodes belong in a view and which lines join them, and `MapView` does all the fetching. Three views over one builder — the library, two hops from a note, one book — because the local view is simply the library builder over a smaller set of notes, and so is an expanded book.
+- **A local view doesn't hop through a book.** One hop through a hub is every note in it and the view stops being local; hubs come back at the end, attached to whatever was actually reached. Two hops, twenty-five nodes, strongest connections first.
+- **The collapse is built, not deferred.** Above 150 nodes the library view becomes book hubs alone, joined where a connection crosses between two books — once, however many cross — and a hub expands to its own book on a second tap. `docs/decisions.md` §11 said it had to exist before the map shipped rather than after.
+- **A hub is the book's first word.** `[Meditations]` is a whole title; `Zen and the Art of Motorcycle Maintenance` is forty characters of bold mono lying across the graph it's meant to be organizing. A leading article is dropped because `[The]` names nothing. The panel at the foot carries the whole title.
+- **Holding a line disconnects it — and the edge is kept.** `Eraser.suppress` sets `isSuppressed` rather than removing the row, because every recompute is a full one: delete the edge and the next pass scores the same pair, finds it just as strong, and draws the line straight back. Suppression *is* the memory of the deletion. It goes through the app's own confirmation like every other delete, and a relink follows so the degree budget the reader just freed goes to somebody else.
+- **Attachments aren't connections.** A note's line to its own book is drawn like any other line — there's one line weight in this system — but it can't be held down on, and it doesn't count toward either end's weight. Otherwise every note in a well-stocked book would read as better connected than it is.
+- **Four launch arguments and a fifth `-confirmDelete`**, because the simulator can't be tapped or held. `-mapSelect`, `-mapNote`, `-mapBook`, `-mapCollapse`, `-confirmDelete connection`.
+
+### The bug worth remembering
+
+A cancelled `.task(id:)` **still finishes what it was awaiting**. `Task.detached` isn't cancelled along with its awaiter, so when the graph changed, the superseded pass resumed after its detached work completed and wrote its result on top of the new one. It showed as one book's nine notes drawn at the coordinates they'd held in the whole-library graph — a clump in the corner of an empty screen, under a perfectly correct header. The fix is one line (`guard !Task.isCancelled`), and the lesson generalizes to any `.task(id:)` handing work to a detached task. It's in `CLAUDE.md` now.
+
+### Unverified, and honestly so
+
+- **Not one of the map's gestures has been made.** Selecting a node, expanding a hub, holding a line, tapping empty space to deselect — all four were reached by launch argument, which proves the state renders and proves nothing about getting there. The hold is the one to worry about: it's a `LongPressGesture` for the timing and a zero-distance `DragGesture` for the location, sitting under forty tappable node views, deciding which of seventy hairlines a thumb meant. `docs/issues.md` §17.
+- **The graph is still the fallback embedder's graph.** Everything phase 6 said applies unchanged — what the map draws on this machine came out of `NLEmbedding.sentenceEmbedding`, and a device run changes the picture. The layout is geometry and doesn't care; whether the *shape* means anything still waits on `docs/issues.md` §6.
+- **A book with three hundred notes never quite settles.** One hub, hundreds of leaves, nothing else: the residual stays high at any budget. It draws as a hub in a halo, which is what it is, and nothing overlaps or runs off the screen — but the halo would be arranged differently on two launches a week apart. `docs/issues.md` §16.
+- **Only one screen size.** Everything here was seen on an iPhone 17 in portrait. The layout takes the aspect ratio it's given, so a rotation or an iPad should work; neither has been looked at.
+
+### Standing until later
+
+- **A local map is reachable from the map and nowhere else.** The spec says "reachable from any note", and today that means selecting the note on the map and tapping `[◇] connections`. The route from a stream row or a review card doesn't exist — `docs/design-system.md` doesn't give a row an action for it, and inventing one wasn't phase 7's job. Worth deciding in phase 8, next to the source line's tappable book title, which is still waiting too.
+- **Nothing creates a link by hand**, still. Phase 6 said it and it's unchanged: `isSuppressed` now has a way in — holding a line — but `isPinned` is written by the seed and by nothing else. The composer's `→ link` accessory has no phase.
 
 ---
 
@@ -185,16 +219,22 @@ Between phase 5 and phase 6, six of the thirteen entries in `docs/issues.md` wer
 
 ### Still standing, deliberately
 
-- **`MapView`'s hand-placed positions and lines** — phase 7. Only the preview panel is real.
-- **`ReviewView` shows the newest eight**, not a day-stable set, and its actions do nothing — phase 5.
+- ~~**`MapView`'s hand-placed positions and lines**~~ — phase 7. `GraphLayout` and `MapGraph` replaced every one of them.
+- ~~**`ReviewView` shows the newest eight**, not a day-stable set, and its actions do nothing~~ — phase 5.
 
 ---
 
-## Next: phase 7 — the map
+## Next: phase 8 — search, export, settings, notifications
 
-`GraphLayout` — pure, nodes and edges in, positions out, on a background actor — and `MapView` reading the real graph instead of its hand-placed dots. Books are hub nodes; above ~150 nodes the global view collapses to hubs and expands one on tap (`docs/decisions.md` §11).
+Full-text search across note bodies, follow-ups, book titles, authors and tags, with `#tag` in the query filtering by tag. Markdown export. A settings screen — notification time, appearance, about — and one notification a day, seven scheduled ahead.
 
-**Read the paragraph above first.** The graph phase 7 draws is the one phase 6 built, and on this machine that graph came out of the fallback embedder. A device run — `docs/issues.md` §6 — turns the contextual model on and changes what the map is drawing. It doesn't block starting the layout work, which is geometry and doesn't care where the edges came from, but it does block judging whether the map looks right.
+**Three things have been waiting for a phase and phase 8 is where they belong**, all written down rather than pretended away:
+
+- **Manual linking.** The spec puts `→ link` on the composer's accessory bar and a search sheet on the review card. `NoteEdge` has honoured `isPinned` since phase 6 and nothing writes it. Next to *rebuild connections* in settings.
+- **The incremental recompute**, `docs/issues.md` §15 — a measurement first, then a background `ModelActor`. Settings' *rebuild connections* wants the same machinery.
+- **The two routes that don't exist**: a source line's book title should open the book (phase 4 left it, phase 5 built the route it was waiting on), and a note should reach its own local map from somewhere other than the map.
+
+Notifications need the paid Apple Developer account — open question 4 below.
 
 ---
 
@@ -257,6 +297,6 @@ Learned the hard way in phases 1 and 2.
 | `docs/issues.md` | What's broken or fragile right now, and what to change. **Read it when a build hangs or the app crashes** |
 | `docs/specs/2026-08-13-marginalia-design.md` | What the app does. Authority on behavior |
 | `docs/design-system.md` | Every token and component spec. Authority on visual values |
-| `docs/decisions.md` | Why things were chosen. 13 entries. Settled — don't reopen without a changed premise |
+| `docs/decisions.md` | Why things were chosen. 15 entries. Settled — don't reopen without a changed premise |
 | `docs/prototype/` | The original Claude Design prototype. Authority on look, overridden by the spec on behavior |
 | `README.md` | Human-facing |

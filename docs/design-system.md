@@ -275,14 +275,18 @@ A knowledge graph in a system with no color and no images. The constraint is the
 
 - **Nodes are the note id itself**, set in mono at 13 — `n.07`, not a dot with a label beside it. There are no circles in this graph.
 - **Books are hub nodes**, bracketed and bolder: `[Meditations]` at 13/700. That's the only difference between the two node types — no color, no shape change.
+- **A hub is the book's first word, not its title.** `[Meditations]` is the whole of one title and none of `Zen and the Art of Motorcycle Maintenance`; forty characters of bold mono lie across half the graph and cover the notes the hub is meant to be gathering. A leading article is dropped, because `[The]` names nothing. So: `[Thinking]`, `[Zen]`, `[Design]`, `[Beginning]`, `[Inbox]`. The panel at the foot carries the whole title when a hub is selected, and that's where the disambiguation lives if two books ever start with the same word.
+- **A note's line to its own book is drawn like any other line.** There is one line weight in this system. It isn't a connection anybody suggested, though, so it can't be held down on and deleted, and it doesn't count toward the weight of either end.
 - **Edges are `hairline`**, 1px, at the same 12% as every divider in the app.
 - **Selection inverts.** The node fills `ink` with its text in `onInk`, and its edges go to full-opacity `ink` while every other edge stays at hairline. That is the entire interaction vocabulary — no highlight color, no glow, no shadow.
 - **Connection count shows as weight** — 400 → 500 → 700 — never as node size. Varying node size would introduce a visual dimension the rest of the app doesn't have.
-- **A selected node previews its note** in a panel at the foot, above the tab bar, separated by a `hairline`. Tappable through to the note.
+- **A selected node previews its note** in a panel at the foot, above the tab bar, separated by a `hairline`. Metadata, three lines of the note, the source, then two link buttons: `→ open note` and `[◇] connections`, which narrows the map to two hops around it. A hub previews the book — `[+] Meditations`, then `author · status · 12 notes` — and offers `→ open book` and `[◇] only this book`. Link buttons, never filled ones, like every other action row in the app.
 
 Nodes need a 44pt minimum hit target even though the drawn text is smaller.
 
 Layout is force-directed and cached; it only recomputes when the graph changes. Above ~150 nodes the global view collapses to book hubs and expands one on tap.
+
+**One header, and it always says `map`.** A narrowed view says what it is on a line under the title — `two hops from n.18`, `Meditations`, `books only — tap one to open it` — and carries `← map` back to the whole library. The count on the right is nodes on screen, not notes in the library.
 
 ### Review card
 

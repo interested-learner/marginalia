@@ -50,6 +50,26 @@ enum Eraser {
         try context.save()
     }
 
+    /// Removes a connection — and this is the one delete in the app that
+    /// **doesn't** remove the row.
+    ///
+    /// A connection the reader held down on and rejected has to stay rejected.
+    /// `context.delete(edge)` would take the fact of the rejection with it, and
+    /// the next full recompute — which is every recompute — would score the same
+    /// pair, find it just as strong as it was a minute ago, and draw the line
+    /// again. So the edge is kept and marked: `AffinityEngine` reads
+    /// `isSuppressed` as never-suggest-this-pair, and `ConnectionIndex` and
+    /// `MapGraph` both stop drawing it the moment the flag is set.
+    ///
+    /// Suppression beats pinning where a pair is somehow both — the same
+    /// resolution `LinkWriter` makes, and for the same reason: it's the more
+    /// recent deliberate act.
+    static func suppress(_ edge: NoteEdge, in context: ModelContext) throws {
+        edge.isSuppressed = true
+        edge.isPinned = false
+        try context.save()
+    }
+
     /// Edges are not cascaded by the schema, so they're swept here.
     ///
     /// Dangling edges — both ends already gone — are swept at the same time.
@@ -83,12 +103,14 @@ enum Erasure: Identifiable {
     case note(Note)
     case followUp(FollowUp)
     case book(Book)
+    case connection(NoteEdge)
 
     var id: PersistentIdentifier {
         switch self {
         case .note(let note): note.persistentModelID
         case .followUp(let followUp): followUp.persistentModelID
         case .book(let book): book.persistentModelID
+        case .connection(let edge): edge.persistentModelID
         }
     }
 
@@ -97,6 +119,7 @@ enum Erasure: Identifiable {
         case .note(let note): "delete \(note.idLabel)?"
         case .followUp: "delete this thought?"
         case .book(let book): "delete \(book.title)?"
+        case .connection(let edge): "disconnect \(Erasure.ends(of: edge))?"
         }
     }
 
@@ -116,10 +139,26 @@ enum Erasure: Identifiable {
                 ? "no notes were written from it, so it goes on its own."
                 : "\(book.noteCount) \(book.noteCount == 1 ? "note" : "notes") written from it "
                     + "go with it, and their threads go with them. this can't be undone."
+        case .connection:
+            "both notes stay where they are — only the line between them goes. "
+                + "the app won't suggest this pair again."
         }
     }
 
-    var confirmTitle: String { "\(Glyphs.close) delete" }
+    var confirmTitle: String {
+        switch self {
+        case .connection: "\(Glyphs.close) disconnect"
+        default: "\(Glyphs.close) delete"
+        }
+    }
+
+    /// `n.07 and n.11`, in the order the ids read rather than the order the edge
+    /// happens to store — direction is stored and never displayed.
+    private static func ends(of edge: NoteEdge) -> String {
+        let ids = [edge.from?.shortID, edge.to?.shortID].compactMap { $0 }.sorted()
+        guard ids.count == 2 else { return "these notes" }
+        return "\(Glyphs.noteID(ids[0])) and \(Glyphs.noteID(ids[1]))"
+    }
 
     /// A thread row identifies itself by its **position in the thread**, so this
     /// indexes into `Note.thread` — the same order `NoteRowData` built the rows
@@ -135,6 +174,7 @@ enum Erasure: Identifiable {
         case .note(let note): try Eraser.delete(note, in: context)
         case .followUp(let followUp): try Eraser.delete(followUp, in: context)
         case .book(let book): try Eraser.delete(book, in: context)
+        case .connection(let edge): try Eraser.suppress(edge, in: context)
         }
     }
 }

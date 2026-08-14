@@ -184,6 +184,18 @@ If review surfaces a note you didn't actually read — the app was open on the t
 
 **Deliberate, and the tradeoff is written into the code.** A delta gets the new note's edges right but can't notice that it displaced someone else's eighth-best neighbour or filled their sixth slot; a full pass is simply correct, and correctness was worth more at this size. What it needs before a real library gets big: the incremental path, a background `ModelActor` with its own context rather than `Task.detached` handing values back, and a measurement instead of this paragraph. Phase 8, alongside *rebuild connections* in settings.
 
+### 16. One enormous book never quite settles
+
+`GraphLayout` converges everywhere it was measured — a ring, three loose clumps, a scatter with no edges, at 46 and at 120 nodes — except for one shape: a single hub with a few hundred leaves and nothing else, which is what a book view looks like for a book with three hundred notes in it. The residual force stays several times higher than everywhere else at any budget worth spending.
+
+**It draws as a hub in a halo, which is what it is.** The spacing guarantee and the box still hold, so nothing overlaps and nothing runs off the screen; the halo simply never stops shuffling, and two launches a week apart would arrange those three hundred notes differently around the same hub. Nobody has a book with three hundred notes in it yet. Worth knowing before somebody does.
+
+### 18. Quotes are never wrapped in quote marks
+
+`docs/design-system.md` says the review card shows a quote "wrapped in curly quotes". Nothing in the app does — not the card, not a stream row, not book detail, and not the map's preview panel. Noticed in phase 7 while checking the panel against the other surfaces; it predates the map by three phases and is consistent everywhere, which is why nobody saw it.
+
+**Decide rather than patch.** The 2pt `ink` rule on the leading edge already says "this is quoted matter", and the printer's convention is a rule *or* quote marks, not both. If the rule is enough, the design system's sentence should go; if it isn't, one place — `NoteRowData` — wraps the text and every surface gets it at once. Either way it's ten minutes, and it should happen before phase 10 rather than in it.
+
 ---
 
 ## Open — coverage
@@ -192,13 +204,21 @@ If review surfaces a note you didn't actually read — the app was open on the t
 
 `simctl` can't tap or swipe. Every screen is reached by launch argument, and every interaction — saving, starring, filtering, going back, paging, sharing — is proven by unit tests and by the screen rendering, never by a finger.
 
-This is the single biggest gap in what "verified" means here. **The cheapest fix is a small XCUITest target**: a launch, a tap on each tab, one capture, one star — and now a long press on a row, which is the one interaction in the app with no visible affordance at all.
+This is the single biggest gap in what "verified" means here. **The cheapest fix is a small XCUITest target**: a launch, a tap on each tab, one capture, one star — and now a long press on a row and the map's two gestures, which is where the affordance-free interactions have collected.
+
+**Phase 7 made this worse rather than better**, and it should be said plainly: the map is the most gestural screen in the app and none of its gestures have been performed. See §17.
 
 **Not done here on purpose.** A UI test target is a new target, and a new target means hand-editing `project.pbxproj` — which `CLAUDE.md` says not to do, and which the synchronized file groups don't cover. It's an Xcode-GUI job (File ▸ New ▸ Target ▸ UI Testing Bundle), a few minutes, and then the tests themselves are ordinary code.
 
 ### 13. ~~Empty states are unreachable~~ — fixed
 
 `-tinyLibrary <n>`, and both states have now been seen. See §0. The trap worth remembering: the first cut took the first `n` seed notes, which are all from one book, and `ReviewSetBuilder`'s two-per-book cap meant *every* `n` produced the empty state. It spreads across books now.
+
+### 17. The map's gestures have never been made
+
+Four interactions were built and none has been performed: selecting a node, tapping a selected hub to expand it, **holding a line to disconnect it**, and tapping empty space to deselect. Every one of them was reached by launch argument instead — `-mapSelect`, `-mapBook`, `-confirmDelete connection` — which proves the state renders and proves nothing about the gesture that should get you there.
+
+The hold is the one to worry about. It's assembled out of a `LongPressGesture` for the timing and a zero-distance `DragGesture` for the location, because neither reports both; it sits under forty-odd tappable node views; and it has to decide which of seventy hairlines the thumb meant. All of that is plausible and none of it is observed. It's also the app's only destructive gesture with no visible affordance whatsoever — §12's XCUITest target is the answer, and this is now the strongest argument for it.
 
 ---
 
@@ -213,7 +233,7 @@ This is the single biggest gap in what "verified" means here. **The cheapest fix
 | 5 | ~~Duplicate book check~~, ~~`-tinyLibrary`~~, ~~run Release~~ | **Done.** §0 | done |
 | 6 | **Install an iOS 18 runtime, run the suite on it** | Eight versions of claimed support have never executed a line | a download + an hour |
 | 7 | **Run once on Nathaniel's iPhone** | Unblocks voice, OCR, barcode, share — four features asserted and never observed, plus Release at `-O` | an evening |
-| 8 | **A minimal XCUITest target** | The only thing that can catch a dead button, and delete-by-long-press has no visible affordance at all | half a day, and it needs the Xcode GUI |
+| 8 | **A minimal XCUITest target** | The only thing that can catch a dead button; delete-by-long-press and the map's hold-a-line have no visible affordance at all (§17) | half a day, and it needs the Xcode GUI |
 | 9 | Say something when the store falls back to memory | The quiet half of §7 — notes written into it vanish | an hour, plus a decision |
 | 10 | Measure and then narrow the recompute | §15 — O(N²) on every save, unmeasured | a day, and phase 8 wants it anyway |
 

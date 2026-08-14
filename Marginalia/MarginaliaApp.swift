@@ -99,7 +99,7 @@ struct RootView: View {
                 switch tab {
                 case .stream: StreamView(focus: $focus)
                 case .books: BooksView(open: $book)
-                case .map: MapView()
+                case .map: MapView(onOpenNote: open, onOpenBook: open)
                 case .review: ReviewView(onOpenBook: open)
                 }
             }

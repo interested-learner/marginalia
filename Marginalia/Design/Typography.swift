@@ -54,8 +54,19 @@ enum Typography {
 
     // MARK: Map
 
+    // A node's connection count shows as **weight**, 400 → 500 → 700, never as
+    // size. Varying node size would introduce a visual dimension the rest of
+    // the app doesn't have.
+
     static let mapNode = Font.custom(Face.regular, size: 13, relativeTo: .footnote)
     static let mapNodeStrong = Font.custom(Face.medium, size: 13, relativeTo: .footnote)
+
+    /// A note at the top of the weight ladder. The same face as `mapHub` and a
+    /// separate name on purpose: a hub is bold because it's a book, and this is
+    /// bold because it's well connected. They're never confused on screen —
+    /// only a hub is bracketed.
+    static let mapNodeHeavy = Font.custom(Face.bold, size: 13, relativeTo: .footnote)
+
     static let mapHub = Font.custom(Face.bold, size: 13, relativeTo: .footnote)
 
     // MARK: Line spacing

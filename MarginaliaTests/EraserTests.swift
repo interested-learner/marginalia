@@ -118,6 +118,64 @@ struct EraserTests {
         #expect(try context.fetch(FetchDescriptor<FollowUp>()).map(\.text) == ["second"])
     }
 
+    // MARK: Connections
+
+    /// The one delete that doesn't remove the row, and the reason it doesn't:
+    /// the next recompute would score the same pair, find it just as strong,
+    /// and draw the line straight back.
+    @Test func disconnectingKeepsTheEdgeAndMarksIt() throws {
+        let context = try store()
+        let a = note(1, in: context), b = note(2, in: context)
+        let edge = NoteEdge(from: a, to: b, score: 0.7)
+        context.insert(edge)
+        try context.save()
+
+        try Eraser.suppress(edge, in: context)
+
+        #expect(try context.fetch(FetchDescriptor<NoteEdge>()).count == 1)
+        #expect(edge.isSuppressed)
+    }
+
+    /// Suppression beats pinning, the same resolution `LinkWriter` makes: it's
+    /// the more recent deliberate act.
+    @Test func disconnectingAPinnedConnectionUnpinsIt() throws {
+        let context = try store()
+        let edge = NoteEdge(from: note(1, in: context), to: note(2, in: context), isPinned: true)
+        context.insert(edge)
+        try context.save()
+
+        try Eraser.suppress(edge, in: context)
+
+        #expect(edge.isSuppressed)
+        #expect(!edge.isPinned)
+    }
+
+    /// And every surface stops drawing it at once — the stream and book detail
+    /// read edges through `ConnectionIndex`, the map through its own pass, and
+    /// a line that survived in one of them would be a bug in that one.
+    @Test func aDisconnectedPairIsDrawnNowhere() throws {
+        let context = try store()
+        let edge = NoteEdge(from: note(1, in: context), to: note(2, in: context))
+        context.insert(edge)
+        try context.save()
+
+        #expect(ConnectionIndex.build(edges: [edge]) == [1: [2], 2: [1]])
+
+        try Eraser.suppress(edge, in: context)
+
+        #expect(ConnectionIndex.build(edges: [edge]).isEmpty)
+    }
+
+    @Test func aConnectionNamesBothItsEndsInReadingOrder() throws {
+        let context = try store()
+        // Stored high → low, to prove the sentence doesn't read off the edge.
+        let edge = NoteEdge(from: note(11, in: context), to: note(7, in: context))
+        context.insert(edge)
+
+        #expect(Erasure.connection(edge).title == "disconnect n.07 and n.11?")
+        #expect(Erasure.connection(edge).confirmTitle.contains("disconnect"))
+    }
+
     // MARK: What the confirmation is about to do
 
     /// A thread row knows its position, not its identity — `Erasure.thought`
