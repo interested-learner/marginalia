@@ -1,40 +1,103 @@
 import SwiftUI
+import SwiftData
 
 /// Every note across every book, newest first. The capture bar is pinned at the
 /// foot and present the whole time — that persistence is the point.
 ///
-/// Phase 1: static content, and the capture bar doesn't save yet.
+/// Phase 2: the feed is real. The capture bar still doesn't save — phase 3.
 struct StreamView: View {
-    @State private var tag = "all"
+    /// A `→ n.11` tapped anywhere in the app lands here.
+    @Binding var focus: Int?
+
+    @Query(sort: \Note.createdAt, order: .reverse) private var notes: [Note]
+    @Query private var edges: [NoteEdge]
+
+    @State private var tag = TagIndex.all
     @State private var draft = ""
 
     var body: some View {
         VStack(spacing: 0) {
             ScreenHeader(style: .wordmark(subtitle: "stream"))
 
-            ScrollView(.horizontal, showsIndicators: false) {
-                HStack(spacing: 8) {
-                    ForEach(SampleData.tags, id: \.self) { t in
-                        TagChip(label: t, selected: t == tag) { tag = t }
+            if !chips.isEmpty {
+                ScrollView(.horizontal, showsIndicators: false) {
+                    HStack(spacing: 8) {
+                        ForEach(chips, id: \.self) { chip in
+                            TagChip(label: label(for: chip), selected: chip == tag) { tag = chip }
+                        }
+                    }
+                    .padding(.horizontal, 20)
+                    .padding(.vertical, 12)
+                }
+                Hairline()
+            }
+
+            ScrollViewReader { scroll in
+                ScrollView {
+                    LazyVStack(spacing: 0) {
+                        if groups.isEmpty {
+                            EmptyState(message: emptyMessage)
+                        }
+                        ForEach(groups) { group in
+                            GroupHeader(label: group.label)
+                            ForEach(group.items) { note in
+                                NoteRow(note: NoteRowData(note, connections: connections[note.shortID] ?? []))
+                                    .id(note.shortID)
+                            }
+                        }
                     }
                 }
-                .padding(.horizontal, 20)
-                .padding(.vertical, 12)
-            }
-            Hairline()
-
-            ScrollView {
-                LazyVStack(spacing: 0) {
-                    GroupHeader(label: "today · wed aug 13")
-                    ForEach(SampleData.streamToday) { NoteRow(note: $0) }
-                    GroupHeader(label: "yesterday")
-                    ForEach(SampleData.streamYesterday) { NoteRow(note: $0) }
-                }
+                .onChange(of: focus) { _, _ in reveal(with: scroll) }
+                .onAppear { reveal(with: scroll) }
             }
 
             CaptureBar(draft: $draft)
         }
         .background(Theme.canvas)
+    }
+
+    /// Follows a connection to its note.
+    ///
+    /// A note hidden by the current filter can't be scrolled to, so the filter
+    /// is cleared first — arriving at an empty feed would read as a broken link.
+    private func reveal(with scroll: ScrollViewProxy) {
+        guard let shortID = focus else { return }
+        tag = TagIndex.all
+        withAnimation { scroll.scrollTo(shortID, anchor: .center) }
+        focus = nil
+    }
+
+    // MARK: Feed
+
+    private var chips: [String] {
+        let tags = TagIndex.chips(for: notes.map(\.tags))
+        return tags.isEmpty ? [] : [TagIndex.all] + tags
+    }
+
+    private func label(for chip: String) -> String {
+        chip == TagIndex.all ? chip : Glyphs.tag(chip)
+    }
+
+    private var filtered: [Note] {
+        guard tag != TagIndex.all else { return notes }
+        return notes.filter { $0.tags.map(TagIndex.normalized).contains(tag) }
+    }
+
+    private var groups: [StreamGrouping.Group<Note>] {
+        StreamGrouping.groups(filtered, date: \.createdAt)
+    }
+
+    /// Edges store a direction; both ends show the connection.
+    private var connections: [Int: [Int]] {
+        ConnectionIndex.build(from: edges.compactMap { edge in
+            guard !edge.isSuppressed, let from = edge.from, let to = edge.to else { return nil }
+            return (from: from.shortID, to: to.shortID)
+        })
+    }
+
+    private var emptyMessage: String {
+        notes.isEmpty ? "no notes yet — capture the first one below"
+                      : "nothing tagged \(Glyphs.tag(tag))"
     }
 }
 

@@ -10,7 +10,8 @@ struct NoteRowData: Identifiable {
     let text: String
     let isQuote: Bool
     let source: String
-    var links: [String] = []
+    /// Connected notes, by short id. Rendered `→ n.09`.
+    var links: [Int] = []
 }
 
 /// A note in the stream: the margin, then metadata, body, and source.
@@ -54,25 +55,23 @@ struct NoteRow: View {
     /// `Thinking, Fast and Slow · p.214 · #systems · → n.09`
     ///
     /// Connections carry a `marginalia://note/…` link so they stay tappable
-    /// while still flowing inline. Phase 2 registers the handler.
+    /// while still flowing inline; `RootView` intercepts the scheme.
     private var sourceLine: AttributedString {
         var line = AttributedString(note.source)
-        for link in note.links {
+        for shortID in note.links {
             line += AttributedString(" · ")   // separator stays unadorned
-            var part = AttributedString("\(Glyphs.forward) \(link)")
+            // Non-breaking, or a wrap drops the arrow on one line and the id it
+            // points at on the next.
+            var part = AttributedString("\(Glyphs.forward)\u{00A0}\(Glyphs.noteID(shortID))")
             part.underlineStyle = .single
-            if let id = link.split(separator: ".").last,
-               let url = URL(string: "marginalia://note/\(id)") {
-                part.link = url
-            }
+            part.link = NoteLink.url(for: shortID)
             line += part
         }
         return line
     }
 }
 
-struct BookRowData: Identifiable {
-    let id: Int
+struct BookRowData {
     let marker: String
     let title: String
     let author: String

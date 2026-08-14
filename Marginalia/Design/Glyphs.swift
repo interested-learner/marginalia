@@ -4,7 +4,7 @@ import Foundation
 ///
 /// Never write one of these literals in a view — go through this enum, so the
 /// vocabulary stays countable and a change lands everywhere at once.
-enum Glyphs {
+nonisolated enum Glyphs {
 
     // MARK: Book status
 
@@ -70,4 +70,7 @@ enum Glyphs {
 
     /// `[4]` — note counts and library counts are bracketed.
     static func count(_ n: Int) -> String { "[\(n)]" }
+
+    /// `#systems` — tags are stored bare and wear the hash only on screen.
+    static func tag(_ name: String) -> String { "#\(name)" }
 }

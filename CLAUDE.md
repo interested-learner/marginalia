@@ -4,7 +4,7 @@ Working context for Claude Code in this repository. Read this before touching an
 
 > **Starting a session?** Read [`docs/planning.md`](docs/planning.md) first — it says what's built, what's next, and what's temporary scaffolding waiting to be replaced.
 >
-> **Phase 1 is complete.** The app builds, runs in both appearances, and passes its tests, but every screen renders static sample data. Phase 2 is the SwiftData model.
+> **Phase 2 is complete.** The app builds, runs in both appearances, and passes its tests. Every screen now reads from SwiftData, seeded with 40 notes across six books. Nothing writes yet — phase 3 is capture.
 
 ## What this is
 
@@ -99,9 +99,18 @@ Marginalia/
     Typography.swift         font registration + Dynamic Type scale
     Glyphs.swift             the ASCII vocabulary, named
     Components/              shared views — see docs/design-system.md
-  Model/                     Book, Note, FollowUp, NoteEdge, container + seed
+  Model/
+    Book  Note  FollowUp  NoteEdge      the four @Model types
+    Library                  schema, container, first-launch bootstrap
+    SeedLibrary              the 40 seed notes, as plain values
+    ShortIDCounter           monotonic n.11 ids, never reused
+    RowMapping               models → NoteRowData / BookRowData. The only
+                             file that knows about both sides
+    RelativeTime             `2 mins ago`, `aug 01`
+    ConnectionIndex          edges → who connects to whom, both directions
   Features/
-    Stream/  Capture/  Books/  Map/  Review/  Search/  Settings/
+    Stream/                  StreamView, StreamGrouping, TagIndex
+    Capture/  Books/  Map/  Review/  Search/  Settings/
   Services/
     NoteEmbedding            NLContextualEmbedding + fallback
     AffinityEngine           scoring, mutual k-NN, pinning, suppression
@@ -120,7 +129,9 @@ MarginaliaTests/
 
 `Support/Info.plist` sits outside the synchronized group deliberately, so it isn't copied in as a resource.
 
-**`Features/Stream/SampleData.swift` is temporary.** Phase 1 renders every screen from it so the design could be judged before the model existed. Phase 2 deletes it. `NoteRowData` and `BookRowData` stay — keeping views ignorant of SwiftData is deliberate.
+**Views never see SwiftData.** They take `NoteRowData` / `BookRowData`, and `Model/RowMapping.swift` is the only file that knows about both sides. That separation is what let the whole design system be built and judged before the model existed, and it's worth keeping.
+
+**`-startTab <name>` and `-openNote <id>`** are launch arguments, not scaffolding to remove. The simulator can't be tapped from the command line, so they're the only way to screenshot anything but the top of the stream.
 
 ## Commands
 
@@ -155,7 +166,8 @@ Tests use **Swift Testing** (`@Test`, `#expect`), not XCTest.
 - **Permissions are requested at first use**, never at launch. Microphone, speech recognition, and camera each prompt at the moment the feature is invoked.
 - **The simulator cannot test** microphone, transcription, camera OCR, or barcode scanning. Those need the device. Don't claim they work from a simulator run.
 - **Open Library needs no API key** and imposes no attribution requirement. Manual book entry must always remain available — treat lookup failure as routine, not exceptional.
-- **Seed ~40 notes**, not 12. A sparse map proves nothing about whether the layout works.
+- **Seed ~40 notes**, not 12. A sparse map proves nothing about whether the layout works. `SeedLibrary` has them, and the cross-book tag overlap in them is deliberate — it's what phase 6 tunes against.
+- **Pure enums used from a `@Model` need `nonisolated`.** The project defaults to `MainActor` isolation and SwiftData models aren't; `Glyphs`, `BookStatus` and `NoteKind` are marked accordingly.
 
 ## Don't
 
