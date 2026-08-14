@@ -6,36 +6,58 @@ import SwiftUI
 /// header carrying its own name. Never stack a wordmark row above a title row;
 /// that was the prototype's arrangement and it spent ~50pt restating what the
 /// tab bar already says.
-struct ScreenHeader: View {
+struct ScreenHeader<Detail: View>: View {
     enum Style { case wordmark(subtitle: String), title(String) }
 
     let style: Style
     var trailing: String?
+    /// A screen pushed over another one names where it came back to. `←` is in
+    /// the vocabulary already; this is the only place it's used.
+    var back: BackLink?
+    /// Anything the screen's own header carries under its title — book detail
+    /// puts the author, the status and the progress bar here.
+    @ViewBuilder var detail: Detail
 
     var body: some View {
         VStack(spacing: 0) {
-            HStack(alignment: .firstTextBaseline, spacing: 8) {
-                switch style {
-                case .wordmark(let subtitle):
-                    Text("marginalia")
-                        .font(Typography.wordmark)
-                        .foregroundStyle(Theme.ink)
-                    Text("· \(subtitle)")
-                        .font(Typography.meta)
-                        .foregroundStyle(Theme.textAsh)
-                case .title(let name):
-                    Text(name)
-                        .font(Typography.screenTitle)
-                        .foregroundStyle(Theme.ink)
+            VStack(alignment: .leading, spacing: 8) {
+                if let back {
+                    Button(action: back.action) {
+                        Text("\(Glyphs.back) \(back.label)")
+                            .font(Typography.source)
+                            .foregroundStyle(Theme.textMute)
+                            .frame(minHeight: 30, alignment: .leading)
+                            .contentShape(Rectangle())
+                    }
+                    .buttonStyle(.plain)
                 }
 
-                Spacer(minLength: 8)
+                HStack(alignment: .firstTextBaseline, spacing: 8) {
+                    switch style {
+                    case .wordmark(let subtitle):
+                        Text("marginalia")
+                            .font(Typography.wordmark)
+                            .foregroundStyle(Theme.ink)
+                        Text("· \(subtitle)")
+                            .font(Typography.meta)
+                            .foregroundStyle(Theme.textAsh)
+                    case .title(let name):
+                        Text(name)
+                            .font(Typography.screenTitle)
+                            .foregroundStyle(Theme.ink)
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
 
-                if let trailing {
-                    Text(trailing)
-                        .font(Typography.meta)
-                        .foregroundStyle(Theme.textAsh)
+                    Spacer(minLength: 8)
+
+                    if let trailing {
+                        Text(trailing)
+                            .font(Typography.meta)
+                            .foregroundStyle(Theme.textAsh)
+                    }
                 }
+
+                detail
             }
             .padding(.horizontal, 20)
             .padding(.top, 54)
@@ -44,6 +66,18 @@ struct ScreenHeader: View {
             Hairline()
         }
         .background(Theme.canvas)
+    }
+}
+
+/// Where `←` goes, and what it's called there.
+struct BackLink {
+    let label: String
+    let action: () -> Void
+}
+
+extension ScreenHeader where Detail == EmptyView {
+    init(style: Style, trailing: String? = nil, back: BackLink? = nil) {
+        self.init(style: style, trailing: trailing, back: back) { EmptyView() }
     }
 }
 

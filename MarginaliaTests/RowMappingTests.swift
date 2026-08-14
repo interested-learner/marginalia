@@ -69,6 +69,21 @@ struct RowMappingTests {
         #expect(row(note(page: 12, book: Book(title: "Meditations"))).source == "Meditations · p.12")
     }
 
+    /// Book detail already carries the title at the top of the screen; every
+    /// row repeating it underneath would be noise.
+    @Test func bookDetailDropsTheBookFromTheSourceLine() {
+        let note = note(page: 214, tags: ["systems"], book: Book(title: "Thinking, Fast and Slow"))
+        let row = NoteRowData(note, showingBook: false, now: now)
+        #expect(row.source == "p.214 · #systems")
+    }
+
+    /// A note with nothing but a book leaves an empty source line rather than a
+    /// stray separator.
+    @Test func aBooklessSourceLineCanBeEmpty() {
+        let note = note(book: Book(title: "Meditations"))
+        #expect(NoteRowData(note, showingBook: false, now: now).source.isEmpty)
+    }
+
     // MARK: Quotes
 
     @Test func onlyAQuoteGetsTheQuoteRule() {

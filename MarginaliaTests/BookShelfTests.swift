@@ -30,4 +30,33 @@ struct BookShelfTests {
     @Test func anEmptyLibraryOrdersToNothing() {
         #expect(BookShelf.ordered([]).isEmpty)
     }
+
+    // MARK: Filters
+
+    private func library(_ statuses: [BookStatus]) -> [Book] {
+        statuses.enumerated().map { Book(title: "book \($0.offset)", status: $0.element) }
+    }
+
+    /// Only the statuses actually on the shelf, so a library of three queued
+    /// books doesn't offer two chips that lead nowhere.
+    @Test func onlyTheStatusesPresentBecomeChips() {
+        #expect(BookShelf.filters(for: library([.queued, .queued])) == [.queued])
+        #expect(BookShelf.filters(for: library([.finished, .reading, .queued]))
+                == [.reading, .queued, .finished])
+        #expect(BookShelf.filters(for: []).isEmpty)
+    }
+
+    /// The Inbox is a drawer rather than a reading state — "show me only the
+    /// Inbox" isn't a question anyone asks, and it stays visible under `all`.
+    @Test func theInboxIsNeverAChip() {
+        #expect(BookShelf.filters(for: library([.inbox])).isEmpty)
+        #expect(BookShelf.filters(for: library([.inbox, .reading])) == [.reading])
+    }
+
+    @Test func noFilterIsEverything() {
+        let books = library([.reading, .inbox, .finished])
+        #expect(BookShelf.matching(nil, in: books).count == 3)
+        #expect(BookShelf.matching(.reading, in: books).count == 1)
+        #expect(BookShelf.matching(.queued, in: books).isEmpty)
+    }
 }

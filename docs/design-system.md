@@ -171,6 +171,30 @@ A button, two lines, padding `14 × 20`, `hairline` beneath, pressed fill `surfa
 Line one: status marker 13 `textMute` · title 15/700 `ink`, truncating · note count `[4]` at 13 `textAsh`.
 Line two: indented 34pt to align under the title — author 13 `textMute`, then ` · ` and status at 13 `textAsh`.
 
+### Book detail header
+
+The one header on the screen, carrying more than a name. Same `54 / 20 / 12` padding and the same `hairline` beneath.
+
+```
+← books
+Thinking, Fast and Slow                    [10]
+Daniel Kahneman · reading
+[████░░░░░░] p.214 / 499                   edit
+```
+
+- `← books` at 13 `textMute`, above the title, minimum 30pt tall. The only `←` in the app.
+- Title 18/700 `ink`, wrapping rather than truncating; note count right-aligned at 13 `textAsh`.
+- `author · status` at 13 `textMute`, closing up when the author is unknown.
+- Progress bar at 15 `textMute` with `p.214 / 499` at 13 `textAsh`, both omitted when the page count is unknown. `edit` is a link button, right-aligned, and **absent on the Inbox**.
+
+Rows beneath use the margin, minus the book title on the source line — it's already at the top of the screen.
+
+### Pinned action bar
+
+Each tab's create action sits at the foot of the screen, above the tab bar: the stream's capture bar, `[+] add book` on the library, `[+] add note` on book detail. A `hairline` on top, `12 × 20` padding, and a primary button spanning the width.
+
+The parallel is the point — the thing you came to the tab to do is always in the same place, one thumb away.
+
 ### Capture bar
 
 Fixed at the foot of the stream. Padding `12 × 20`, `hairline` on top, 8pt gaps.
@@ -190,6 +214,17 @@ The waveform redraws every 200ms from live input amplitude. In the full capture 
 Each segment `flex: 1`, minimum height 44, radius 4, 13/500. Selected is filled `ink` / `onInk` with an `ink` border; unselected is `canvas` / `textMute` with a `hairline` border. Labels carry their glyph: `[q] quote`, `[t] thought`, `[v] voice`, `[s] scan`.
 
 **Three segments fit a phone, not four.** `[s] scan` opens the camera and arrives with the scanner in phase 9; until then the selector offers quote, thought and voice. A fourth segment at 14pt mono clips its own label at the default text size, so when scan lands the row wraps to two rows of two rather than shrinking the type.
+
+### Book form (add / edit)
+
+Header (`add book` or `edit book`, `[x]` to close) over one form. **The form is the screen; search and the barcode are two ways to fill it** — which is what keeps manual entry always available rather than buried behind a failure.
+
+- Find a title, then `search` and `[s] scan isbn` as two secondary buttons splitting the row.
+- Results expand inline beneath, drawn with the app's own rows: title 15/700 `ink`, then `author · 499pp` at 13 `textMute`. A `hairline` between, a `hairline` border around, radius 4.
+- A `hairline` separates finding a book from typing one in: `title`, `author`, then `pages` (110pt) and `on p.` side by side, then the status segments.
+- The form fills the sheet so the save button sits where `save note` does.
+
+A result **fills the fields** rather than saving straight through, and a failed lookup is a sentence under the buttons — never an alert.
 
 ### Capture sheet
 

@@ -107,12 +107,7 @@ struct StreamView: View {
     }
 
     /// Edges store a direction; both ends show the connection.
-    private var connections: [Int: [Int]] {
-        ConnectionIndex.build(from: edges.compactMap { edge in
-            guard !edge.isSuppressed, let from = edge.from, let to = edge.to else { return nil }
-            return (from: from.shortID, to: to.shortID)
-        })
-    }
+    private var connections: [Int: [Int]] { ConnectionIndex.build(edges: edges) }
 
     private var emptyMessage: String {
         notes.isEmpty ? "no notes yet — capture the first one below"

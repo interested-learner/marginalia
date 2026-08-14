@@ -26,4 +26,22 @@ nonisolated enum BookShelf {
         case .inbox: 3
         }
     }
+
+    /// The filter chips the library offers, in reading order — only the
+    /// statuses actually on the shelf, so a library of three queued books
+    /// doesn't show two chips that lead nowhere.
+    ///
+    /// **The Inbox is never a chip.** It's a drawer rather than a reading
+    /// state, and "show me only the Inbox" isn't a question anyone asks — it's
+    /// always there under `all`, which is where it stays visible.
+    static func filters(for books: [Book]) -> [BookStatus] {
+        let present = Set(books.map(\.status)).subtracting([.inbox])
+        return present.sorted { rank($0) < rank($1) }
+    }
+
+    /// `nil` is `all`, and `all` includes the Inbox.
+    static func matching(_ status: BookStatus?, in books: [Book]) -> [Book] {
+        guard let status else { return books }
+        return books.filter { $0.status == status }
+    }
 }

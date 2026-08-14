@@ -4,8 +4,12 @@ import SwiftUI
 /// never a pill, never a circle, never an iOS-style 26pt card corner.
 let interactiveRadius: CGFloat = 4
 
-/// The three button treatments. A disabled primary fills `disabled` and stops
-/// responding; it never dims to 50% opacity.
+/// The three button treatments. A disabled button fills `disabled` and stops
+/// responding; **it never dims to 50% opacity.**
+///
+/// Which is why the disabled state is drawn rather than declared: SwiftUI's own
+/// `.disabled` fades the label, and a faded `onInk` on a `disabled` fill is the
+/// one thing the design system says not to do. The tap is swallowed instead.
 struct MarkerButton: View {
     enum Kind { case primary, secondary, link }
 
@@ -15,7 +19,7 @@ struct MarkerButton: View {
     let action: () -> Void
 
     var body: some View {
-        Button(action: action) {
+        Button { if enabled { action() } } label: {
             switch kind {
             case .primary:
                 Text(title)
@@ -28,7 +32,7 @@ struct MarkerButton: View {
             case .secondary:
                 Text(title)
                     .font(Typography.button)
-                    .foregroundStyle(Theme.ink)
+                    .foregroundStyle(enabled ? Theme.ink : Theme.disabled)
                     .frame(maxWidth: .infinity, minHeight: 44)
                     .background(Theme.canvas)
                     .overlay(
@@ -40,13 +44,86 @@ struct MarkerButton: View {
             case .link:
                 Text(title)
                     .font(Typography.source)
-                    .foregroundStyle(Theme.textMute)
+                    .foregroundStyle(enabled ? Theme.textMute : Theme.disabled)
                     .underline(pattern: .solid)
                     .padding(.vertical, 4)
             }
         }
         .buttonStyle(.plain)
-        .disabled(!enabled)
+        .accessibilityAddTraits(enabled ? [] : .isStaticText)
+    }
+}
+
+/// A row of segments, each `flex: 1`. Selected inverts to filled ink.
+///
+/// **Three fit a phone, not four.** A fourth segment at 13pt mono clips its own
+/// label at the default text size, so a fourth choice wraps the row to two rows
+/// of two rather than shrinking the type — see `docs/design-system.md`.
+///
+/// Shared by the capture sheet's type selector and the book form's status, so
+/// the two can't drift into two different segmented controls.
+struct SegmentedRow<Option: Hashable>: View {
+    let options: [Option]
+    @Binding var selection: Option
+    let label: (Option) -> String
+
+    var body: some View {
+        HStack(spacing: 8) {
+            ForEach(options, id: \.self) { option in
+                let selected = option == selection
+                Button { selection = option } label: {
+                    Text(label(option))
+                        .font(Typography.buttonSmall)
+                        .foregroundStyle(selected ? Theme.onInk : Theme.textMute)
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.8)
+                        .frame(maxWidth: .infinity, minHeight: 44)
+                        .background(selected ? Theme.ink : Theme.canvas)
+                        .overlay(
+                            RoundedRectangle(cornerRadius: interactiveRadius)
+                                .stroke(selected ? Theme.ink : Theme.hairline, lineWidth: 1)
+                        )
+                        .clipShape(.rect(cornerRadius: interactiveRadius))
+                }
+                .buttonStyle(.plain)
+            }
+        }
+    }
+}
+
+/// A single-line text input. Fills `surfaceSoft` at rest; on focus the fill
+/// goes to `canvas` and the border to `ink`.
+///
+/// The placeholder carries the label — there are no field labels in this
+/// system, and `p.` in the box says what a caption above it would.
+struct InputField: View {
+    let placeholder: String
+    @Binding var text: String
+    var keyboard: UIKeyboardType = .default
+    var autocapitalize: TextInputAutocapitalization = .never
+    var onSubmit: (() -> Void)?
+
+    @FocusState private var focused: Bool
+
+    var body: some View {
+        TextField(placeholder, text: $text)
+            .font(Typography.input)
+            .foregroundStyle(Theme.ink)
+            .tint(Theme.ink)
+            .keyboardType(keyboard)
+            .autocorrectionDisabled()
+            .textInputAutocapitalization(autocapitalize)
+            .submitLabel(onSubmit == nil ? .return : .search)
+            .onSubmit { onSubmit?() }
+            .focused($focused)
+            .padding(.horizontal, 14)
+            .padding(.vertical, 12)
+            .background(focused ? Theme.canvas : Theme.surfaceSoft)
+            .overlay(
+                RoundedRectangle(cornerRadius: interactiveRadius)
+                    .stroke(focused ? Theme.ink : Theme.hairline, lineWidth: 1)
+            )
+            .clipShape(.rect(cornerRadius: interactiveRadius))
     }
 }
 

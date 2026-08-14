@@ -4,7 +4,7 @@ Working context for Claude Code in this repository. Read this before touching an
 
 > **Starting a session?** Read [`docs/planning.md`](docs/planning.md) first — it says what's built, what's next, and what's temporary scaffolding waiting to be replaced.
 >
-> **Phase 3 is complete.** The app builds, runs in both appearances, and passes its tests. Every screen reads from SwiftData and the app now **writes**: the stream bar files a thought or a voice note into the Inbox, and the full sheet files one against a book. Phase 4 is books — detail, search, ISBN.
+> **Phase 4 is complete.** The app builds, runs in both appearances, and passes its tests. Every screen reads from SwiftData and the app writes notes *and* books: the stream bar files a thought into the Inbox, the full sheet files one against a book, and books arrive by Open Library search, by barcode, or typed in. Phase 5 is review — paged cards, `ReviewSetBuilder`, stars, follow-ups.
 
 ## What this is
 
@@ -105,8 +105,11 @@ Marginalia/
     SeedLibrary              the 40 seed notes, as plain values
     ShortIDCounter           monotonic n.11 ids, never reused
     CaptureDraft             what's typed → what a Note stores. Pure
+    BookDraft                what's typed → what a Book stores. Pure
+    TypedPage                `"p. 214"` → `214`, for every page field. Pure
     NoteWriter               the one path a note takes to exist
-    BookShelf                the order the library reads in. Pure
+    BookWriter               the one path a book takes to exist, and changes by
+    BookShelf                the order the library reads in, and its filters. Pure
     RowMapping               models → NoteRowData / BookRowData. The only
                              file that knows about both sides
     RelativeTime             `2 mins ago`, `aug 01`, `0:07`
@@ -143,7 +146,11 @@ MarginaliaTests/
 | `-openNote <id>` | opens the stream scrolled to `n.<id>` |
 | `-captureDraft "<text>"` | fills the capture bar and focuses it |
 | `-captureBar <recording\|transcribing>` | the recording rows, without a microphone |
-| `-captureSheet <quote\|thought\|voice>` | opens the full sheet on the first book |
+| `-captureSheet <quote\|thought\|voice>` | opens the full sheet over the first book's detail |
+| `-openBook "<title>"` | opens that book's detail — matched on any part of the title |
+| `-addBook 1` | opens the add-book form |
+| `-bookSearch "<query>"` | fills the form's search field and runs it |
+| `-bookFilter <reading\|queued\|finished>` | opens the library on that chip |
 
 ## Commands
 
@@ -180,7 +187,9 @@ Tests use **Swift Testing** (`@Test`, `#expect`), not XCTest.
 - **Open Library needs no API key** and imposes no attribution requirement. Manual book entry must always remain available — treat lookup failure as routine, not exceptional.
 - **Seed ~40 notes**, not 12. A sparse map proves nothing about whether the layout works. `SeedLibrary` has them, and the cross-book tag overlap in them is deliberate — it's what phase 6 tunes against.
 - **Pure enums used from a `@Model` need `nonisolated`.** The project defaults to `MainActor` isolation and SwiftData models aren't; `Glyphs`, `BookStatus`, `NoteKind`, `Inbox`, `AudioLevels` and `BookShelf` are marked accordingly.
-- **Notes are written in exactly one place.** `NoteWriter.save` allocates the id, trims the body, and falls back to the Inbox. A second write path would drift from it — add a caller, not a copy.
+- **Notes are written in exactly one place.** `NoteWriter.save` allocates the id, trims the body, and falls back to the Inbox. A second write path would drift from it — add a caller, not a copy. **Books likewise go through `BookWriter`**, whether they arrived by search, by barcode, or typed in.
+- **The Inbox can't be edited.** It's found by status and it's where every unfiled capture falls back to, so `BookWriter.apply` refuses to change its status and book detail doesn't offer `edit` on it. An Inbox marked `reading` would quietly stop being one and the next quick capture would build a second.
+- **A lookup result fills the form; it never saves straight through.** Open Library gets authors and page counts wrong often enough that the last word has to belong to the reader — and it holds a separate work record per translation, so `BookLookup` collapses repeats of the same title and author.
 - **A transcript is never saved unseen.** On-device recognition is wrong often enough that it lands in an editable field, both in the bar and in the sheet. Editing it leaves the note `[v] voice`: how it was captured is a fact about the note, not about the keystrokes.
 - **`Synchronization.Mutex` can't be captured in a closure** — it's non-copyable. Where an audio callback has to hand a value back, `OSAllocatedUnfairLock` is what works (see `VoiceCapture.peak`).
 

@@ -51,9 +51,9 @@ struct CaptureSheet: View {
                         }
 
                         HStack(spacing: 8) {
-                            Field(placeholder: "p.", text: $draft.page, keyboard: .numberPad)
+                            InputField(placeholder: "p.", text: $draft.page, keyboard: .numberPad)
                                 .frame(width: 90)
-                            Field(placeholder: "#tag", text: $draft.tags)
+                            InputField(placeholder: "#tag", text: $draft.tags)
                         }
 
                         MarkerButton(title: "save note", enabled: draft.canSave) { save() }
@@ -181,26 +181,7 @@ private struct TypeSelector: View {
     private let offered: [NoteKind] = [.quote, .thought, .voice]
 
     var body: some View {
-        HStack(spacing: 8) {
-            ForEach(offered, id: \.self) { option in
-                let selected = option == kind
-                Button { kind = option } label: {
-                    Text("\(option.marker) \(option.label)")
-                        .font(Typography.buttonSmall)
-                        .foregroundStyle(selected ? Theme.onInk : Theme.textMute)
-                        .lineLimit(1)
-                        .minimumScaleFactor(0.8)
-                        .frame(maxWidth: .infinity, minHeight: 44)
-                        .background(selected ? Theme.ink : Theme.canvas)
-                        .overlay(
-                            RoundedRectangle(cornerRadius: interactiveRadius)
-                                .stroke(selected ? Theme.ink : Theme.hairline, lineWidth: 1)
-                        )
-                        .clipShape(.rect(cornerRadius: interactiveRadius))
-                }
-                .buttonStyle(.plain)
-            }
-        }
+        SegmentedRow(options: offered, selection: $kind) { "\($0.marker) \($0.label)" }
     }
 }
 
@@ -244,33 +225,6 @@ private struct BodyField: View {
 
     private var placeholder: String {
         kind == .quote ? "the passage, as written…" : "what you thought…"
-    }
-}
-
-private struct Field: View {
-    let placeholder: String
-    @Binding var text: String
-    var keyboard: UIKeyboardType = .default
-
-    @FocusState private var focused: Bool
-
-    var body: some View {
-        TextField(placeholder, text: $text)
-            .font(Typography.input)
-            .foregroundStyle(Theme.ink)
-            .tint(Theme.ink)
-            .keyboardType(keyboard)
-            .autocorrectionDisabled()
-            .textInputAutocapitalization(.never)
-            .focused($focused)
-            .padding(.horizontal, 14)
-            .padding(.vertical, 12)
-            .background(focused ? Theme.canvas : Theme.surfaceSoft)
-            .overlay(
-                RoundedRectangle(cornerRadius: interactiveRadius)
-                    .stroke(focused ? Theme.ink : Theme.hairline, lineWidth: 1)
-            )
-            .clipShape(.rect(cornerRadius: interactiveRadius))
     }
 }
 
