@@ -19,6 +19,16 @@ nonisolated enum BookStatus: String, CaseIterable, Sendable {
     var label: String { rawValue }
 }
 
+/// The Inbox's identity, in one place.
+///
+/// The first-launch seed builds it and so does a capture that arrives to find
+/// it missing. Written out twice they would eventually drift, and the user
+/// would have two drawers instead of one.
+nonisolated enum Inbox {
+    static let title = "Inbox"
+    static let author = "quick captures, unfiled"
+}
+
 /// A book, or the Inbox — which is a book like any other, so unfiled captures
 /// are never invisible.
 ///

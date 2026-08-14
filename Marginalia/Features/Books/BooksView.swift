@@ -4,9 +4,20 @@ import SwiftData
 /// The library. Status marker, title, note count — then author and status.
 /// No cover art anywhere; see `docs/decisions.md` §7.
 ///
-/// Phase 2 reads the real library. Book detail and adding a book are phase 4.
+/// Tapping a book opens the full capture sheet against it. **That is phase 3's
+/// entry point, not the final one** — phase 4 gives each book a detail screen
+/// and moves `[+] add note` there, where it belongs.
 struct BooksView: View {
     @Query private var books: [Book]
+
+    @State private var capturing: Book?
+
+    /// `-captureSheet quote|thought|voice` opens the sheet at launch, on that
+    /// type. The simulator can't be tapped from the command line, so this is
+    /// how the sheet gets screenshot — the same device as `-startTab`.
+    @State private var sheetAtLaunch = NoteKind(
+        rawValue: UserDefaults.standard.string(forKey: "captureSheet") ?? ""
+    )
 
     var body: some View {
         VStack(spacing: 0) {
@@ -18,30 +29,36 @@ struct BooksView: View {
                         EmptyState(message: "no books yet")
                     }
                     ForEach(sorted) { book in
-                        BookRow(book: BookRowData(book))
+                        Button { capturing = book } label: {
+                            BookRow(book: BookRowData(book))
+                        }
+                        .buttonStyle(PressedRow())
                     }
                 }
             }
         }
         .background(Theme.canvas)
-    }
-
-    /// What you're reading, then what's waiting, then what's done — and the
-    /// Inbox last, where a drawer belongs.
-    private var sorted: [Book] {
-        books.sorted {
-            rank($0.status) == rank($1.status)
-                ? $0.title.localizedCompare($1.title) == .orderedAscending
-                : rank($0.status) < rank($1.status)
+        .sheet(item: $capturing) { book in
+            CaptureSheet(book: book, kind: sheetAtLaunch ?? .thought)
+                .presentationBackground(Theme.canvas)
+                .presentationCornerRadius(0)
+                .presentationDragIndicator(.hidden)
+        }
+        .task {
+            guard sheetAtLaunch != nil else { return }
+            capturing = sorted.first
         }
     }
 
-    private func rank(_ status: BookStatus) -> Int {
-        switch status {
-        case .reading: 0
-        case .queued: 1
-        case .finished: 2
-        case .inbox: 3
-        }
+    private var sorted: [Book] { BookShelf.ordered(books) }
+}
+
+/// A row that fills `surfaceSoft` while it's held. The only press treatment in
+/// the app — there is no scale, no fade, and no shadow.
+struct PressedRow: ButtonStyle {
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .background(configuration.isPressed ? Theme.surfaceSoft : Theme.canvas)
+            .contentShape(Rectangle())
     }
 }

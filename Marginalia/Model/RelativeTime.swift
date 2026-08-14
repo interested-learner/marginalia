@@ -50,4 +50,11 @@ enum RelativeTime {
     }
 
     private static let weekdays = ["sun", "mon", "tue", "wed", "thu", "fri", "sat"]
+
+    /// `0:07` — the timer beside the recording dot. Seconds are padded and
+    /// minutes are not, so the row doesn't jitter as the count climbs.
+    static func elapsed(_ seconds: TimeInterval) -> String {
+        let total = max(0, Int(seconds))
+        return "\(total / 60):" + String(format: "%02d", total % 60)
+    }
 }

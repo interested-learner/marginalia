@@ -31,7 +31,13 @@ nonisolated enum Glyphs {
 
     static let add = "[+]"
     static let record = "[●]"      // the dot is `danger`, the brackets are `ink`
+    /// The bare recording dot, beside the elapsed timer. `danger`, and the only
+    /// place in the app besides `record` that it appears.
+    static let dot = "●"
     static let stop = "■"
+    static let close = "[x]"
+    /// A field that opens a list of choices. Terminal furniture, like `■`.
+    static let disclosure = "▼"
     static let refresh = "[↻]"     // also transcribing, also shuffle
     /// Bracket-plus-character, like every other marker. `★`/`✎` would be
     /// dingbats — they read as icons, which this system doesn't have.

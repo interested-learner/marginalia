@@ -4,7 +4,7 @@ Working context for Claude Code in this repository. Read this before touching an
 
 > **Starting a session?** Read [`docs/planning.md`](docs/planning.md) first — it says what's built, what's next, and what's temporary scaffolding waiting to be replaced.
 >
-> **Phase 2 is complete.** The app builds, runs in both appearances, and passes its tests. Every screen now reads from SwiftData, seeded with 40 notes across six books. Nothing writes yet — phase 3 is capture.
+> **Phase 3 is complete.** The app builds, runs in both appearances, and passes its tests. Every screen reads from SwiftData and the app now **writes**: the stream bar files a thought or a voice note into the Inbox, and the full sheet files one against a book. Phase 4 is books — detail, search, ISBN.
 
 ## What this is
 
@@ -31,7 +31,7 @@ The look comes from the **OpenCode design system**. It is severe on purpose, and
 
 1. **No raw color literals in views.** Every color comes from `Theme`. Not `Color.gray`, not `#f8f7f7`, not `.secondary`. If a color you need isn't in `Theme`, add it there with both appearances defined, then use it. This rule is the only reason dark mode works.
 2. **No shadows. Anywhere.** Not on cards, sheets, buttons, or bars. Separation is done with hairlines (`Theme.hairline`, 1px) and surface tint (`Theme.surfaceSoft`) — nothing else. `--elevation-1` in the source system is a hairline, not a shadow.
-3. **ASCII markers, not SF Symbols.** `[+] [x] [-] [~] [=] [◇] [↻] [q] [t] [v] [s]` and the arrows `→ ←`. Use the named cases in `Glyphs`, never a literal. There are no icons in this app — **and no dingbats either**: `★`, `✎`, `✓` and their kin read as icons and are just as forbidden. Every marker is bracket-plus-character, so `[ ] star` and `[+] add a thought`. Box-drawing and block characters (`▁▂▃▄▅▆▇`, `█░`, `■`) are fine; they're terminal furniture, not pictures.
+3. **ASCII markers, not SF Symbols.** `[+] [x] [-] [~] [=] [◇] [↻] [q] [t] [v] [s]` and the arrows `→ ←`. Use the named cases in `Glyphs`, never a literal. There are no icons in this app — **and no dingbats either**: `★`, `✎`, `✓` and their kin read as icons and are just as forbidden. Every marker is bracket-plus-character, so `[ ] star` and `[+] add a thought`. Box-drawing and block characters (`▁▂▃▄▅▆▇`, `█░`, `■`, `●`, `▼`) are fine; they're terminal furniture, not pictures, and each one is in the prototype.
 4. **Radius 4px on interactive elements only.** Buttons, inputs, chips. Everything else is square. Never a pill, never a circle, never 26pt iOS-style card corners.
 5. **One font.** JetBrains Mono at every size and weight — body, headings, numbers, buttons. There is no sans face and no italic in this system.
 6. **No cover art, no images, no color-coding.** Books are title + author + status marker + note count. The absence of imagery is the identity; a row of cover thumbnails would make this a different app.
@@ -104,13 +104,17 @@ Marginalia/
     Library                  schema, container, first-launch bootstrap
     SeedLibrary              the 40 seed notes, as plain values
     ShortIDCounter           monotonic n.11 ids, never reused
+    CaptureDraft             what's typed → what a Note stores. Pure
+    NoteWriter               the one path a note takes to exist
+    BookShelf                the order the library reads in. Pure
     RowMapping               models → NoteRowData / BookRowData. The only
                              file that knows about both sides
-    RelativeTime             `2 mins ago`, `aug 01`
+    RelativeTime             `2 mins ago`, `aug 01`, `0:07`
     ConnectionIndex          edges → who connects to whom, both directions
   Features/
     Stream/                  StreamView, StreamGrouping, TagIndex
-    Capture/  Books/  Map/  Review/  Search/  Settings/
+    Capture/                 CaptureBar, CaptureSheet, VoiceCapture, AudioLevels
+    Books/  Map/  Review/  Search/  Settings/
   Services/
     NoteEmbedding            NLContextualEmbedding + fallback
     AffinityEngine           scoring, mutual k-NN, pinning, suppression
@@ -131,7 +135,15 @@ MarginaliaTests/
 
 **Views never see SwiftData.** They take `NoteRowData` / `BookRowData`, and `Model/RowMapping.swift` is the only file that knows about both sides. That separation is what let the whole design system be built and judged before the model existed, and it's worth keeping.
 
-**`-startTab <name>` and `-openNote <id>`** are launch arguments, not scaffolding to remove. The simulator can't be tapped from the command line, so they're the only way to screenshot anything but the top of the stream.
+**Launch arguments are not scaffolding to remove.** The simulator can't be tapped from the command line, so they're the only way to screenshot anything but the top of the stream:
+
+| | |
+|---|---|
+| `-startTab <stream\|books\|map\|review>` | opens on that tab |
+| `-openNote <id>` | opens the stream scrolled to `n.<id>` |
+| `-captureDraft "<text>"` | fills the capture bar and focuses it |
+| `-captureBar <recording\|transcribing>` | the recording rows, without a microphone |
+| `-captureSheet <quote\|thought\|voice>` | opens the full sheet on the first book |
 
 ## Commands
 
@@ -167,7 +179,10 @@ Tests use **Swift Testing** (`@Test`, `#expect`), not XCTest.
 - **The simulator cannot test** microphone, transcription, camera OCR, or barcode scanning. Those need the device. Don't claim they work from a simulator run.
 - **Open Library needs no API key** and imposes no attribution requirement. Manual book entry must always remain available — treat lookup failure as routine, not exceptional.
 - **Seed ~40 notes**, not 12. A sparse map proves nothing about whether the layout works. `SeedLibrary` has them, and the cross-book tag overlap in them is deliberate — it's what phase 6 tunes against.
-- **Pure enums used from a `@Model` need `nonisolated`.** The project defaults to `MainActor` isolation and SwiftData models aren't; `Glyphs`, `BookStatus` and `NoteKind` are marked accordingly.
+- **Pure enums used from a `@Model` need `nonisolated`.** The project defaults to `MainActor` isolation and SwiftData models aren't; `Glyphs`, `BookStatus`, `NoteKind`, `Inbox`, `AudioLevels` and `BookShelf` are marked accordingly.
+- **Notes are written in exactly one place.** `NoteWriter.save` allocates the id, trims the body, and falls back to the Inbox. A second write path would drift from it — add a caller, not a copy.
+- **A transcript is never saved unseen.** On-device recognition is wrong often enough that it lands in an editable field, both in the bar and in the sheet. Editing it leaves the note `[v] voice`: how it was captured is a fact about the note, not about the keystrokes.
+- **`Synchronization.Mutex` can't be captured in a closure** — it's non-copyable. Where an audio callback has to hand a value back, `OSAllocatedUnfairLock` is what works (see `VoiceCapture.peak`).
 
 ## Don't
 

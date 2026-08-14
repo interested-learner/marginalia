@@ -79,7 +79,9 @@ ASCII markers replace icons entirely. Defined as named cases in `Design/Glyphs.s
 | `[v]` | Voice note |
 | `[s]` | Scanned note |
 | `[●]` | Record — the dot is `danger`, the brackets are `ink` |
+| `●` | The bare recording dot, beside the elapsed timer. `danger` |
 | `■` | Stop |
+| `▼` | A field that opens a list — the capture sheet's book picker |
 | `[*]` `[ ]` | Starred / not starred |
 | `→` `←` | Connection, navigation |
 | `▁▂▃▄▅▆▇` | Recording waveform |
@@ -185,7 +187,18 @@ The waveform redraws every 200ms from live input amplitude. In the full capture 
 
 ### Segmented control (capture type)
 
-Each segment `flex: 1`, minimum height 44, radius 4, 14/500. Selected is filled `ink` / `onInk` with an `ink` border; unselected is `canvas` / `textMute` with a `hairline` border. Labels carry their glyph: `[q] quote`, `[t] thought`, `[v] voice`, `[s] scan`.
+Each segment `flex: 1`, minimum height 44, radius 4, 13/500. Selected is filled `ink` / `onInk` with an `ink` border; unselected is `canvas` / `textMute` with a `hairline` border. Labels carry their glyph: `[q] quote`, `[t] thought`, `[v] voice`, `[s] scan`.
+
+**Three segments fit a phone, not four.** `[s] scan` opens the camera and arrives with the scanner in phase 9; until then the selector offers quote, thought and voice. A fourth segment at 14pt mono clips its own label at the default text size, so when scan lands the row wraps to two rows of two rather than shrinking the type.
+
+### Capture sheet
+
+Header (`new note`, `[x]` to close) over a form: type selector, book picker, body, then page and tags side by side, then `save note`.
+
+- **The body field takes whatever height is left**, so the sheet reads as full rather than half empty. It scrolls instead once Dynamic Type needs the room. The prototype's fixed 150px was drawn for a browser window.
+- **The recording box stays 150** in all three of its states, so the sheet doesn't resize under the thumb between them, and `save note` sits in the same place whichever type is selected.
+- **The book picker opens inline** — the library, drawn with the app's own rows, expanding beneath the field. A wheel or a menu would be the one piece of iOS chrome in the app.
+- The sheet itself is square (`presentationCornerRadius(0)`) with no grabber. Rule 4 applies to the sheet as much as to a card.
 
 ### Buttons
 

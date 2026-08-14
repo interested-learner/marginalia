@@ -2,15 +2,15 @@
 
 Where the project stands and what happens next. **Read this first in a new session**, then `CLAUDE.md` for the rules.
 
-Last updated 2026-08-13, after phase 2.
+Last updated 2026-08-13, after phase 3.
 
 ---
 
 ## State
 
-The app **builds clean, runs on the simulator in both appearances, and passes 72 tests.** Every screen reads from SwiftData now. A fresh install seeds six books and forty notes, the stream groups and filters for real, and a `→ n.20` navigates to its note.
+The app **builds clean, runs on the simulator in both appearances, and passes 127 tests.** Every screen reads from SwiftData, and the app now **writes**: `[+]` in the stream bar files a thought into the Inbox with a fresh id, and the full sheet files one against a book with a page and tags.
 
-**Nothing writes yet.** The capture bar, the review actions, and everything on the map except the preview panel are still inert.
+**Still inert:** the review actions, and everything on the map except the preview panel.
 
 History is one commit per phase on `main` — `git log --oneline` is the authority, not this file. Remote: `interested-learner/marginalia` (public). `gh` is **not** installed on this machine.
 
@@ -21,8 +21,8 @@ History is one commit per phase on `main` — `git log --oneline` is the authori
 | 0 | Documentation | **done** |
 | 1 | Scaffold + design system, four-tab shell | **done** |
 | 2 | Model + Stream | **done** |
-| 3 | Capture — text, then voice | **next** |
-| 4 | Books — list, detail, add by search and ISBN | |
+| 3 | Capture — text, then voice | **done** (voice needs a device) |
+| 4 | Books — list, detail, add by search and ISBN | **next** |
 | 5 | Review — paged cards, `ReviewSetBuilder`, stars, follow-ups | |
 | 6 | Linking — embeddings + `AffinityEngine` | gates on a human reading output |
 | 7 | Map — `GraphLayout`, real graph | |
@@ -31,6 +31,30 @@ History is one commit per phase on `main` — `git log --oneline` is the authori
 | 10 | Polish, app icon, device install | |
 
 Full detail for every phase is in `docs/specs/2026-08-13-marginalia-design.md`. The reasoning behind the choices is in `docs/decisions.md` — **don't re-litigate those.**
+
+---
+
+## What phase 3 built
+
+- **`NoteWriter`** — the one path a note takes to exist. Allocates the id from `ShortIDCounter`, trims the body, files to the Inbox when no book was given, and **recreates the Inbox** rather than swallowing the note if the store has lost it. A refused save spends no id: a gap in the sequence reads as a deleted note.
+- **`CaptureDraft`** — pure. What was typed (`"p.214"`, `"#Attention, memory"`) becomes what a `Note` stores (`214`, `["attention", "memory"]`). Every rule in it is tested without a container.
+- **The capture bar**, moved out of `StreamView` into `Features/Capture/`. Three rows, one at a time: input, live waveform with the elapsed timer, and `[↻] transcribing…`.
+- **`SpeechTranscription`** — `SFSpeechRecognizer` with `requiresOnDeviceRecognition = true`, an `AVAudioEngine` tap driving the waveform, permissions asked at first use. It waits up to six seconds for a final result and hands back the best partial rather than losing what it heard.
+- **`AudioLevels`** — dBFS → `▁▂▃▄▅▆▇`, pure, so the waveform is judged by assertions rather than by eye.
+- **`CaptureSheet`** — type selector, inline book picker, body, page, tags. Phase 4 opens it from book detail.
+- **Four launch arguments** for states the simulator can't be tapped into — see the table in `CLAUDE.md`.
+
+**A transcript is never saved unseen.** It lands in an editable field in both places, and editing it leaves the note `[v] voice` — how it was captured is a fact about the note, not about the keystrokes.
+
+### Unverified, and honestly so
+
+- **Voice was not exercised.** The simulator has no microphone and cannot run on-device recognition. Every recording state was screenshot from `VoiceCapture.demo`, which is fixed values, not audio. Recording, transcription, and both permission prompts need a device before anyone claims they work.
+- **Nothing was tapped.** `simctl` can't tap, so the save path is proven by `NoteWriterTests` against a real in-memory store rather than by pressing `[+]`. The bar's behaviour with the software keyboard up is also unseen — the simulator had a hardware keyboard attached.
+
+### Standing until phase 4
+
+- **Tapping a book opens the capture sheet against it.** That's phase 3's entry point to the full sheet, not the final one — phase 4 gives each book a detail screen and moves `[+] add note` there. `BooksView` says so at the top.
+- **The type selector offers three types, not four.** `[s] scan` opens the camera; it arrives with the scanner in phase 9 rather than as a segment that does nothing. See `docs/design-system.md` §Segmented control for what happens to the row when it does.
 
 ---
 
@@ -51,24 +75,24 @@ Full detail for every phase is in `docs/specs/2026-08-13-marginalia-design.md`. 
 
 - **`MapView`'s hand-placed positions and lines** — phase 7. Only the preview panel is real.
 - **`ReviewView` shows the newest eight**, not a day-stable set, and its actions do nothing — phase 5.
-- **The capture bar doesn't save** — phase 3.
 
 ---
 
-## Next: phase 3 — capture
+## Next: phase 4 — books
 
-1. **Text from the stream bar** — `[+]` files a thought into the Inbox with a fresh `shortID` from `ShortIDCounter`. Two taps from launch to a saved note is the bar to clear.
-2. **`SpeechTranscription`** — `SFSpeechRecognizer` with `requiresOnDeviceRecognition = true`, an `AVAudioEngine` tap driving the waveform. Permissions at first use, never at launch.
-3. **The voice flow exactly as the prototype has it**: `[●]` → live waveform and elapsed timer → `■ stop` → `[↻] transcribing…` → text lands in the field, **editable before saving**.
-4. **The full capture sheet** from a book — type selector, book picker, body, page, tags. Phase 4 needs it too.
+1. **Book detail** — the header (title, author, note count · status · progress) over that book's notes, using the margin the stream uses. `[+] add note` opens `CaptureSheet(book:)`, which already exists, and **replaces the row tap that opens it today**.
+2. **Adding a book** — Open Library `/search.json` by title, then `/isbn/{isbn}.json` behind a VisionKit barcode scan. Manual entry always available; lookup failure is routine, not exceptional.
+3. **Filter the library** by reading / finished / queued, with the same chip row the stream uses.
 
-**The simulator cannot test microphone or transcription.** Those need the device; don't claim they work from a simulator run.
+`BookLookup` parses against captured fixtures, including missing-author and missing-page-count responses. No API key, no attribution requirement.
 
 ---
 
 ## Open questions for Nathaniel
 
-None of these block phase 3.
+None of these block phase 4.
+
+0. **Is `▼` allowed?** The capture sheet's book picker uses it, and the prototype does too. It's terminal furniture by the same argument that permits `■` and `→`, but it's the closest thing to a dingbat in the app — say so now if it reads as one, while there's exactly one of them.
 
 1. **Is the dark palette right?** The prototype only ever specified light; every dark value is derived.
 2. **Is the body leading comfortable?** `Typography.bodyLeading` is 4pt on 15pt text (~1.6). Tightened once already from 5.

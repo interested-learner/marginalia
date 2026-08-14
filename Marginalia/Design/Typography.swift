@@ -48,6 +48,10 @@ enum Typography {
     static let input = Font.custom(Face.regular, size: 15, relativeTo: .body)
     static let button = Font.custom(Face.medium, size: 15, relativeTo: .body)
 
+    /// `■ stop`, and the capture sheet's type selector — the two buttons that
+    /// have to sit inside a row rather than span it.
+    static let buttonSmall = Font.custom(Face.medium, size: 13, relativeTo: .footnote)
+
     // MARK: Map
 
     static let mapNode = Font.custom(Face.regular, size: 13, relativeTo: .footnote)

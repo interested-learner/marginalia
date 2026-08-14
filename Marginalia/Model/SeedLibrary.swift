@@ -67,7 +67,7 @@ nonisolated enum SeedLibrary {
                  status: .queued, pageCount: 487),
         BookSeed(key: "norman", title: "The Design of Everyday Things", author: "Don Norman",
                  status: .finished, pageCount: 368, currentPage: 368),
-        BookSeed(key: "inbox", title: "Inbox", author: "quick captures, unfiled",
+        BookSeed(key: "inbox", title: Inbox.title, author: Inbox.author,
                  status: .inbox),
     ]
 
