@@ -4,14 +4,20 @@ import SwiftUI
 /// never a pill, never a circle, never an iOS-style 26pt card corner.
 let interactiveRadius: CGFloat = 4
 
-/// The three button treatments. A disabled button fills `disabled` and stops
+/// The button treatments. A disabled button fills `disabled` and stops
 /// responding; **it never dims to 50% opacity.**
 ///
 /// Which is why the disabled state is drawn rather than declared: SwiftUI's own
 /// `.disabled` fades the label, and a faded `onInk` on a `disabled` fill is the
 /// one thing the design system says not to do. The tap is swallowed instead.
+///
+/// `danger` is `primary` in the one saturated color the app has, and it exists
+/// for exactly one thing: the button that carries out a destructive
+/// confirmation. It is never the button that *offers* one — the link that opens
+/// a `ConfirmSheet` stays `textMute` like every other link, or the palette would
+/// start colour-coding, which this system doesn't do.
 struct MarkerButton: View {
-    enum Kind { case primary, secondary, link }
+    enum Kind { case primary, secondary, link, danger }
 
     let title: String
     var kind: Kind = .primary
@@ -27,6 +33,14 @@ struct MarkerButton: View {
                     .foregroundStyle(Theme.onInk)
                     .frame(maxWidth: .infinity, minHeight: 48)
                     .background(enabled ? Theme.ink : Theme.disabled)
+                    .clipShape(.rect(cornerRadius: interactiveRadius))
+
+            case .danger:
+                Text(title)
+                    .font(Typography.button)
+                    .foregroundStyle(Theme.onInk)
+                    .frame(maxWidth: .infinity, minHeight: 48)
+                    .background(enabled ? Theme.danger : Theme.disabled)
                     .clipShape(.rect(cornerRadius: interactiveRadius))
 
             case .secondary:

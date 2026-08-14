@@ -12,8 +12,12 @@ struct BookDetailView: View {
 
     @Query private var edges: [NoteEdge]
 
+    @Environment(\.modelContext) private var context
+
     @State private var capturing = false
     @State private var editing = false
+    /// What a long press — or `delete` in the header — asked to remove.
+    @State private var erasing: Erasure?
 
     /// `-captureSheet quote|thought|voice` opens the sheet at launch, on that
     /// type — the only way to screenshot it, since the simulator can't be
@@ -32,11 +36,15 @@ struct BookDetailView: View {
                         EmptyState(message: "no notes yet — add the first one below")
                     }
                     ForEach(notes) { note in
-                        NoteRow(note: NoteRowData(
-                            note,
-                            connections: connections[note.shortID] ?? [],
-                            showingBook: false
-                        ))
+                        NoteRow(
+                            note: NoteRowData(
+                                note,
+                                connections: connections[note.shortID] ?? [],
+                                showingBook: false
+                            ),
+                            onDelete: { erasing = .note(note) },
+                            onDeleteFollowUp: { erasing = .thought($0, of: note) }
+                        )
                     }
                 }
             }
@@ -56,7 +64,11 @@ struct BookDetailView: View {
                 .presentationCornerRadius(0)
                 .presentationDragIndicator(.hidden)
         }
-        .task { if sheetAtLaunch != nil { capturing = true } }
+        // Deleting the book deletes the screen you're standing on, so the
+        // confirmation hands back to the library rather than leaving detail
+        // drawing a book that no longer exists.
+        .confirming($erasing, in: context, after: dismissIfBookIsGone)
+        .task { openAtLaunch() }
     }
 
     // MARK: Chrome
@@ -85,15 +97,44 @@ struct BookDetailView: View {
                     Spacer(minLength: 8)
 
                     // The Inbox is found by status and is where every unfiled
-                    // capture falls back to. Editing it is the one way to end
-                    // up with two of them, so it isn't offered.
+                    // capture falls back to. Editing it is one way to end up
+                    // with two of them and deleting it is the other, so neither
+                    // is offered — its notes are still deletable one at a time.
                     if book.status != .inbox {
                         MarkerButton(title: "edit", kind: .link) { editing = true }
+                        // A link, not a red button. `danger` belongs to the
+                        // confirmation, never to the thing that opens one.
+                        MarkerButton(title: "delete", kind: .link) { erasing = .book(book) }
                     }
                 }
             }
             .padding(.top, 4)
         }
+    }
+
+    // MARK: Launch arguments
+    //
+    // The simulator can't be long-pressed any more than it can be tapped, so a
+    // confirmation is unreachable from the command line without this. Same
+    // device as `-startTab` and `-openBook`; see `CLAUDE.md`.
+
+    /// `-confirmDelete book` opens the book's confirmation, `-confirmDelete note`
+    /// the first note's. `-captureSheet quote` still opens the capture sheet.
+    private func openAtLaunch() {
+        if sheetAtLaunch != nil { capturing = true }
+
+        switch UserDefaults.standard.string(forKey: "confirmDelete") {
+        case "book": erasing = .book(book)
+        case "note": erasing = notes.first.map(Erasure.note)
+        default: break
+        }
+    }
+
+    /// A note deleted from here leaves the screen standing; the book itself
+    /// doesn't, and SwiftData will happily keep drawing a row for a model that
+    /// has been removed until the navigation stack catches up.
+    private func dismissIfBookIsGone() {
+        if book.isDeleted { onBack() }
     }
 
     /// `Daniel Kahneman · reading`, closing up when the author is unknown —

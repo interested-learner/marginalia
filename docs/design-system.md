@@ -179,13 +179,14 @@ The one header on the screen, carrying more than a name. Same `54 / 20 / 12` pad
 ← books
 Thinking, Fast and Slow                    [10]
 Daniel Kahneman · reading
-[████░░░░░░] p.214 / 499                   edit
+[████░░░░░░] p.214 / 499           edit  delete
 ```
 
 - `← books` at 13 `textMute`, above the title, minimum 30pt tall. The only `←` in the app.
 - Title 18/700 `ink`, wrapping rather than truncating; note count right-aligned at 13 `textAsh`.
 - `author · status` at 13 `textMute`, closing up when the author is unknown.
-- Progress bar at 15 `textMute` with `p.214 / 499` at 13 `textAsh`, both omitted when the page count is unknown. `edit` is a link button, right-aligned, and **absent on the Inbox**.
+- Progress bar at 15 `textMute` with `p.214 / 499` at 13 `textAsh`, both omitted when the page count is unknown. `edit` and `delete` are link buttons, right-aligned, and **both absent on the Inbox** — editing it is one way to end up with two Inboxes and deleting it is the other.
+- **`delete` is a link like any other, not a red button.** `danger` belongs to the confirmation it opens; a colored word in the header would be the app colour-coding, which this system doesn't do.
 
 Rows beneath use the margin, minus the book title on the source line — it's already at the top of the screen.
 
@@ -240,10 +241,13 @@ Header (`new note`, `[x]` to close) over a form: type selector, book picker, bod
 | | Fill | Border | Text | Pressed |
 |---|---|---|---|---|
 | **Primary** | `ink` | none | `onInk` | `inkDeep` |
+| **Danger** | `danger` | none | `onInk` | — |
 | **Secondary** | `canvas` | `hairline` | `ink` | `surfaceSoft` |
 | **Link** | none | none | `textMute`, underlined at 2pt offset | — |
 
 Primary is minimum height 48 at 16/500. Secondary is 10pt vertical at 14/500. Disabled primary fills `disabled` and stops responding — it never dims to 50% opacity.
+
+**Danger is primary in the one saturated color the app has, and it appears in exactly one place: the button that carries out a confirmation.** It is never the button that *offers* one — see `ConfirmSheet` below.
 
 ### Progress bar
 
@@ -319,6 +323,34 @@ n.04 │ [q] quote · jul 09
 The same device as the quote rule and deliberately the quieter half of it: a 1px `hairline` on the leading edge where a quote gets 2pt of `ink`. A follow-up is subordinate to the note it grew out of, and the weight of the rule is what says so.
 
 Indented 12pt from the rule, 8pt of clear space above, 12pt between two follow-ups. The timestamp sits at 13 `textAsh` over the text at 15/1.6 `textBody`. **Oldest first** — a thread reads forward, because the answer comes after the thing it answers.
+
+### Confirmation sheet
+
+The app asking whether it should really do the irreversible thing. Half-height sheet, square corners, `canvas` behind it, no drag indicator — the same presentation as every other sheet in the app, at `.medium` rather than full.
+
+```
+delete Meditations?
+
+8 notes written from it go with it, and
+their threads go with them. this can't
+be undone.
+
+
+          [x] delete                     ← danger fill
+          cancel                         ← secondary
+```
+
+- Title at 18/700 `ink`, phrased as the question. Consequence at 15/1.6 `textBody`, saying **what goes with it** — that's the whole reason for asking.
+- The destructive button is first, filled `danger`, and says what it will do: `[x] delete`, never `ok` or `yes`. `cancel` is secondary and unmarked, because backing out isn't an action.
+- Buttons sit at the foot of the sheet, one thumb away, with the question at the top — the same arrangement as a pinned action bar.
+
+**Its own sheet, never `confirmationDialog`.** A system dialog arrives in San Francisco with pill buttons and a 26pt radius: three rules broken in one presentation, and the only place in the app that would look like iOS.
+
+### Deleting a row
+
+A note or a follow-up is deleted by **long-pressing the row**, which opens the confirmation above. There is no permanent `delete` on a stream row — there is nowhere on a row that dense to put one without it competing with the note itself.
+
+**A row can be deleted where it is listed, not where it is being read.** Stream rows and book-detail rows carry the gesture; the review card does not, because review is a reading surface and destroying the card under your thumb is not worth being able to do by accident.
 
 ---
 

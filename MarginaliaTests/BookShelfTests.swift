@@ -59,4 +59,50 @@ struct BookShelfTests {
         #expect(BookShelf.matching(.reading, in: books).count == 1)
         #expect(BookShelf.matching(.queued, in: books).isEmpty)
     }
+
+    // MARK: Duplicates
+
+    private func owned() -> [Book] {
+        [Book(title: "Meditations", author: "Marcus Aurelius", status: .finished),
+         Book(title: "Thinking, Fast and Slow", author: "Daniel Kahneman", status: .reading)]
+    }
+
+    private func found(_ title: String, _ author: String = "", excluding: Book? = nil) -> String? {
+        BookShelf.duplicate(title: title, author: author,
+                            in: owned(), excluding: excluding)?.title
+    }
+
+    @Test func aBookAlreadyOnTheShelfIsFound() {
+        #expect(found("Meditations", "Marcus Aurelius") == "Meditations")
+    }
+
+    /// Case, accents and stray spacing are not what makes two books different.
+    @Test func spellingIsNormalizedBeforeComparing() {
+        #expect(found("  meditations  ", "MARCUS AURELIUS") == "Meditations")
+        #expect(found("Méditations", "Marcus Aurelius") == "Meditations")
+    }
+
+    /// Open Library returns a title with no author often enough that insisting
+    /// on both would let the duplicate through in the case this exists for.
+    @Test func aMissingAuthorOnEitherSideStillMatches() {
+        #expect(found("Meditations") == "Meditations")
+    }
+
+    /// Two genuinely different books that share a title both get added.
+    @Test func aDifferentAuthorIsADifferentBook() {
+        #expect(found("Meditations", "Descartes") == nil)
+    }
+
+    @Test func aBookNotOnTheShelfIsNotADuplicate() {
+        #expect(found("The Beginning of Infinity", "David Deutsch") == nil)
+        #expect(found("") == nil)
+    }
+
+    /// Correcting a typo in a title must not report the book as a duplicate of
+    /// itself — the form is editing it, not adding a second one.
+    @Test func theBookBeingEditedIsNotItsOwnDuplicate() {
+        let shelf = owned()
+        #expect(BookShelf.duplicate(title: "Meditations", author: "Marcus Aurelius",
+                                    in: shelf, excluding: shelf[0]) == nil)
+    }
 }

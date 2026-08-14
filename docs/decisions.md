@@ -144,3 +144,17 @@ The first pass at the review card used `★` for star and `✎` for add-a-though
 Every marker is **bracket-plus-character**: `[ ] star`, `[*] starred`, `[+] add a thought`. Box-drawing and block characters stay allowed — `▁▂▃▄▅▆▇`, `█░`, `■`, `→` — because they're terminal furniture rather than pictures, and the prototype already used them.
 
 Recorded because it's an easy rule to satisfy superficially, and the failure looks fine in isolation. It only reads wrong beside the rest of the vocabulary.
+
+## 14. A vector belongs to the model that made it — and the recompute is whole
+
+**2026-08-14 · settled** · extends §10, after building it
+
+Three choices phase 6 had to make that §10 didn't cover, recorded because each one is invisible until it's wrong.
+
+**The source is stored with the vector.** `NLContextualEmbedding` and `NLEmbedding.sentenceEmbedding` produce two different spaces, and a cosine between them is a number with no meaning — not a weaker signal, a meaningless one. So `Note.embeddingSourceRaw` records which model produced each vector, and a note whose source isn't the one loaded today counts as unembedded. The alternative — trusting `embeddedAt` alone — works perfectly until the day Apple's assets finish downloading, at which point half the library is in one space and half in another and every score is quietly garbage. That's a bug that would have looked like "the linking got worse for no reason."
+
+**The recompute is full, not incremental.** The spec said to embed the new note and compare it against every stored vector, which is right about the new note and blind about everyone else: mutual k-NN and the degree cap are properties of the *whole* graph, so an arrival can displace somebody's eighth-best neighbour or take their sixth slot, and a delta never notices. A whole pass is O(N²) and, at any library this app currently holds, free. It stops being free somewhere in the low thousands of notes, and that's written down in `docs/issues.md` §15 rather than pretended away — the fix is the incremental path plus a background `ModelActor`, and it belongs with *rebuild connections* in phase 8.
+
+**Pinned edges spend degree budget; suppression beats pinning.** A pinned edge is never pruned, but the cap exists to control how many lines meet at a node on the map, and a hand-made line is still a line — so pinned pairs are counted before the automatic ones are allocated. Where a pair is somehow both pinned and suppressed, suppression wins: deleting is the more recent deliberate act, and the cost of being wrong is a missing line rather than one the reader has already said they don't want.
+
+**The thing §10 warned about happened, in a form nobody predicted.** §10 said phase 6 gates on a human reading real output. It does, and the output couldn't be read: `NLContextualEmbedding` cannot compile its assets in the simulator (`docs/issues.md` §14), so every connection anyone has looked at came from the fallback — which measurably does not measure meaning at note length. The floor, the weights and `k` were therefore left exactly where the spec put them. Tuning them against a model the app abandons the moment the assets compile would be fitting the numbers to the wrong thing, twice.

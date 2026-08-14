@@ -40,6 +40,15 @@ final class Note {
     var embedding: Data?
     /// `nil` means the note still needs embedding.
     var embeddedAt: Date?
+    /// Which vectorizer produced `embedding`, as a raw string for the same
+    /// reason as `kindRaw`.
+    ///
+    /// Vectors from two different models are not comparable, so a note carrying
+    /// one the app is no longer using is stale — the second way into the
+    /// embedding queue, after `embeddedAt == nil`, and the one that empties a
+    /// whole library into it the day Apple's contextual assets finish
+    /// downloading. See `EmbeddingSource`.
+    var embeddingSourceRaw: String = ""
 
     var book: Book?
 
@@ -69,6 +78,20 @@ final class Note {
     var kind: NoteKind {
         get { NoteKind(rawValue: kindRaw) ?? .thought }
         set { kindRaw = newValue.rawValue }
+    }
+
+    var embeddingSource: EmbeddingSource? {
+        get { EmbeddingSource(rawValue: embeddingSourceRaw) }
+        set { embeddingSourceRaw = newValue?.rawValue ?? "" }
+    }
+
+    /// The vector as `AffinityEngine` wants it, or `nil` when this note has
+    /// none the app can still compare — never embedded, or embedded by a model
+    /// it has since stopped using.
+    func vector(from source: EmbeddingSource) -> [Float]? {
+        guard embeddingSource == source, let embedding else { return nil }
+        let values = NoteEmbedding.unpack(embedding)
+        return values.isEmpty ? nil : values
     }
 
     /// `n.11`

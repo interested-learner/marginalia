@@ -2,13 +2,17 @@
 
 Where the project stands and what happens next. **Read this first in a new session**, then `CLAUDE.md` for the rules.
 
-Last updated 2026-08-14, after phase 5.
+Last updated 2026-08-14, after phase 6.
 
 ---
 
 ## State
 
-The app **builds clean, runs on the simulator in both appearances, and passes 207 tests.** Every screen reads from SwiftData, and the app writes notes, books *and* follow-ups: `[+]` in the stream bar files a thought into the Inbox with a fresh id, the full sheet files one against a book, books arrive by Open Library search or barcode or by hand, and review pages through a day-stable set of eight whose actions all do something.
+The app **builds clean, runs on the simulator in both appearances — Debug and Release — and passes 273 tests (one of them a recorded known issue — see phase 6 below).** Every screen reads from SwiftData, and the app writes notes, books *and* follow-ups: `[+]` in the stream bar files a thought into the Inbox with a fresh id, the full sheet files one against a book, books arrive by Open Library search or barcode or by hand, and review pages through a day-stable set of eight whose actions all do something.
+
+**And now removes them.** Notes, books and follow-ups all delete, through `Eraser` and the app's own confirmation — see the issues pass below.
+
+**And now connects them.** Phase 6 landed: every note is vectorized on save, `AffinityEngine` scores every pair, and the connections that survive its three constraints are written as edges and drawn on the stream, on book detail and on the review card. Nobody was asked to link anything.
 
 **Still inert:** everything on the map except the preview panel.
 
@@ -24,8 +28,8 @@ History is one commit per phase on `main` — `git log --oneline` is the authori
 | 3 | Capture — text, then voice | **done** (voice needs a device) |
 | 4 | Books — list, detail, add by search and ISBN | **done** (barcode needs a device) |
 | 5 | Review — paged cards, `ReviewSetBuilder`, stars, follow-ups | **done** |
-| 6 | Linking — embeddings + `AffinityEngine` | **next** · gates on a human reading output |
-| 7 | Map — `GraphLayout`, real graph | |
+| 6 | Linking — embeddings + `AffinityEngine` | **done** · output read; see below |
+| 7 | Map — `GraphLayout`, real graph | **next** |
 | 8 | Search, export, settings, notifications | |
 | 9 | Camera OCR capture | |
 | 10 | Polish, app icon, device install | |
@@ -33,6 +37,58 @@ History is one commit per phase on `main` — `git log --oneline` is the authori
 Full detail for every phase is in `docs/specs/2026-08-13-marginalia-design.md`. The reasoning behind the choices is in `docs/decisions.md` — **don't re-litigate those.**
 
 ---
+
+## What phase 6 built
+
+- **`NoteEmbedding`** — `NLContextualEmbedding` mean-pooled over its token vectors, falling back to `NLEmbedding.sentenceEmbedding` when the contextual assets won't load, and asking for those assets once in the background so a later launch can upgrade. Vectors come out unit length, which turns every cosine in the engine into a dot product. Packed little-endian `Float32` into `Note.embedding`.
+- **A vector carries which model made it.** New `Note.embeddingSourceRaw`. Two models produce two spaces and a cosine between them is a number with no meaning, so a note whose stored source isn't the one loaded today is stale and gets embedded again — the second way into the queue after `embeddedAt == nil`, and the one that re-embeds an entire library the day Apple's assets finish downloading. Without it the fallback would quietly poison every score the moment the better model arrived.
+- **`AffinityEngine`** — pure, exactly as specified: `0.8 · cosine + 0.2 · tagOverlap`, floor `0.55`, mutual k-NN at 8, degree cap 6, same-book not boosted. Tag overlap is **Jaccard**; intersection alone would let a note tagged with everything score against everything, which is the failure mutual k-NN already exists to prevent. Ties break on note id so a recompute over unchanged notes returns the same graph — a map that reshuffled on every launch would read as the app changing its mind.
+- **Pinned edges spend degree budget.** They're never pruned and never re-suggested, but the cap is about how many lines meet at a node, and a hand-made line is still a line. Suppression beats pinning where a pair is somehow both.
+- **`LinkWriter`** — the one path an edge takes to exist, and the mirror of `NoteWriter`. It embeds what needs it, rescores the library, and diffs: an edge that still holds keeps its identity and takes a new score, one that no longer holds is deleted, dangling and self-joined and duplicated edges are swept. Both expensive halves run off the main actor and only plain values cross.
+- **It's a full recompute, not the spec's delta.** Embedding one new note and comparing it against every stored vector gets *that* note's edges right, but can't notice that it displaced somebody else's eighth-best neighbour or filled their sixth slot. At the sizes this app holds, being right is free. Above a few thousand notes it wants the incremental path and a background `ModelActor` — a phase 8 job, written down rather than pretended away.
+- **One trigger, in one place.** `.linking()` on the root view watches the note count and the unembedded count. That single rule covers the first-launch backfill and every capture after it, and a delete frees degree budget that the next pass hands to somebody else. Overlapping passes queue rather than drop — a dropped pass would leave the note that caused it unembedded until something else changed.
+- **Backlinks needed no work.** `ConnectionIndex` already read edges both ways and all three surfaces already drew them; they were drawing an empty index. Seen in the app: `n.40 → n.08 · n.27` on the stream, `→ n.03 · n.05` on a review card, in both appearances.
+- **`AffinityDumpTests`** — the phase's actual deliverable. Prints every seed note's five best candidates, the score, and whether the constraints let it through, plus degree and score distributions. Off unless `MARGINALIA_DUMP` is set; every line starts with `|` so it survives an `xcodebuild` log.
+
+### What reading the output actually said
+
+**The gate did not pass cleanly, and the reason is not the code.** `NLContextualEmbedding` — the model the whole design is built on — **cannot run in this simulator.** Its assets are downloaded and present, but compiling them writes to `/var/db/com.apple.naturallanguaged`, which an app sandbox can't create there. The app tries it, gets `Permission denied`, falls back, and keeps working, which is exactly what it was built to do. So everything below is the **fallback's** output, and none of it is evidence about the model that ships.
+
+On `NLEmbedding.sentenceEmbedding`, over the forty seed notes: 30 connections found on top of the 16 seeded, mean degree 2.3, 8 notes isolated, 36 of 780 pairs over the floor. Reading them:
+
+- **Defensible:** `n.05` slips/mistakes ↔ `n.19` stuckness-as-debugging (0.617). `n.28` hindsight ↔ `n.26` availability (0.631). `n.37` romantic vs classical ↔ `n.01` good design is invisible (0.600). `n.30` quality ↔ `n.23` the motorcycle is a system you're part of (0.584). Those are the connections the seed content was written to produce, and they're there.
+- **Not:** `n.02` affordances ↔ `n.18` System 1 and System 2 is the **strongest** edge on the note (0.646), and it isn't a connection anyone would defend. `n.13` Marcus's repetition turns up in half the shortlists. Both are hub behaviour, which mutual k-NN is supposed to stop — and at 40 notes with `k = 8` a hub is comfortably inside everyone's top eight, so it doesn't.
+- **Missed, and this is the worse half:** `n.03` "good error messages assume the system is at fault" ↔ `n.04` "human error is system error" scores **0.448** and would not have connected if it weren't seeded. A near-restatement of the same idea, below the floor, while affordances-and-System-1 sails over it.
+- Measured directly in `NoteEmbeddingTests`: two paraphrases about attention score **0.267** against each other and **0.274** against an unrelated note about a kitchen tap. The fallback is not measuring meaning at note length. That test records the failure as a known issue rather than hiding it.
+
+**Nothing was tuned.** The floor, the weights and `k` are at the spec's values on purpose: tuning them against a model the app abandons the moment the assets compile would be fitting to the wrong thing twice. The judgement the phase asks for needs one run on a device — which is `docs/issues.md` §6, already the second most valuable open item — and then the same dump read again.
+
+### Standing until later
+
+- **Nothing creates a link by hand.** `isPinned` is written by the seed and by nothing else, and `isSuppressed` by nothing at all — the machinery honours both, and `LinkWriterTests` proves it, but the reader has no way to produce either. The spec puts manual creation on the composer's keyboard accessory bar (`→ link · # tag · p. page`) and on the review card, opening a search sheet over notes; **no phase owns it.** It should be scheduled — probably phase 8, next to *rebuild connections* — and until it is, "manual linking exists as override" is true of the model and not of the app.
+- **A note can't be edited, so a note's vector can't go stale by editing.** When editing arrives, whatever writes the new text has to clear `embeddedAt` — the queue is the only thing that would notice.
+
+### Unverified, and honestly so
+
+- **The contextual path has never executed.** Asset request, load, `enumerateTokenVectors`, mean pooling, and the re-embed-on-source-change path are all written and all unexercised. The fallback path is what every test and every screenshot in this phase went through.
+- **Nothing was tapped**, as ever. A capture that triggers a relink was proven by `LinkWriterTests` against a real store, not by typing into the bar.
+- **Timing is unmeasured.** Forty notes embed fast enough that nothing was ever seen to hang, but no one has run this at a thousand notes, and the O(N²) pass has no measurement behind the claim that it's fine.
+
+---
+
+## What the issues pass did
+
+Between phase 5 and phase 6, six of the thirteen entries in `docs/issues.md` were closed. Full detail is there, in §0; the short version:
+
+- **`Eraser`** — the one path anything takes to stop existing, and the mirror of `NoteWriter` / `BookWriter`. It exists because `context.delete(note)` isn't enough: `NoteEdge` has no inverse relationship, so SwiftData nils one end instead of removing the edge. **The Inbox is refused**, like it refuses a status change.
+- **`ConfirmSheet`** — the app's own half-height confirmation rather than `confirmationDialog`, whose pill buttons and 26pt radius would be the only iOS-looking thing in the app. `MarkerButton` grew a `danger` kind for its one filled button; `danger` still belongs to the confirmation and never to the link that opens one.
+- **Long press deletes a row** where it's *listed* — stream and book detail — and not where it's being *read*. Book detail carries `delete` next to `edit`.
+- **`StoreFailureView`** replaces the `fatalError`. A screen with the store's own error on it, not a crash log.
+- **A duplicate book is named once and then allowed.** Refusing outright would overrule a reader with a legitimate second copy.
+- **`-tinyLibrary <n>`** makes review's empty state and an exhausted `[↻] keep going` reachable. Both have now been drawn for the first time. It spreads across books rather than taking a prefix — a prefix is all one book, and the two-per-book cap meant every `n` produced the empty state.
+- **Release runs** on the simulator, all four tabs, no new crash report. **`-derivedDataPath .build`** is now the build command.
+
+**What that leaves at the top of the list:** an iOS 18 runtime (§4), a device run (§6), and a UI test target (§12, which needs the Xcode GUI to add a target).
 
 ## What phase 5 built
 
@@ -57,9 +113,9 @@ Full detail for every phase is in `docs/specs/2026-08-13-marginalia-design.md`. 
 
 ### Standing until later
 
-- **The empty state was not seen.** It needs a library under three notes, and the seed has forty. The threshold is `ReviewSetBuilder.minimum`.
-- **`keep going` on an exhausted library was not seen** for the same reason — forty notes always have more.
-- **Nothing deletes a follow-up.** Same gap as notes and books, and the same answer: it wants a real confirmation, and `danger` exists for it.
+- ~~**The empty state was not seen.**~~ `-tinyLibrary 2` — seen, both appearances.
+- ~~**`keep going` on an exhausted library was not seen.**~~ `-tinyLibrary 4` — seen.
+- ~~**Nothing deletes a follow-up.**~~ Long press one in the stream or on book detail.
 
 ---
 
@@ -85,8 +141,8 @@ Full detail for every phase is in `docs/specs/2026-08-13-marginalia-design.md`. 
 ### Standing until later
 
 - **A source line's book title isn't tappable yet.** `docs/design-system.md` says it should open the book. Phase 5 built the cross-tab route it was waiting on — `RootView.open(_ book:)` — so this is now a small job rather than a missing capability.
-- **Nothing deletes a book or a note.** It isn't in any phase's brief and nothing in phase 4 needs it, but a book added by mistake is now correctable and not removable. Deleting a book cascades to its notes, so it wants a real confirmation — `danger` exists for exactly that.
-- **Adding a book you already have makes a second one.** No duplicate check on save; the two rows sort next to each other, which at least makes it obvious.
+- ~~**Nothing deletes a book or a note.**~~ `Eraser` and `ConfirmSheet`, in the issues pass above.
+- ~~**Adding a book you already have makes a second one.**~~ `BookShelf.duplicate` names it once, then lets it through.
 
 ---
 
@@ -134,20 +190,19 @@ Full detail for every phase is in `docs/specs/2026-08-13-marginalia-design.md`. 
 
 ---
 
-## Next: phase 6 — linking
+## Next: phase 7 — the map
 
-1. **`NoteEmbedding`** — `NLContextualEmbedding`, mean-pooled to one vector per note, stored as packed `Float32` in `Note.embedding`. Falls back to `NLEmbedding.sentenceEmbedding` until Apple's assets download. **The app must work on first launch either way.**
-2. **`AffinityEngine`** — pure. `0.8 · cosine + 0.2 · tagOverlap`, floor `0.55`, mutual k-NN at 8, degree cap 6. Same-book deliberately not boosted.
-3. **Embed on save, and backfill** what's already there. `embeddedAt == nil` is the queue.
-4. **Backlinks in the UI.** The plumbing exists — `ConnectionIndex` already reads edges both ways and the stream, book detail and the review card all draw them. The 16 seeded edges are `isPinned` so the first recompute won't prune them.
+`GraphLayout` — pure, nodes and edges in, positions out, on a background actor — and `MapView` reading the real graph instead of its hand-placed dots. Books are hub nodes; above ~150 nodes the global view collapses to hubs and expands one on tap (`docs/decisions.md` §11).
 
-**This phase ends by reading real output, not by passing tests.** Dump each seed note's top 5 connections and judge them. If they don't hold up, the weights or the floor get tuned *before* phase 7 builds the map on top.
+**Read the paragraph above first.** The graph phase 7 draws is the one phase 6 built, and on this machine that graph came out of the fallback embedder. A device run — `docs/issues.md` §6 — turns the contextual model on and changes what the map is drawing. It doesn't block starting the layout work, which is geometry and doesn't care where the edges came from, but it does block judging whether the map looks right.
 
 ---
 
 ## Open questions for Nathaniel
 
-None of these block phase 6.
+Nothing here blocks phase 7 except the first one, which blocks *judging* it.
+
+-2. **Can we get an hour on your iPhone?** It's now the only way to see the model the app is designed around. Voice, transcription, camera OCR, barcode and the share sheet are all waiting on the same evening — see `docs/issues.md` §6 — but linking has joined them and it's the one that changes a design decision rather than confirming a feature.
 
 -1. **Is once-per-day the right surfacing rule?** Phase 5 decided a card seen twice in one sitting counts once, so swiping back and forth doesn't bury a note for months. The spec only said "when a card is actually paged past" — say so if you meant every pass.
 
@@ -173,6 +228,8 @@ Learned the hard way in phases 1 and 2.
   xcrun simctl launch booted com.marginalia.app -openNote 20
   xcrun simctl launch booted com.marginalia.app -startTab books -openBook "Meditations"
   xcrun simctl launch booted com.marginalia.app -startTab books -addBook 1 -bookSearch "meditations"
+  xcrun simctl launch booted com.marginalia.app -startTab books -openBook "Med" -confirmDelete book
+  xcrun simctl launch booted com.marginalia.app -tinyLibrary 2 -startTab review   # uninstall first
   ```
 - **`simctl openurl` is not the in-app path.** Opening `marginalia://note/20` from outside raises the system's *Open in "marginalia"?* alert, which blocks the simulator until it's dismissed by hand. In-app taps are intercepted by `OpenURLAction` in `RootView` and never reach the system. Use `-openNote` to screenshot that path.
 - **Reinstall before screenshotting a seed change.** The seed only runs against an empty store, so an existing install keeps the old notes.

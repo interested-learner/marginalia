@@ -59,6 +59,9 @@ struct MarginColumn<Content: View>: View {
 /// thing it answers.
 struct ThreadRule: View {
     let followUps: [FollowUpRowData]
+    /// Removing one thought from the thread, by its position in it. `nil`
+    /// wherever the thread is being read rather than listed — see `NoteRow`.
+    var onDelete: ((Int) -> Void)?
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
@@ -80,6 +83,14 @@ struct ThreadRule: View {
                     }
                 }
                 .fixedSize(horizontal: false, vertical: true)
+                .contentShape(Rectangle())
+                .contextMenu {
+                    if let onDelete {
+                        Button("delete this thought", role: .destructive) {
+                            onDelete(followUp.id)
+                        }
+                    }
+                }
             }
         }
         .padding(.top, 8)

@@ -29,8 +29,17 @@ struct FollowUpRowData: Identifiable {
 }
 
 /// A note in the stream: the margin, then metadata, body, and source.
+///
+/// **A row can be deleted where it is listed, not where it is being read.** The
+/// stream and book detail pass these in; the review card doesn't, because review
+/// is a reading surface and a long press that destroys the card you're reading
+/// is not a thing worth being able to do by accident.
 struct NoteRow: View {
     let note: NoteRowData
+    /// Deletes the note, its thread, and its edges. `nil` hides the action.
+    var onDelete: (() -> Void)?
+    /// Deletes one thought from the thread, by its position in it.
+    var onDeleteFollowUp: ((Int) -> Void)?
 
     var body: some View {
         VStack(spacing: 0) {
@@ -62,11 +71,20 @@ struct NoteRow: View {
                     // Under the source, because the source belongs to the note
                     // rather than to the thread that grew out of it.
                     if !note.followUps.isEmpty {
-                        ThreadRule(followUps: note.followUps)
+                        ThreadRule(followUps: note.followUps, onDelete: onDeleteFollowUp)
                     }
                 }
             }
             .padding(.horizontal, 20)
+            // A long press, because there is nowhere on a row this dense to put
+            // a permanent `delete` without it competing with the note. The
+            // confirmation is the app's own; this is only the way in.
+            .contentShape(Rectangle())
+            .contextMenu {
+                if let onDelete {
+                    Button("delete \(note.idLabel)", role: .destructive, action: onDelete)
+                }
+            }
 
             Hairline()
         }

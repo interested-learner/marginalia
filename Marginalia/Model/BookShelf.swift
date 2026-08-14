@@ -44,4 +44,44 @@ nonisolated enum BookShelf {
         guard let status else { return books }
         return books.filter { $0.status == status }
     }
+
+    // MARK: Duplicates
+
+    /// The book already on the shelf that this draft would be a second copy of.
+    ///
+    /// **Matched on the title, and on the author only when both sides have one.**
+    /// Open Library returns "Meditations" with no author often enough that
+    /// insisting on both would let the duplicate through in exactly the case the
+    /// check exists for. Two genuinely different books with the same title and
+    /// different authors still both get added.
+    ///
+    /// `excluding` is the book the form is editing — correcting a typo in a
+    /// title must not report the book as a duplicate of itself.
+    ///
+    /// Takes the two strings rather than a `BookDraft` so it stays `nonisolated`
+    /// with the rest of this file; the draft is a `MainActor` value like every
+    /// other plain type in the project.
+    static func duplicate(
+        title rawTitle: String,
+        author rawAuthor: String,
+        in books: [Book],
+        excluding: Book? = nil
+    ) -> Book? {
+        let title = key(rawTitle)
+        guard !title.isEmpty else { return nil }
+        let author = key(rawAuthor)
+
+        return books.first { book in
+            guard book !== excluding, key(book.title) == title else { return false }
+            let theirs = key(book.author)
+            return author.isEmpty || theirs.isEmpty || author == theirs
+        }
+    }
+
+    /// Case, accents and stray spacing are not what makes two books different.
+    private static func key(_ text: String) -> String {
+        text.folding(options: [.diacriticInsensitive, .caseInsensitive], locale: nil)
+            .split(whereSeparator: \.isWhitespace)
+            .joined(separator: " ")
+    }
 }

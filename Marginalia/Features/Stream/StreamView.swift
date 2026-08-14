@@ -17,6 +17,8 @@ struct StreamView: View {
     /// only way to screenshot it holding text — the simulator can't be typed
     /// into from the command line.
     @State private var draft = UserDefaults.standard.string(forKey: "captureDraft") ?? ""
+    /// What a long press asked to delete, waiting on the confirmation.
+    @State private var erasing: Erasure?
 
     var body: some View {
         VStack(spacing: 0) {
@@ -44,8 +46,12 @@ struct StreamView: View {
                         ForEach(groups) { group in
                             GroupHeader(label: group.label)
                             ForEach(group.items) { note in
-                                NoteRow(note: NoteRowData(note, connections: connections[note.shortID] ?? []))
-                                    .id(note.shortID)
+                                NoteRow(
+                                    note: NoteRowData(note, connections: connections[note.shortID] ?? []),
+                                    onDelete: { erasing = .note(note) },
+                                    onDeleteFollowUp: { erasing = .thought($0, of: note) }
+                                )
+                                .id(note.shortID)
                             }
                         }
                     }
@@ -57,6 +63,7 @@ struct StreamView: View {
             CaptureBar(draft: $draft, voice: demo, focusAtLaunch: !draft.isEmpty, onSave: save)
         }
         .background(Theme.canvas)
+        .confirming($erasing, in: context)
     }
 
     /// The fast path: no book, no page, no tag, straight into the Inbox. A

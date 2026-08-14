@@ -5,7 +5,10 @@ import Foundation
 /// Ordered by how often a tag is used, so the ones worth filtering by sit where
 /// the thumb already is. Ties break alphabetically, which keeps the row from
 /// reshuffling every time a note is saved.
-enum TagIndex {
+/// `nonisolated` for the usual reason: `AffinityEngine` is pure and off the main
+/// actor, and it normalizes tags through here rather than keeping a second
+/// definition of what a tag is.
+nonisolated enum TagIndex {
 
     /// The chip that clears the filter. Not a tag, so it never comes back from
     /// `chips(for:)`.

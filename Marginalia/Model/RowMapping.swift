@@ -38,8 +38,7 @@ extension NoteRowData {
         now: Date,
         calendar: Calendar
     ) -> [FollowUpRowData] {
-        (note.followUps ?? [])
-            .sorted { $0.createdAt < $1.createdAt }
+        note.thread
             .enumerated()
             .map { position, followUp in
                 FollowUpRowData(
@@ -62,6 +61,19 @@ extension NoteRowData {
         let tags = note.tags.map(TagIndex.normalized).filter { !$0.isEmpty }
         if !tags.isEmpty { segments.append(tags.map(Glyphs.tag).joined(separator: " ")) }
         return segments.joined(separator: " · ")
+    }
+}
+
+extension Note {
+
+    /// The thread under a note, in the order it reads — oldest first.
+    ///
+    /// `FollowUpRowData.id` is a **position in this list**, so anything acting
+    /// on a row by its id has to index into the same order the row was built
+    /// from. Sorted in one place rather than two, or deleting the second thought
+    /// in a thread would eventually delete a different one.
+    var thread: [FollowUp] {
+        (followUps ?? []).sorted { $0.createdAt < $1.createdAt }
     }
 }
 

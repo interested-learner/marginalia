@@ -49,6 +49,40 @@ struct LibraryStoreTests {
         #expect(try books(context).filter { $0.status == .inbox }.count == 1)
     }
 
+    /// `-tinyLibrary 2`. Review's empty state needs a library under
+    /// `ReviewSetBuilder.minimum` and an exhausted `[↻] keep going` needs one
+    /// under a full set, and the seed's forty notes make both unreachable — so
+    /// neither had ever actually been seen.
+    @Test func aTinyLibrarySeedsOnlyThatManyNotes() throws {
+        let context = try store()
+        try Library.prepare(context, counter: ShortIDCounter(defaults: defaults()), noteLimit: 2)
+
+        #expect(try notes(context).count == 2)
+        #expect(try notes(context).map(\.shortID) == [1, 2])
+        // Spread across books, not taken off the front of one: `ReviewSetBuilder`
+        // allows two cards per book, so a prefix of a single book's notes can
+        // never build a set at all — which is what made the exhausted
+        // `[↻] keep going` unreachable even with a tiny library.
+        #expect(Set(try notes(context).map { $0.book?.title }).count == 2)
+        // The books are all there either way; it's the note count both empty
+        // states turn on, and a library with no Inbox would be a different bug.
+        #expect(try books(context).filter { $0.status == .inbox }.count == 1)
+    }
+
+    /// Edges and follow-ups that point at notes which didn't make the cut are
+    /// skipped rather than being an error.
+    @Test func aTinyLibraryDropsTheEdgesItCannotJoin() throws {
+        let context = try store()
+        try Library.prepare(context, counter: ShortIDCounter(defaults: defaults()), noteLimit: 1)
+
+        for edge in try context.fetch(FetchDescriptor<NoteEdge>()) {
+            #expect(edge.from != nil && edge.to != nil)
+        }
+        for followUp in try context.fetch(FetchDescriptor<FollowUp>()) {
+            #expect(followUp.note != nil)
+        }
+    }
+
     /// The bootstrap runs on every launch and must be a no-op after the first.
     @Test func preparingASecondTimeSeedsNothingFurther() throws {
         let (context, counter) = try seeded()

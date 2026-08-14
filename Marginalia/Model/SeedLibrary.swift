@@ -294,6 +294,50 @@ nonisolated enum SeedLibrary {
                      age: .daysAgo(2, hour: 18)),
     ]
 
+    // MARK: A smaller library
+
+    /// The seed cut down to `limit` notes, for `-tinyLibrary`. `nil` is all of
+    /// them, which is what a real first launch gets.
+    ///
+    /// **Spread across books, one at a time, rather than taken off the front.**
+    /// The list is grouped by book, so the first four notes are all Norman —
+    /// and `ReviewSetBuilder` allows at most two cards per book, so a prefix of
+    /// four builds a set of two and lands on the *empty* state no matter how
+    /// many notes you asked for. Round-robin gives four notes four books, which
+    /// is a full set of four with nothing left over: the exhausted
+    /// `[↻] keep going` that has never been seen either.
+    ///
+    /// Dates come from the seeds themselves, so a tiny library still reads as
+    /// one written over weeks rather than in one sitting.
+    static func sample(_ limit: Int?) -> [NoteSeed] {
+        guard let limit else { return notes }
+        guard limit > 0 else { return [] }
+
+        var byBook: [[NoteSeed]] = []
+        var index: [String: Int] = [:]
+        for seed in notes {
+            if let at = index[seed.book] {
+                byBook[at].append(seed)
+            } else {
+                index[seed.book] = byBook.count
+                byBook.append([seed])
+            }
+        }
+
+        var taken: [NoteSeed] = []
+        var round = 0
+        while taken.count < limit, byBook.contains(where: { round < $0.count }) {
+            for book in byBook where round < book.count && taken.count < limit {
+                taken.append(book[round])
+            }
+            round += 1
+        }
+        // Left in round-robin order. `Library.seed` allocates ids by `createdAt`
+        // regardless of how this list happens to be ordered, so `n.01` is still
+        // the oldest note in the tiny library too.
+        return taken
+    }
+
     // MARK: Dates
 
     static func date(for age: Age, now: Date, calendar: Calendar) -> Date {

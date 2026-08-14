@@ -15,6 +15,11 @@ struct BookFormSheet: View {
     @State private var results: [BookCandidate] = []
     @State private var lookup: Lookup = .idle
     @State private var scanning = false
+    /// A book already on the shelf that this one would be a second copy of.
+    /// Set by the first `add book`; the second one goes through anyway.
+    @State private var duplicate: Book?
+
+    @Query private var shelf: [Book]
 
     @Environment(\.modelContext) private var context
     @Environment(\.dismiss) private var dismiss
@@ -60,6 +65,13 @@ struct BookFormSheet: View {
 
                         Spacer(minLength: 12)
 
+                        // A sentence, not an alert — the same treatment a failed
+                        // lookup gets. The button below it changes its own label
+                        // rather than the form growing a second one.
+                        if let duplicate {
+                            CaptureProblem(message: alreadyHave(duplicate), inset: 0)
+                        }
+
                         MarkerButton(title: saveTitle, enabled: draft.canSave) { save() }
                     }
                     .padding(20)
@@ -77,6 +89,9 @@ struct BookFormSheet: View {
                 onCancel: { scanning = false }
             )
         }
+        // Changing the title is the reader answering the warning. Leaving it up
+        // would leave `add it anyway` on a book that isn't a duplicate anymore.
+        .onChange(of: draft) { duplicate = nil }
         .task { searchAtLaunch() }
     }
 
@@ -84,7 +99,17 @@ struct BookFormSheet: View {
     /// is not a reading state and is never offered.
     private var offered: [BookStatus] { [.reading, .queued, .finished] }
 
-    private var saveTitle: String { existing == nil ? "add book" : "save" }
+    private var saveTitle: String {
+        if duplicate != nil { return "add it anyway" }
+        return existing == nil ? "add book" : "save"
+    }
+
+    /// `you already have Meditations · Marcus Aurelius`, closing up around an
+    /// author nobody filled in.
+    private func alreadyHave(_ book: Book) -> String {
+        let name = book.author.isEmpty ? book.title : "\(book.title) · \(book.author)"
+        return "you already have \(name)"
+    }
 
     // MARK: Chrome
 
@@ -238,7 +263,17 @@ struct BookFormSheet: View {
 
     // MARK: Saving
 
+    /// **A duplicate is reported once and then allowed.** Two copies of a book
+    /// is a mistake often enough to be worth naming, and a deliberate second
+    /// copy — a re-read, a different translation — is legitimate often enough
+    /// that refusing it outright would be the app overruling the reader. So the
+    /// first tap says what's already on the shelf and the second one adds it.
     private func save() {
+        if duplicate == nil, let existing = onTheShelf {
+            duplicate = existing
+            return
+        }
+
         do {
             if let existing {
                 guard try BookWriter.apply(draft, to: existing, in: context) else { return }
@@ -249,6 +284,11 @@ struct BookFormSheet: View {
             return
         }
         dismiss()
+    }
+
+    private var onTheShelf: Book? {
+        BookShelf.duplicate(title: draft.bookTitle, author: draft.bookAuthor,
+                            in: shelf, excluding: existing)
     }
 
     /// `-bookSearch "meditations"` fills the field and runs the search, which

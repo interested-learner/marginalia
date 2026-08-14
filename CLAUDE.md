@@ -4,7 +4,9 @@ Working context for Claude Code in this repository. Read this before touching an
 
 > **Starting a session?** Read [`docs/planning.md`](docs/planning.md) first — it says what's built, what's next, and what's temporary scaffolding waiting to be replaced. If a build hangs or the app crashes, read [`docs/issues.md`](docs/issues.md) before debugging — it is probably already in there.
 >
-> **Phase 5 is complete.** The app builds, runs in both appearances, and passes its tests. Every screen reads from SwiftData, and notes, books *and* follow-ups are written: the stream bar files a thought into the Inbox, the full sheet files one against a book, books arrive by Open Library search or barcode or by hand, and review pages through a day-stable set whose actions all work. Phase 6 is linking — `NoteEmbedding` and `AffinityEngine`, gated on a human reading real output.
+> **Phase 6 is complete.** The app builds, runs in both appearances, and passes its tests. Every screen reads from SwiftData; notes, books and follow-ups are written and deleted; and **notes now connect themselves** — `NoteEmbedding` vectorizes on save, `AffinityEngine` scores, `LinkWriter` writes the edges, and the connections show up on the stream, on book detail and on the review card without anybody asking for them. Phase 7 is the map, and it builds on that graph.
+>
+> **One thing is open and it is not a detail:** the simulator can't compile `NLContextualEmbedding`'s assets, so everything seen so far came out of the `NLEmbedding` fallback, whose connections are about half defensible. Read `docs/planning.md` §phase 6 before tuning the floor or the weights — they were deliberately left at the spec's values.
 
 ## What this is
 
@@ -65,6 +67,8 @@ Colors, condensed — but `Theme.swift` is authoritative:
 Notes connect themselves. The user is never asked to link anything and there is no accept/dismiss flow.
 
 - `NoteEmbedding` vectorizes each note with `NLContextualEmbedding`, falling back to `NLEmbedding.sentenceEmbedding` when Apple's assets aren't downloaded yet. **The app must work on first launch either way.** On-device only — no network, no key.
+- **A vector is only comparable to a vector from the same model.** `Note.embeddingSourceRaw` records which one produced it, and a note whose source isn't the one loaded today is stale — that's the second way into the embedding queue after `embeddedAt == nil`, and it's what re-embeds a whole library the day the contextual assets finally arrive. Never score across sources.
+- `LinkWriter` is the one path an edge takes to exist, and it does a **full recompute**, not a delta: a new note can displace somebody else's eighth-best neighbour or fill their sixth slot, and only a whole pass notices. It runs off the main actor and is triggered in exactly one place — `.linking()` on the root view.
 - `AffinityEngine` scores pairs `0.8 · cosine + 0.2 · tagOverlap`. Same-book is deliberately **not** boosted; books are already hub nodes and rewarding it again just clumps each book into a ball.
 - Three constraints keep the graph from becoming a hairball: a **floor** of `score ≥ 0.55`, **mutual k-NN** (each note in the other's top 8), and a **degree cap** of 6.
 - **Automatic and manual links render identically.** `isPinned` and `isSuppressed` on `NoteEdge` exist only to make override work — never surface them in the UI, never draw a manual link differently.
@@ -111,11 +115,15 @@ Marginalia/
     BookWriter               the one path a book takes to exist, and changes by
     ReviewWriter             the one path a follow-up, a star and a surfacing
                              take. Surfacing counts once per day, never at build
+    Eraser                   the one path anything takes to stop existing, and
+                             `Erasure` — what a confirmation is about to remove
     BookShelf                the order the library reads in, and its filters. Pure
     RowMapping               models → NoteRowData / BookRowData. The only
                              file that knows about both sides
     RelativeTime             `2 mins ago`, `aug 01`, `0:07`
     ConnectionIndex          edges → who connects to whom, both directions
+    LinkWriter               the one path an edge takes to exist, and `.linking()`,
+                             the one place a recompute is triggered from
   Features/
     Stream/                  StreamView, StreamGrouping, TagIndex
     Capture/                 CaptureBar, CaptureSheet, VoiceCapture, AudioLevels
@@ -123,8 +131,8 @@ Marginalia/
                              FollowUpSheet
     Books/  Map/  Search/  Settings/
   Services/
-    NoteEmbedding            NLContextualEmbedding + fallback
-    AffinityEngine           scoring, mutual k-NN, pinning, suppression
+    NoteEmbedding            NLContextualEmbedding + fallback, and the packing
+    AffinityEngine           scoring, mutual k-NN, pinning, suppression. Pure
     GraphLayout              force-directed, pure, background actor
     SpeechTranscription      SFSpeechRecognizer, on-device only
     TextScanner              VisionKit → passage text
@@ -158,18 +166,23 @@ MarginaliaTests/
 | `-reviewCard <n>` | opens review on the nth card of the day's set |
 | `-reviewEnd 1` | opens review on the closing card |
 | `-followUp 1` | opens the follow-up composer over the current card |
+| `-confirmDelete <book\|note>` | opens the delete confirmation over book detail |
+| `-tinyLibrary <n>` | seeds `n` notes instead of forty — **uninstall first** |
+| `-storeFailure 1` | opens the "library won't open" screen |
+
+`-tinyLibrary` spreads its notes **across books**, one at a time, rather than taking them off the front of the seed. `ReviewSetBuilder` allows two cards per book, so a prefix of one book's notes builds a set of two and always lands on review's empty state, whatever number you asked for. `2` is the empty state; `4` is a full set with nothing left over, which is the only way to see an exhausted `[↻] keep going`.
 
 ## Commands
 
 ```bash
-# build + test
-xcodebuild -scheme Marginalia -destination 'platform=iOS Simulator,name=iPhone 17' build test
+# build + test. -derivedDataPath keeps the CLI out of Xcode's build database:
+# they drive the same XCBBuildService and deadlock each other. See issues.md §2.
+xcodebuild -scheme Marginalia -destination 'platform=iOS Simulator,name=iPhone 17' \
+  -derivedDataPath .build build test
 
 # run in the simulator
 xcrun simctl boot "iPhone 17"
-xcrun simctl install booted "$(xcodebuild -scheme Marginalia -showBuildSettings \
-  -destination 'platform=iOS Simulator,name=iPhone 17' \
-  | awk -F' = ' '/ BUILT_PRODUCTS_DIR/{d=$2} / FULL_PRODUCT_NAME/{n=$2} END{print d"/"n}')"
+xcrun simctl install booted .build/Build/Products/Debug-iphonesimulator/Marginalia.app
 xcrun simctl launch booted com.marginalia.app
 
 # check both appearances — do this after any UI change
@@ -188,7 +201,13 @@ Tests use **Swift Testing** (`@Test`, `#expect`), not XCTest.
 ## Working notes
 
 - **Verify visually, not by reasoning.** After a UI change, screenshot the simulator in *both* appearances and actually look at the images. Dark mode regressions are invisible in code review and obvious in a screenshot.
-- **Tests can't tell you whether the links are any good.** They prove `AffinityEngine` respects its floor, its k-NN rule, and its degree cap. Whether the connections are *defensible* needs a human reading real output — dump each seed note's top 5 and judge them before building the map on top.
+- **Tests can't tell you whether the links are any good.** They prove `AffinityEngine` respects its floor, its k-NN rule, and its degree cap. Whether the connections are *defensible* needs a human reading real output — `AffinityDumpTests` prints each seed note's top 5, and it's off unless asked for:
+  ```bash
+  TEST_RUNNER_MARGINALIA_DUMP=1 xcodebuild -scheme Marginalia \
+    -destination 'platform=iOS Simulator,name=iPhone 17' -derivedDataPath .build \
+    test -only-testing:MarginaliaTests/AffinityDumpTests 2>&1 | grep '^|'
+  ```
+- **The simulator gets the fallback embedder, always.** `NLContextualEmbedding`'s assets are present but can't compile — `/var/db/com.apple.naturallanguaged` isn't writable from an app sandbox there, and the log says `Permission denied` before the fallback takes over. Nothing seen on this machine is evidence about the model the app is actually built around. See `docs/issues.md` §14.
 - **Permissions are requested at first use**, never at launch. Microphone, speech recognition, and camera each prompt at the moment the feature is invoked.
 - **The simulator cannot test** microphone, transcription, camera OCR, or barcode scanning. Those need the device. Don't claim they work from a simulator run.
 - **Open Library needs no API key** and imposes no attribution requirement. Manual book entry must always remain available — treat lookup failure as routine, not exceptional.
@@ -196,6 +215,8 @@ Tests use **Swift Testing** (`@Test`, `#expect`), not XCTest.
 - **Pure enums used from a `@Model` need `nonisolated`.** The project defaults to `MainActor` isolation and SwiftData models aren't; `Glyphs`, `BookStatus`, `NoteKind`, `Inbox`, `AudioLevels` and `BookShelf` are marked accordingly.
 - **So does anything handing a closure to a system framework**, and this one is a crash rather than a compile error. `SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor` makes such a closure `@MainActor`; UIKit, AVFoundation and Vision call them on their own threads; Swift 6 traps. `Theme` is `nonisolated` for exactly this reason — it cost five identical `EXC_BREAKPOINT` crashes before anyone read the report. See `docs/issues.md` §1.
 - **Notes are written in exactly one place.** `NoteWriter.save` allocates the id, trims the body, and falls back to the Inbox. A second write path would drift from it — add a caller, not a copy. **Books likewise go through `BookWriter`**, whether they arrived by search, by barcode, or typed in.
+- **And deleted in exactly one place.** `Eraser` exists because `context.delete(note)` is not enough: `NoteEdge.from` and `.to` have no inverse, so SwiftData nils them instead of removing the edge, and an edge with one end missing is a connection that can never be drawn and never be cleaned up. Follow-ups and a book's notes *are* cascaded by the schema; the edges of every note a book takes with it are not.
+- **Every delete goes through a confirmation, and the Inbox refuses.** `Eraser.delete(book:)` returns `false` for it, for the same reason `BookWriter.apply` won't restatus it — it's found by status, and deleting it would take every quick capture with it while the next one silently built a second drawer.
 - **The Inbox can't be edited.** It's found by status and it's where every unfiled capture falls back to, so `BookWriter.apply` refuses to change its status and book detail doesn't offer `edit` on it. An Inbox marked `reading` would quietly stop being one and the next quick capture would build a second.
 - **A lookup result fills the form; it never saves straight through.** Open Library gets authors and page counts wrong often enough that the last word has to belong to the reader — and it holds a separate work record per translation, so `BookLookup` collapses repeats of the same title and author.
 - **A transcript is never saved unseen.** On-device recognition is wrong often enough that it lands in an editable field, both in the bar and in the sheet. Editing it leaves the note `[v] voice`: how it was captured is a fact about the note, not about the keystrokes.
