@@ -170,3 +170,15 @@ Three choices phase 7 had to make that §11 didn't cover.
 **A note's line to its book is drawn, and it is not a connection.** Books are hub nodes because a young library would otherwise be lonely dots (§11) — but a hub that gathers nothing visible gathers nothing. So the attachment is drawn, at the same hairline as everything else, because there is one line weight in this system. It is still not something the app *found*: it can't be held down on and deleted, and it doesn't count toward either end's weight. Counting it would make every note in a well-stocked book read as better connected than it is, which is precisely the false signal the same-book rule in §10 exists to avoid.
 
 **The layout is told the shape of the box and the size of every label.** Both were rejected as over-engineering at the start and both were forced by a screenshot within the hour. A graph laid out in a square and drawn into a box twice as tall has every horizontal gap halved on the way to the screen; a `[Meditations]` spaced as though it were a point sits straight through the note beside it. The alternative — leave the layout abstract and nudge labels afterwards — moves nodes away from where the forces put them, which is the one thing a force-directed layout is for. Rejected. The layout is geometry, and a label's width is geometry.
+
+## 16. A scan is a quote in everything but its marker
+
+**2026-08-14 · settled** · extends §6, after building it
+
+Three choices phase 9 had to make that §6 didn't cover.
+
+**A scanned note is drawn with the quote rule, and its metadata still says `[s] scan`.** §6 says a scan "becomes a quote", which reads two ways: the same *kind* as a typed quote, or the same *appearance*. It's the appearance. `NoteKind.isPassage` covers `.quote` and `.scan` and is what the rule keys on; the marker stays `[s]`. Collapsing scan into quote at save time would be simpler and it would throw away how the note arrived, which the app has treated as a fact about a note since voice landed in phase 3 — an edited transcript is still `[v] voice`. Rejected for the same reason.
+
+**The passage is built by tapping lines, and the page number is never one of them.** VisionKit recognizes a page a line at a time, so a passage is several taps and `ScannedPassage` joins them — including rejoining a word the typesetter broke at the margin, which is the one correction a reader would otherwise make on every scan. What it will not do is look for a folio and fill the page field in. §6's own words are that inferring it "would be wrong often enough to be worse than useless", and the file that could break that rule is the file that says so.
+
+**No camera, no dead end.** Where `DataScannerViewController` isn't available the screen says `[x] no camera here — type the passage in as a quote instead` and drops the `use it` button entirely, since nothing on that machine could enable it. It's the same rule the barcode follows — a lookup failing is routine, not exceptional — and it's why manual entry is never buried behind a failure anywhere in this app.

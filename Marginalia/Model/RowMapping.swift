@@ -23,7 +23,9 @@ extension NoteRowData {
             meta: "\(note.kind.marker) \(note.kind.label) · "
                 + RelativeTime.label(for: note.createdAt, now: now, calendar: calendar),
             text: note.text,
-            isQuote: note.kind == .quote,
+            // A scan is somebody else's words off a page, so it wears the quote
+            // rule like a typed quote does — while its marker still says `[s]`.
+            isQuote: note.kind.isPassage,
             source: Self.source(for: note, showingBook: showingBook),
             // What the row makes tappable inside the source line. Empty where
             // the title isn't in the line at all, so the row never hunts for a
@@ -120,7 +122,7 @@ extension Note {
             id: shortID,
             kind: kind.label,
             text: text,
-            isQuote: kind == .quote,
+            isQuote: kind.isPassage,
             page: page,
             tags: tags,
             createdAt: createdAt,

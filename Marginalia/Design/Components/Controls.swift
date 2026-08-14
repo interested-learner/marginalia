@@ -71,37 +71,59 @@ struct MarkerButton: View {
 /// A row of segments, each `flex: 1`. Selected inverts to filled ink.
 ///
 /// **Three fit a phone, not four.** A fourth segment at 13pt mono clips its own
-/// label at the default text size, so a fourth choice wraps the row to two rows
-/// of two rather than shrinking the type — see `docs/design-system.md`.
+/// label at the default text size, so `perRow` wraps the choices to two rows of
+/// two rather than shrinking the type — which is what the capture sheet's type
+/// selector does now that `[s] scan` exists. See `docs/design-system.md`.
 ///
-/// Shared by the capture sheet's type selector and the book form's status, so
-/// the two can't drift into two different segmented controls.
+/// Shared by the capture sheet's type selector, the book form's status and
+/// settings' appearance, so they can't drift into three different segmented
+/// controls.
 struct SegmentedRow<Option: Hashable>: View {
     let options: [Option]
     @Binding var selection: Option
+    /// How many segments go across before the row wraps. `nil` is one row,
+    /// however many there are.
+    var perRow: Int?
     let label: (Option) -> String
 
     var body: some View {
-        HStack(spacing: 8) {
-            ForEach(options, id: \.self) { option in
-                let selected = option == selection
-                Button { selection = option } label: {
-                    Text(label(option))
-                        .font(Typography.buttonSmall)
-                        .foregroundStyle(selected ? Theme.onInk : Theme.textMute)
-                        .lineLimit(1)
-                        .minimumScaleFactor(0.8)
-                        .frame(maxWidth: .infinity, minHeight: 44)
-                        .background(selected ? Theme.ink : Theme.canvas)
-                        .overlay(
-                            RoundedRectangle(cornerRadius: interactiveRadius)
-                                .stroke(selected ? Theme.ink : Theme.hairline, lineWidth: 1)
-                        )
-                        .clipShape(.rect(cornerRadius: interactiveRadius))
+        VStack(spacing: 8) {
+            ForEach(Array(rows.enumerated()), id: \.offset) { _, row in
+                HStack(spacing: 8) {
+                    ForEach(row, id: \.self) { option in
+                        segment(option)
+                    }
                 }
-                .buttonStyle(.plain)
             }
         }
+    }
+
+    /// A short last row leaves its segments wide rather than leaving a gap —
+    /// an empty slot would read as a choice that had been taken away.
+    private var rows: [[Option]] {
+        guard let perRow, perRow > 0, options.count > perRow else { return [options] }
+        return stride(from: 0, to: options.count, by: perRow).map {
+            Array(options[$0 ..< min($0 + perRow, options.count)])
+        }
+    }
+
+    private func segment(_ option: Option) -> some View {
+        let selected = option == selection
+        return Button { selection = option } label: {
+            Text(label(option))
+                .font(Typography.buttonSmall)
+                .foregroundStyle(selected ? Theme.onInk : Theme.textMute)
+                .lineLimit(1)
+                .minimumScaleFactor(0.8)
+                .frame(maxWidth: .infinity, minHeight: 44)
+                .background(selected ? Theme.ink : Theme.canvas)
+                .overlay(
+                    RoundedRectangle(cornerRadius: interactiveRadius)
+                        .stroke(selected ? Theme.ink : Theme.hairline, lineWidth: 1)
+                )
+                .clipShape(.rect(cornerRadius: interactiveRadius))
+        }
+        .buttonStyle(.plain)
     }
 }
 

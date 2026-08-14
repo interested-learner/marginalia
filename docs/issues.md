@@ -219,6 +219,8 @@ Phase 8's daily notification is written, scheduled and unobserved. `Notification
 
 Local notifications **do** work in the simulator, so this is cheap to check by hand: turn the reminder on, set it a minute ahead, background the app, wait. It wasn't done here because the permission prompt is a system alert and the simulator can't be tapped from the command line — see below.
 
+**Phase 9 tried the two command-line routes around that, and both are dead ends.** `xcrun simctl privacy` has **no notifications service** — its list is TCC only (calendar, contacts, location, photos, microphone, motion, reminders, siri), and notifications aren't TCC — so authorization cannot be granted from a shell. And `xcrun simctl push booted com.marginalia.app payload.apns` prints `Notification sent to 'com.marginalia.app'` and then delivers **nothing**, because the app has never been authorized; the exit code says success and the screen stays a home screen. Neither is a bug in the app and both are worth knowing before somebody spends the afternoon phase 9 spent twenty minutes on. The cost is still ten minutes — they just have to be a person's, with the simulator on screen.
+
 **A stuck permission alert survives an uninstall.** Launching with `-preference.notifications 1` raises the notification prompt, and because nothing can answer it, it stays on the SpringBoard across app launches *and* across an uninstall/reinstall, sitting over every screenshot taken afterwards. `xcrun simctl shutdown all && xcrun simctl boot "iPhone 17"` clears it. This is the same class as the `simctl openurl` alert already noted in `docs/planning.md`.
 
 **It did catch a real bug**, which is the argument for taking the screenshot: the scheduler was calling `authorize()` rather than `isAuthorized()`, so a reader with the reminder on got a permission prompt at launch — breaking the app's own rule that permission is asked at first use and never at launch. Invisible in code, obvious in an image, for the fourth time on this project.
@@ -234,6 +236,8 @@ This is the single biggest gap in what "verified" means here. **The cheapest fix
 **Phase 7 made this worse rather than better**, and it should be said plainly: the map is the most gestural screen in the app and none of its gestures have been performed. See §17.
 
 **Phase 8 added five more untapped things**, though the newest ones are ordinary buttons rather than invisible gestures: `search` and `settings` in the stream header, a result row that opens its note, a book title inside a source line, `[◇] connections` in a row's long-press menu, and `→ link` choosing a note to connect to. Every one was screenshot by launch argument. The two worth doubting are the ones with no visible affordance: the tappable book title (deliberately not underlined — see the design system) and `connections` inside the long-press menu.
+
+**Phase 9 added a screen that is nothing but taps.** The text scanner's whole interaction is tapping recognized lines in a viewfinder, and not one of them has happened — the simulator has no camera, so what was screenshot is the written fallback. Unlike the map's gestures, an XCUITest can't reach this one either: it needs a camera and a printed page. It's a device job, and it's the only interaction in the app that is.
 
 **Not done here on purpose.** A UI test target is a new target, and a new target means hand-editing `project.pbxproj` — which `CLAUDE.md` says not to do, and which the synchronized file groups don't cover. It's an Xcode-GUI job (File ▸ New ▸ Target ▸ UI Testing Bundle), a few minutes, and then the tests themselves are ordinary code.
 
@@ -263,7 +267,7 @@ The hold is the one to worry about. It's assembled out of a `LongPressGesture` f
 | 8 | **A minimal XCUITest target** | The only thing that can catch a dead button; delete-by-long-press and the map's hold-a-line have no visible affordance at all (§17) | half a day, and it needs the Xcode GUI |
 | 9 | Say something when the store falls back to memory | The quiet half of §7 — notes written into it vanish | an hour, plus a decision |
 | 10 | ~~Measure and then narrow the recompute~~ | **Done.** §15 — measured at 0.71 µs a pair, and 2× faster than it was | done |
-| 11 | Receive one reminder | §19 — the whole feature is unobserved, and the simulator can deliver it | ten minutes and a rebooted simulator |
+| 11 | Receive one reminder | §19 — the whole feature is unobserved, and the simulator can deliver it. **Not from a shell**: phase 9 established that neither `simctl privacy` nor `simctl push` can get past authorization | ten minutes of somebody's hands |
 
 **Item 7 has been promoted to first.** It was four features asserted and never observed; phase 6 added a fifth, and that one decides whether the app's defining feature works at all (§14). Item 6 is still the cheap one.
 

@@ -92,6 +92,14 @@ struct RowMappingTests {
         #expect(row(note(.voice)).isQuote == false)
     }
 
+    /// A scan is a passage read off a printed page, so it wears the quote rule
+    /// — while its metadata still says `[s] scan`, because how a note was
+    /// captured is a fact about the note.
+    @Test func aScanGetsTheQuoteRuleAndKeepsItsOwnMarker() {
+        #expect(row(note(.scan)).isQuote)
+        #expect(row(note(.scan)).meta.hasPrefix("\(Glyphs.scan) scan · "))
+    }
+
     // MARK: Connections
 
     @Test func connectionsAreCarriedOntoTheRowInOrder() {

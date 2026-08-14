@@ -4,9 +4,9 @@ Working context for Claude Code in this repository. Read this before touching an
 
 > **Starting a session?** Read [`docs/planning.md`](docs/planning.md) first — it says what's built, what's next, and what's temporary scaffolding waiting to be replaced. If a build hangs or the app crashes, read [`docs/issues.md`](docs/issues.md) before debugging — it is probably already in there.
 >
-> **Phase 8 is complete.** The app builds, runs in both appearances, and passes 385 tests. Every screen reads and writes SwiftData; notes connect themselves; the map draws the real graph; and the app now has its **search**, **Markdown export**, **settings** and **daily reminder**, plus the three things earlier phases wrote down and left: **manual linking** (`isPinned` finally has a writer), the **recompute measured** rather than guessed at, and the **two routes** that didn't exist — a source line's book title, and a note's own local map.
+> **Phase 9 is complete, and with it every feature in the spec.** The app builds, runs in both appearances, and passes 402 tests. Every screen reads and writes SwiftData; notes connect themselves; the map draws the real graph; search, Markdown export, settings and the daily reminder are in; and `[s] scan` is now the fourth capture type — VisionKit's text scanner, tap-to-select, the passage editable before it's saved. What's left is phase 10: polish, an icon, and a device.
 >
-> **One thing is open and it is not a detail:** the simulator can't compile `NLContextualEmbedding`'s assets, so everything seen so far came out of the `NLEmbedding` fallback, whose connections are about half defensible. Read `docs/planning.md` §phase 6 before tuning the floor or the weights — they were deliberately left at the spec's values.
+> **Two things are open and neither is a detail.** The simulator can't compile `NLContextualEmbedding`'s assets, so everything seen so far came out of the `NLEmbedding` fallback, whose connections are about half defensible — read `docs/planning.md` §phase 6 before tuning the floor or the weights, which were deliberately left at the spec's values. And **no camera has ever run**: OCR and the barcode have only ever shown their written fallbacks here.
 
 ## What this is
 
@@ -107,6 +107,7 @@ Three types take plain values and return plain values, with no SwiftData inside.
 - **`SearchQuery` / `SearchIndex`** — what was typed → which notes, grouped by book
 - **`MarkdownExport`** — plain records → the document. Only `file(_:)` at the foot of it touches a disk
 - **`NotificationPlan`** — `[Note]` + a time → the next seven reminders. `NotificationScheduler` is the half that talks to iOS
+- **`ScannedPassage`** — the lines a reader tapped → the passage as it was printed. `TextScanner` is the half that talks to the camera
 
 ## File map
 
@@ -160,7 +161,12 @@ Marginalia/
     GraphLayout              force-directed, pure, off the main actor. Told the
                              shape of the box and the size of every label
     SpeechTranscription      SFSpeechRecognizer, on-device only
-    TextScanner              VisionKit → passage text
+    TextScanner              VisionKit in text mode, tap-to-select, and
+                             `TextScannerScreen` — the camera under the app's
+                             own chrome
+    ScannedPassage           tapped lines → the passage as printed. Pure, and
+                             the one place a word broken at the margin is
+                             rejoined. It never infers a page number
     BarcodeScanner           VisionKit → ISBN
     BookLookup               Open Library
     NotificationPlan         which note each of the next 7 days carries. Pure
@@ -185,7 +191,9 @@ MarginaliaTests/
 | `-openNote <id>` | opens the stream scrolled to `n.<id>` |
 | `-captureDraft "<text>"` | fills the capture bar and focuses it |
 | `-captureBar <recording\|transcribing>` | the recording rows, without a microphone |
-| `-captureSheet <quote\|thought\|voice>` | opens the full sheet over the first book's detail |
+| `-captureSheet <quote\|thought\|voice\|scan>` | opens the full sheet over the first book's detail |
+| `-scanner 1` | with `-captureSheet scan`, opens the text scanner — **the simulator has no camera**, so what you see is the written fallback |
+| `-scanned "<text>"` | the passage a scan produced, without one. With `-scanner` it fills the scanner's preview; without it, the sheet's field |
 | `-openBook "<title>"` | opens that book's detail — matched on any part of the title |
 | `-addBook 1` | opens the add-book form |
 | `-bookSearch "<query>"` | fills the form's search field and runs it |
@@ -263,7 +271,9 @@ Tests use **Swift Testing** (`@Test`, `#expect`), not XCTest.
 - **Every delete goes through a confirmation, and the Inbox refuses.** `Eraser.delete(book:)` returns `false` for it, for the same reason `BookWriter.apply` won't restatus it — it's found by status, and deleting it would take every quick capture with it while the next one silently built a second drawer.
 - **The Inbox can't be edited.** It's found by status and it's where every unfiled capture falls back to, so `BookWriter.apply` refuses to change its status and book detail doesn't offer `edit` on it. An Inbox marked `reading` would quietly stop being one and the next quick capture would build a second.
 - **A lookup result fills the form; it never saves straight through.** Open Library gets authors and page counts wrong often enough that the last word has to belong to the reader — and it holds a separate work record per translation, so `BookLookup` collapses repeats of the same title and author.
-- **A transcript is never saved unseen.** On-device recognition is wrong often enough that it lands in an editable field, both in the bar and in the sheet. Editing it leaves the note `[v] voice`: how it was captured is a fact about the note, not about the keystrokes.
+- **A transcript is never saved unseen, and neither is a scan.** On-device recognition is wrong often enough that it lands in an editable field, both in the bar and in the sheet; OCR off a printed page is the same bet and lands in the same kind of field. Editing either leaves the note `[v] voice` or `[s] scan`: how it was captured is a fact about the note, not about the keystrokes.
+- **A scan is drawn as a passage and marked as a scan.** `NoteKind.isPassage` is what the quote rule keys on, and it's true for `.quote` and `.scan` — a scan is somebody else's words off a page. The marker still says `[s]`, by the rule above. Never test `kind == .quote` to decide how a body is drawn.
+- **The page number is typed, never inferred.** A folio or a running head is text like any other in the frame, and `ScannedPassage` deliberately doesn't hunt for one — a page number that's wrong one time in five is worse than a field the reader fills in.
 - **The day's review set is built once and held in `@State`.** Rebuilding it every redraw would reshuffle the deck the moment the reader starred something, because a star is one of the things the set is scored on.
 - **Don't name a property `set`.** `private var counter: String { set.count … }` fails to parse — Swift reads `set` at the start of a property body as the setter keyword.
 - **`Spacer` collapses inside a `ScrollView`.** Content there sizes to itself, so vertical centering is a `.frame(minHeight:)` against a `GeometryReader`, which is how the review card does it.

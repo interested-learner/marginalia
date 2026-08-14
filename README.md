@@ -21,7 +21,7 @@ That happens entirely on your phone. No network, no API key, nothing sent anywhe
 
 ## Design
 
-The interface is built on the OpenCode design system, which permits itself very little: one monospace typeface, a near-white page, hairline rules, and no shadows anywhere. Icons are ASCII markers — `[+]` reading, `[x]` finished, `[q]` quote, `[t]` thought, `[v]` voice, `[◇]` map, `[↻]` review. There is no cover art and no color-coding; the only saturated color in the app is the red recording dot.
+The interface is built on the OpenCode design system, which permits itself very little: one monospace typeface, a near-white page, hairline rules, and no shadows anywhere. Icons are ASCII markers — `[+]` reading, `[x]` finished, `[q]` quote, `[t]` thought, `[v]` voice, `[s]` scan, `[◇]` map, `[↻]` review. There is no cover art and no color-coding; the only saturated color in the app is the red recording dot.
 
 Notes sit beside a margin with their id in it, and quotes are marked by a rule on the leading edge rather than a box — the app is named after marks made in a margin, and the layout is meant to earn that. The map inherits the same restraint: nodes are the note ids themselves in mono type, edges are hairlines, and selecting one inverts it to solid ink. No colored dots.
 
@@ -86,14 +86,14 @@ Everything exports to Markdown with `[[n.05]]` wiki-links, so your notes open in
 Shipping toward a first App Store release. Current state and what's next in [`docs/planning.md`](docs/planning.md).
 
 - [x] Design system and four-tab shell
-- [ ] Stream, the margin, tag filters
-- [ ] Text and voice capture
-- [ ] Books, book detail, search and ISBN scan to add
-- [ ] Review — daily set, stars, follow-up threads, share as image
-- [ ] Automatic linking — on-device embeddings and the affinity engine
-- [ ] Map — local and global graph
-- [ ] Full-text search, Markdown export, daily notification
-- [ ] Camera OCR capture
+- [x] Stream, the margin, tag filters
+- [x] Text and voice capture
+- [x] Books, book detail, search and ISBN scan to add
+- [x] Review — daily set, stars, follow-up threads, share as image
+- [x] Automatic linking — on-device embeddings and the affinity engine
+- [x] Map — local and global graph
+- [x] Full-text search, Markdown export, daily notification
+- [x] Camera OCR capture
 - [ ] App icon, empty states, device polish
 
 Later: iCloud sync, Lock Screen widget, Share extension, iPad.

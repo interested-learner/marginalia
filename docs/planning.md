@@ -2,13 +2,13 @@
 
 Where the project stands and what happens next. **Read this first in a new session**, then `CLAUDE.md` for the rules.
 
-Last updated 2026-08-14, after phase 8.
+Last updated 2026-08-14, after phase 9.
 
 ---
 
 ## State
 
-The app **builds clean, runs on the simulator in both appearances — Debug and Release — and passes 385 tests (one of them a recorded known issue — see phase 6 below).** Every screen reads from SwiftData, and the app writes notes, books *and* follow-ups: `[+]` in the stream bar files a thought into the Inbox with a fresh id, the full sheet files one against a book, books arrive by Open Library search or barcode or by hand, and review pages through a day-stable set of eight whose actions all do something.
+The app **builds clean, runs on the simulator in both appearances — Debug and Release — and passes 402 tests (one of them a recorded known issue — see phase 6 below).** Every screen reads from SwiftData, and the app writes notes, books *and* follow-ups: `[+]` in the stream bar files a thought into the Inbox with a fresh id, the full sheet files one against a book, books arrive by Open Library search or barcode or by hand, and review pages through a day-stable set of eight whose actions all do something.
 
 **And now removes them.** Notes, books and follow-ups all delete, through `Eraser` and the app's own confirmation — see the issues pass below.
 
@@ -20,7 +20,9 @@ The app **builds clean, runs on the simulator in both appearances — Debug and 
 
 **And the three things earlier phases wrote down and left are done.** `→ link` on a review card writes a pinned edge, so `isPinned` finally has a writer. The recompute was measured rather than argued about — and made twice as fast on the way past, with the graph unchanged. And both missing routes exist: a source line's book title opens the book, and `[◇] connections` opens a note's own corner of the map from the stream or the review card.
 
-**Nothing in the app is scaffolding now.** Every tab reads and writes the store, and the placeholder that survived five phases is gone.
+**And now reads them off the page.** Phase 9 landed: `[s] scan` is the fourth capture type, the type selector is two rows of two, and VisionKit's scanner in text mode turns tapped lines into a passage that lands in an editable field. **The camera itself has never run** — no simulator has one, so what was seen here is the written fallback, exactly as the barcode has been since phase 4.
+
+**Nothing in the app is scaffolding now**, and nothing in the spec is unbuilt. Every tab reads and writes the store, every capture type exists, and the placeholder that survived five phases is gone. What's left is polish, an icon, and the device evening that four features have been waiting on.
 
 History is one commit per phase on `main` — `git log --oneline` is the authority, not this file. Remote: `interested-learner/marginalia` (public). `gh` is **not** installed on this machine.
 
@@ -37,12 +39,33 @@ History is one commit per phase on `main` — `git log --oneline` is the authori
 | 6 | Linking — embeddings + `AffinityEngine` | **done** · output read; see below |
 | 7 | Map — `GraphLayout`, real graph | **done** (its gestures need a finger) |
 | 8 | Search, export, settings, notifications | **done** (the reminder has never been received — `docs/issues.md` §19) |
-| 9 | Camera OCR capture | **next** |
-| 10 | Polish, app icon, device install | |
+| 9 | Camera OCR capture | **done** (the camera needs a device) |
+| 10 | Polish, app icon, device install | **next** |
 
 Full detail for every phase is in `docs/specs/2026-08-13-marginalia-design.md`. The reasoning behind the choices is in `docs/decisions.md` — **don't re-litigate those.**
 
 ---
+
+## What phase 9 built
+
+- **`ScannedPassage` — pure, and the half of the scanner with no camera in it.** Tapped lines become prose: whitespace collapses, a line break inside one recognized item closes up, and **a word broken at the margin is put back together** — `appear-` / `ance` is `appearance`. That last rule is wrong for a line whose last word genuinely ends in a hyphen, and there's no way to tell the two apart without a dictionary; it's the rarer case and the passage is editable either way. A hyphen with a space in front of it was typed rather than printed, and an en dash never breaks a word, so neither closes up.
+- **`TextScanner` — `DataScannerViewController` in `.text()`, tap-to-select.** Everything in frame highlights and only what the reader touches is kept, so a facing page or a running head never arrives uninvited. The same line tapped twice is dropped, on `RecognizedItem.id`. It's the same controller `BarcodeScanner` points at a back cover, and the delegate is the only difference that matters.
+- **The page number is still typed.** `ScannedPassage` deliberately does not hunt for a folio, which is the obvious place that rule would have quietly broken. A page number wrong one time in five is worse than a field somebody fills in.
+- **`TextScannerScreen`** — the viewfinder under the app's own chrome, with the passage building at the foot in the quote rule it will wear as a note. The preview box is a **fixed** 150 and scrolls rather than grows: this is the one screen in the app operated while the other hand holds a book open, and buttons that move as lines are tapped would be the worst possible place for it.
+- **Two rows of two.** `SegmentedRow` grew a `perRow`, and the capture type is the only caller that passes one — `docs/design-system.md` has said since phase 3 that a fourth segment clips its own label rather than the row shrinking its type. The book form's status and settings' appearance are untouched.
+- **A scan is drawn as a passage and marked as a scan.** `NoteKind.isPassage` is what the quote rule keys on now, true for `.quote` and `.scan`; the marker still reads `[s] scan`. Same rule an edited transcript follows — how a note was captured is a fact about the note.
+- **The scan panel mirrors the voice panel**, in the same 150pt box, which is now a shared `CaptureBox` rather than two copies of one. `scan more` appends rather than replaces, because a passage that runs over a page turn is two scans.
+- **Two launch arguments**, `-scanner 1` and `-scanned "<text>"`, since the simulator can be neither tapped nor pointed at anything.
+
+### Unverified, and honestly so
+
+- **The camera has never run.** `DataScannerViewController.isSupported` is false on every simulator, so recognition, the tap that selects a line, the camera permission prompt, and the accuracy of any of it are all unobserved. This is the same position the barcode scanner has been in since phase 4, and phase 9 is the strongest argument yet for the device evening — `docs/issues.md` §6.
+- **What was seen is the fallback**, in both appearances: the sheet on the scan segment, the scanner's no-camera state, the passage preview, and the field after a scan. The tap-to-select flow between them is proven by `ScannedPassageTests` and by nothing else.
+- **De-hyphenation is a judgement, not a measurement.** No real OCR output has passed through it. On a device it wants a page of actual printed text read into it before anybody trusts the rule.
+
+### The thing that couldn't be checked, and why
+
+**The reminder still hasn't been received**, and the reason is worth writing down: it can't be, from a command line. `simctl privacy` has **no notifications service** — the list is TCC only — so authorization can't be granted, and `xcrun simctl push` reports `Notification sent` and then delivers nothing to an unauthorized app. Both were tried here. The toggle in settings is the one thing that calls `authorize()`, and it needs a finger. `docs/issues.md` §19 — the cost is unchanged at ten minutes, but they have to be somebody's.
 
 ## What phase 8 built
 
@@ -236,7 +259,7 @@ Between phase 5 and phase 6, six of the thirteen entries in `docs/issues.md` wer
 ### Standing until later
 
 - **Tapping a book opened the capture sheet against it.** That was phase 3's entry point to the full sheet; **phase 4 replaced it** with book detail, and `[+] add note` lives there now.
-- **The type selector offers three types, not four.** `[s] scan` opens the camera; it arrives with the scanner in phase 9 rather than as a segment that does nothing. See `docs/design-system.md` §Segmented control for what happens to the row when it does.
+- ~~**The type selector offers three types, not four.**~~ Phase 9: `[s] scan` landed, and the row became two rows of two exactly as `docs/design-system.md` §Segmented control said it would.
 
 ---
 
@@ -260,16 +283,16 @@ Between phase 5 and phase 6, six of the thirteen entries in `docs/issues.md` wer
 
 ---
 
-## Next: phase 9 — camera OCR capture
+## Next: phase 10 — polish, app icon, device install
 
-`[s] scan` is the fourth capture type and the last one that doesn't exist. VisionKit's `DataScannerViewController` in text mode: point at the page, tap the passage, correct whatever OCR fumbled, save it as a quote. The page number is typed, never inferred — inferring it would be wrong often enough to be worse than useless.
+Every feature in the spec is now built, which changes what the next phase is for. Phase 10 is the pass that makes it an app somebody installs rather than a project that runs:
 
-Two things arrive with it:
+- **The app icon**, which doesn't exist. It's the one piece of the identity the design system has never had to state — no imagery anywhere else in the app, and an icon has to be an image.
+- **Empty states, haptics, Dynamic Type at the extremes.** Several empty states have been drawn; nobody has walked the app at the largest accessibility size.
+- **Install on a device**, which is no longer just phase 10's item. It is the only way to see the model the app's linking is designed around (`docs/issues.md` §6), and now the only way to see the camera at all. Voice, transcription, OCR, barcode, the share sheet and `NLContextualEmbedding` are six features asserted and never observed, and they all clear in one evening.
+- **The reminder, received** — `docs/issues.md` §19, and phase 9 established that it can't be done from a command line. Ten minutes with the simulator on screen.
 
-- **The type selector becomes four segments, which means two rows of two.** `docs/design-system.md` §Segmented control has said so since phase 3, and the arithmetic is the same one that gave the review card three rows rather than one.
-- **It cannot be tested here.** The simulator has no camera, so `DataScannerViewController.isSupported` is false and only the written fallback will be seen — the same position the barcode scanner has been in since phase 4. Phase 9 is the strongest argument yet for the device evening.
-
-**One thing from phase 8 is still open and belongs with it:** the reminder has never been received (`docs/issues.md` §19), and unlike OCR the simulator *can* deliver it. Ten minutes.
+**One piece of the spec is still unbuilt and it isn't phase 9's:** the keyboard accessory bar's `→ link` while composing. It waits on editing a note, which wants the same machinery — see phase 8's *standing until later*.
 
 Notifications turned out **not** to need the paid Apple Developer account — local notifications need no entitlement and no provisioning. Open question 4 still stands for CloudKit.
 
@@ -277,7 +300,7 @@ Notifications turned out **not** to need the paid Apple Developer account — lo
 
 ## Open questions for Nathaniel
 
-Nothing here blocks phase 7 except the first one, which blocks *judging* it.
+Nothing here blocks phase 10 except the first one, which now blocks *seeing* three features rather than only judging one.
 
 -2. **Can we get an hour on your iPhone?** It's now the only way to see the model the app is designed around. Voice, transcription, camera OCR, barcode and the share sheet are all waiting on the same evening — see `docs/issues.md` §6 — but linking has joined them and it's the one that changes a design decision rather than confirming a feature.
 
@@ -308,6 +331,7 @@ Learned the hard way in phases 1 and 2.
   xcrun simctl launch booted com.marginalia.app -startTab books -openBook "Med" -confirmDelete book
   xcrun simctl launch booted com.marginalia.app -tinyLibrary 2 -startTab review   # uninstall first
   xcrun simctl launch booted com.marginalia.app -search "error"
+  xcrun simctl launch booted com.marginalia.app -startTab books -openBook "Med" -captureSheet scan -scanner 1
   xcrun simctl launch booted com.marginalia.app -settings 1
   xcrun simctl launch booted com.marginalia.app -startTab review -link 1
   ```
@@ -341,6 +365,6 @@ Learned the hard way in phases 1 and 2.
 | `docs/issues.md` | What's broken or fragile right now, and what to change. **Read it when a build hangs or the app crashes** |
 | `docs/specs/2026-08-13-marginalia-design.md` | What the app does. Authority on behavior |
 | `docs/design-system.md` | Every token and component spec. Authority on visual values |
-| `docs/decisions.md` | Why things were chosen. 15 entries. Settled — don't reopen without a changed premise |
+| `docs/decisions.md` | Why things were chosen. 16 entries. Settled — don't reopen without a changed premise |
 | `docs/prototype/` | The original Claude Design prototype. Authority on look, overridden by the spec on behavior |
 | `README.md` | Human-facing |

@@ -157,6 +157,8 @@ Text is 15/1.6 in **`ink`** (not `textBody`), wrapped in curly quotes `" "`, ind
 
 The prototype used a `surfaceSoft` filled block here. That was the one element borrowed from messaging UI rather than print, and it competed with the page in dark mode. `surfaceSoft` remains in use for inputs and pressed states.
 
+**A scan wears the rule too.** `[s] scan` is a passage read off a printed page — somebody else's words, exactly like a typed quote — so it's drawn the same way, everywhere the note appears. Its *metadata* still says `[s] scan`, because how a note was captured is a fact about the note. `NoteKind.isPassage` is the test; `kind == .quote` is not.
+
 ### Date group header
 
 Padding `16 / 20 / 6`, 13 `textAsh`. Reads `today · wed aug 13`, `yesterday`, `earlier`.
@@ -216,7 +218,17 @@ The waveform redraws every 200ms from live input amplitude. In the full capture 
 
 Each segment `flex: 1`, minimum height 44, radius 4, 13/500. Selected is filled `ink` / `onInk` with an `ink` border; unselected is `canvas` / `textMute` with a `hairline` border. Labels carry their glyph: `[q] quote`, `[t] thought`, `[v] voice`, `[s] scan`.
 
-**Three segments fit a phone, not four.** `[s] scan` opens the camera and arrives with the scanner in phase 9; until then the selector offers quote, thought and voice. A fourth segment at 14pt mono clips its own label at the default text size, so when scan lands the row wraps to two rows of two rather than shrinking the type.
+**Three segments fit a phone, not four**, so since phase 9 the type selector is **two rows of two** — `[q] quote` · `[t] thought` over `[v] voice` · `[s] scan`. A fourth segment at 14pt mono clips its own label at the default text size, and shrinking the type to fit is the thing this system never does. `SegmentedRow` takes a `perRow`; only the capture type passes one, and the book form's status and settings' appearance stay single rows of three.
+
+### Scan panel (capture sheet)
+
+The `[s] scan` type waits in the same 150pt box the recording states use, with one bordered `[s] scan a page` button in it — capture happens through a camera, and what comes back has to be seen before it's a note. Once there's a passage the box gives way to `[s] scanned · edit before saving` over the body field, with `scan more` as a link on the right for a passage that runs over a page turn.
+
+### Text scanner
+
+Full screen, with the app's own chrome over the viewfinder — the camera gets no system navigation bar, the same as the barcode. Under a `hairline`: what's been tapped so far, drawn with the **quote rule** in a fixed 150pt box that scrolls rather than grows, then `[+] use it` (primary, disabled until something is tapped) over `[x] cancel` (secondary). The box is fixed so the buttons don't move under a thumb while the other hand is holding a book open.
+
+Where there's no camera — a simulator, a Mac — the viewfinder is replaced by `[x] no camera here — type the passage in as a quote instead`, and `use it` is not drawn at all: on that machine nothing could ever enable it.
 
 ### Book form (add / edit)
 

@@ -15,6 +15,16 @@ nonisolated enum NoteKind: String, CaseIterable, Sendable {
     }
 
     var label: String { rawValue }
+
+    /// Somebody else's words, off a page — drawn with the quote rule wherever
+    /// the note is shown.
+    ///
+    /// A scan is one as much as a typed quote is: it was read off a printed
+    /// page and it isn't the reader's own sentence. The marker still says how
+    /// it arrived — `[s] scan`, never `[q] quote` — because how a note was
+    /// captured is a fact about the note, which is the same rule an edited
+    /// transcript follows.
+    var isPassage: Bool { self == .quote || self == .scan }
 }
 
 /// A note. Zettel-style: it carries an id, connects to other notes, and

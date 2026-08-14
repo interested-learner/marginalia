@@ -13,6 +13,7 @@ struct CaptureSheet: View {
     @State private var draft: CaptureDraft
     @State private var pickingBook = false
     @State private var voice = VoiceCapture(width: 22)
+    @State private var scanning = false
 
     @Query private var books: [Book]
     @Environment(\.modelContext) private var context
@@ -46,6 +47,9 @@ struct CaptureSheet: View {
                             // top of the space; the transcript field fills it.
                             VoicePanel(voice: voice, text: $draft.text)
                                 .frame(maxHeight: .infinity, alignment: .top)
+                        } else if draft.kind == .scan {
+                            ScanPanel(text: $draft.text) { scanning = true }
+                                .frame(maxHeight: .infinity, alignment: .top)
                         } else {
                             BodyField(placeholder: Self.placeholder(for: draft.kind),
                                       text: $draft.text)
@@ -65,7 +69,34 @@ struct CaptureSheet: View {
             }
         }
         .background(Theme.canvas)
+        // Full screen, like the barcode: a camera in a corner of a sheet is
+        // aimed by guesswork, and the passage has to be readable through it.
+        .fullScreenCover(isPresented: $scanning) {
+            TextScannerScreen(
+                onDone: { passage in
+                    scanning = false
+                    // Appended, not assigned — a passage that runs over a page
+                    // turn is two scans, and the second continues the first.
+                    draft.text = ScannedPassage.appending(passage, to: draft.text)
+                },
+                onCancel: { scanning = false }
+            )
+        }
         .onDisappear { voice.cancel() }
+        .task { openScannerAtLaunch() }
+    }
+
+    /// `-scanner 1` opens the scanner over the sheet — the simulator has no
+    /// camera and can't be tapped either, so this is the only way to see it.
+    private func openScannerAtLaunch() {
+        let defaults = UserDefaults.standard
+        guard draft.kind == .scan else { return }
+        if defaults.bool(forKey: "scanner") { scanning = true }
+        // `-scanned "<text>"` without `-scanner` lands the passage straight in
+        // the field, which is the state after a scan rather than during one.
+        else if let text = defaults.string(forKey: "scanned"), !text.isEmpty {
+            draft.text = ScannedPassage.appending(text, to: draft.text)
+        }
     }
 
     // MARK: Chrome
@@ -165,7 +196,7 @@ struct CaptureSheet: View {
 
     /// There are no field labels in this system — the placeholder carries it.
     fileprivate static func placeholder(for kind: NoteKind) -> String {
-        kind == .quote ? "the passage, as written…" : "what you thought…"
+        kind.isPassage ? "the passage, as written…" : "what you thought…"
     }
 
     private func save() {
@@ -176,18 +207,76 @@ struct CaptureSheet: View {
 
 // MARK: Fields
 
-/// `[q] quote` · `[t] thought` · `[v] voice`.
+/// `[q] quote` · `[t] thought` over `[v] voice` · `[s] scan`.
 ///
-/// `[s] scan` is the fourth capture type and belongs here, but it opens the
-/// camera — it arrives with the scanner in phase 9 rather than as a segment
-/// that does nothing.
+/// **Two rows of two, not four across.** A fourth segment at 13pt mono clips
+/// its own label at the default text size — the same arithmetic that gave the
+/// review card two rows of actions rather than one row of four.
 private struct TypeSelector: View {
     @Binding var kind: NoteKind
 
-    private let offered: [NoteKind] = [.quote, .thought, .voice]
+    private let offered: [NoteKind] = [.quote, .thought, .voice, .scan]
 
     var body: some View {
-        SegmentedRow(options: offered, selection: $kind) { "\($0.marker) \($0.label)" }
+        SegmentedRow(options: offered, selection: $kind, perRow: 2) {
+            "\($0.marker) \($0.label)"
+        }
+    }
+}
+
+// MARK: Scan
+
+/// Point the camera at the page, tap the passage, correct what OCR fumbled.
+///
+/// The same shape the voice panel has, and for the same reason: capture happens
+/// somewhere else — a camera, a microphone — and what comes back lands in an
+/// editable field before it's a note. **A scan is never saved unseen**, which
+/// is the rule a transcript already follows.
+///
+/// The page number is typed into the field below, never read off the page.
+private struct ScanPanel: View {
+    @Binding var text: String
+    let onScan: () -> Void
+
+    var body: some View {
+        if text.isEmpty {
+            CaptureBox {
+                Button(action: onScan) {
+                    HStack(spacing: 8) {
+                        Text(Glyphs.scan).foregroundStyle(Theme.ink)
+                        Text("scan a page").foregroundStyle(Theme.ink)
+                    }
+                    .font(Typography.button)
+                    .padding(.horizontal, 20)
+                    .padding(.vertical, 12)
+                    .background(Theme.canvas)
+                    .overlay(
+                        RoundedRectangle(cornerRadius: interactiveRadius)
+                            .stroke(Theme.hairline, lineWidth: 1)
+                    )
+                    .clipShape(.rect(cornerRadius: interactiveRadius))
+                }
+                .buttonStyle(.plain)
+            }
+        } else {
+            VStack(alignment: .leading, spacing: 8) {
+                HStack(alignment: .firstTextBaseline) {
+                    Text("\(Glyphs.scan) scanned · edit before saving")
+                        .font(Typography.meta)
+                        .foregroundStyle(Theme.textAsh)
+
+                    Spacer(minLength: 8)
+
+                    // A passage that runs over a page turn is two scans. A link,
+                    // because it's the second-best thing on this panel and the
+                    // field below it is the first.
+                    MarkerButton(title: "scan more", kind: .link, action: onScan)
+                }
+
+                BodyField(placeholder: CaptureSheet.placeholder(for: .scan),
+                          text: $text, minHeight: 120)
+            }
+        }
     }
 }
 
@@ -202,7 +291,7 @@ private struct VoicePanel: View {
     var body: some View {
         switch voice.phase {
         case .idle where text.isEmpty:
-            panel {
+            CaptureBox {
                 Button { Task { await voice.record() } } label: {
                     HStack(spacing: 8) {
                         Text(Glyphs.dot).foregroundStyle(Theme.danger)
@@ -222,7 +311,7 @@ private struct VoicePanel: View {
             }
 
         case .recording:
-            panel(bordered: true) {
+            CaptureBox(bordered: true) {
                 VStack(spacing: 12) {
                     Waveform(levels: voice.levels)
                     HStack(spacing: 4) {
@@ -247,7 +336,7 @@ private struct VoicePanel: View {
             }
 
         case .transcribing:
-            panel {
+            CaptureBox {
                 Text("\(Glyphs.refresh) transcribing…")
                     .font(Typography.input)
                     .foregroundStyle(Theme.textMute)
@@ -269,13 +358,19 @@ private struct VoicePanel: View {
         return text.isEmpty ? spoken : text + " " + spoken
     }
 
-    /// The 150pt box the three recording states share, so the sheet doesn't
-    /// resize under the reader's thumb as it moves between them.
-    private func panel<Content: View>(
-        bordered: Bool = false,
-        @ViewBuilder content: () -> Content
-    ) -> some View {
-        content()
+}
+
+/// The 150pt box every capture that happens somewhere else waits inside — the
+/// three recording states and the one before a scan.
+///
+/// Fixed, so the sheet doesn't resize under the reader's thumb as it moves
+/// between them and `save note` stays where it was.
+private struct CaptureBox<Content: View>: View {
+    var bordered = false
+    @ViewBuilder let content: Content
+
+    var body: some View {
+        content
             .frame(maxWidth: .infinity)
             .frame(height: 150)
             .background(Theme.surfaceSoft)
