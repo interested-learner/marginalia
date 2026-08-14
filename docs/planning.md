@@ -2,7 +2,7 @@
 
 Where the project stands and what happens next. **Read this first in a new session**, then `CLAUDE.md` for the rules.
 
-Last updated 2026-08-14, after phase 9.
+Last updated 2026-08-14, after phase 10.
 
 ---
 
@@ -22,7 +22,9 @@ The app **builds clean, runs on the simulator in both appearances — Debug and 
 
 **And now reads them off the page.** Phase 9 landed: `[s] scan` is the fourth capture type, the type selector is two rows of two, and VisionKit's scanner in text mode turns tapped lines into a passage that lands in an editable field. **The camera itself has never run** — no simulator has one, so what was seen here is the written fallback, exactly as the barcode has been since phase 4.
 
-**Nothing in the app is scaffolding now**, and nothing in the spec is unbuilt. Every tab reads and writes the store, every capture type exists, and the placeholder that survived five phases is gone. What's left is polish, an icon, and the device evening that four features have been waiting on.
+**And now it has a face, and it survives the largest text somebody can ask for.** Phase 10 landed: the app icon exists — `[m]`, rendered from a committed script — the app builds and passes **402 tests on iOS 18.5 as well as 26.5**, chrome stops growing where content doesn't, and there are haptics. Three real defects came out of it and none was visible in code: iOS 26 destroys a transparent tinted icon, the tab bar and the stream header came apart at the accessibility sizes, and the app had been drawing curly quotes for ten phases while `docs/issues.md` recorded that it wasn't.
+
+**Nothing in the app is scaffolding now**, and nothing in the spec is unbuilt. Every tab reads and writes the store, every capture type exists, and the placeholder that survived five phases is gone. **What's left is one evening on a real device** — see the open questions below, where it is now the only thing on the list that money or time can't substitute for.
 
 History is one commit per phase on `main` — `git log --oneline` is the authority, not this file. Remote: `interested-learner/marginalia` (public). `gh` is **not** installed on this machine.
 
@@ -40,7 +42,7 @@ History is one commit per phase on `main` — `git log --oneline` is the authori
 | 7 | Map — `GraphLayout`, real graph | **done** (its gestures need a finger) |
 | 8 | Search, export, settings, notifications | **done** (the reminder has never been received — `docs/issues.md` §19) |
 | 9 | Camera OCR capture | **done** (the camera needs a device) |
-| 10 | Polish, app icon, device install | **next** |
+| 10 | Polish, app icon, device install | **done** — except the device, which is nobody's to fake |
 
 Full detail for every phase is in `docs/specs/2026-08-13-marginalia-design.md`. The reasoning behind the choices is in `docs/decisions.md` — **don't re-litigate those.**
 
@@ -283,16 +285,37 @@ Between phase 5 and phase 6, six of the thirteen entries in `docs/issues.md` wer
 
 ---
 
-## Next: phase 10 — polish, app icon, device install
+## What phase 10 built
 
-Every feature in the spec is now built, which changes what the next phase is for. Phase 10 is the pass that makes it an app somebody installs rather than a project that runs:
+- **The app icon — `[m]`, and it is a script rather than an export.** `Tools/MakeAppIcon.swift` reads the same JetBrains Mono the app ships and the same two hexes `Theme` defines, and writes three 1024s plus the catalog's `Contents.json`. The icon is the one image in an app whose identity is the absence of images, so it had to be the *vocabulary* applied to itself: every affordance in this app is bracket-plus-character, and so is the icon. It cannot drift from the palette without the script drifting too.
+- **The brackets are opened by 5.5% of the point size**, and that number was tuned on a screenshot of a home screen rather than reasoned about. JetBrains Mono sets `[m]` tight enough that at 40pt the two bracket stems and the `m`'s three stems read as one five-bar smear.
+- **iOS 26 destroys a transparent tinted icon** — a white disc with the marker scattered across it, nothing like the source. Found on the home screen, isolated by shipping the three variants one at a time, fixed by making the tinted variant opaque. That is contrary to Apple's own guidance, which was written for the pre-26 compositor. `docs/issues.md` §20.
+- **Chrome stops growing; content never does.** One modifier, `chromeTypeSize()`, capping the tab bar, every screen header and review's foot at `xLarge`. At `accessibility-extra-extra-extra-large` the four tab labels wrapped through each other with `map` sitting a line below its neighbours, `marginalia · stream · search · settings` came apart into eleven lines, and a ten-cell `[████░░░░░░]` progress bar wrapped — which is a bar that has stopped being a bar. The rule is about what text is *for*: a note is what the reader came to read and gets every point it asks for; a signpost that fills the room it points out of is worse at its job, not better.
+- **The margin folds at the accessibility sizes.** It's a `@ScaledMetric` 48, so at AX5 it was 110pt of a 393pt screen and the note it annotates got about five characters a line. The margin is the app's identity at every size somebody reads at by choice; at the sizes somebody reads at by necessity it cost nearly half the width of the thing it exists to annotate. The id doesn't disappear, it moves — to exactly where the review card has always put it. This is the one place the design system's margin rule is conditional, and `docs/design-system.md` says so now.
+- **A book row stacks its author and status** at those sizes rather than wrapping `Kahnem/an` through `readi/ng`.
+- **Haptics — one vocabulary, five events.** `Design/Haptics.swift`, named for what happened rather than how it feels: `saved` `starred` `erased` `paged` `captured`. Six call sites, and `erased` is fired from `ConfirmSheet`'s own button, which is the single door every delete in the app goes through — the same one-path-in rule `Eraser` follows. Navigation is silent on purpose: a haptic marks something that happened to the *library*.
+- **iOS 18.5, at last.** `docs/issues.md` §4 is closed. 402 tests pass on 18.5 and on 26.5, the app was installed and walked across all four tabs there, and the map draws **the same graph node for node and edge for edge** on both. Phase 5's paging scroll view — the specific reason anyone was worried — behaves identically.
+- **The curly quotes that weren't supposed to exist did.** See below.
 
-- **The app icon**, which doesn't exist. It's the one piece of the identity the design system has never had to state — no imagery anywhere else in the app, and an icon has to be an image.
-- **Empty states, haptics, Dynamic Type at the extremes.** Several empty states have been drawn; nobody has walked the app at the largest accessibility size.
-- **Install on a device**, which is no longer just phase 10's item. It is the only way to see the model the app's linking is designed around (`docs/issues.md` §6), and now the only way to see the camera at all. Voice, transcription, OCR, barcode, the share sheet and `NLContextualEmbedding` are six features asserted and never observed, and they all clear in one evening.
-- **The reminder, received** — `docs/issues.md` §19, and phase 9 established that it can't be done from a command line. Ten minutes with the simulator on screen.
+### The two things a screenshot said that the code review hadn't
 
-**One piece of the spec is still unbuilt and it isn't phase 9's:** the keyboard accessory bar's `→ link` while composing. It waits on editing a note, which wants the same machinery — see phase 8's *standing until later*.
+**The app had been drawing curly quotes for ten phases.** `docs/issues.md` §18 said no surface wrapped a quote in `“ ”` and asked for a decision. Two surfaces did — `QuoteRule` and `ReviewCard`, since phase 1. The entry had been written from the design system and never checked against the code, and it survived three phases that way. It was caught in an AX5 screenshot taken to look at something else, where the quote mark sits at the head of the card. Decided in favour of the rule and the marks came out of both files: the printer's convention is a rule *or* quote marks, never both.
+
+**The largest accessibility size had never been set**, and it broke every screen in the app at once. That is the fifth time on this project that an image has said something a code review didn't, and the first four are already written down.
+
+### Unverified, and honestly so
+
+- **No haptic has ever been felt.** The simulator has no Taptic Engine. Five events fire on paths that unit tests cover, and what any of them feels like under a thumb is unobserved — including whether `erased` at `.heavy` reads as irreversible or merely as loud.
+- **The dark app icon has never been selected on screen.** It's correct in the catalog and it renders; this simulator's home screen is in Light icon appearance — every system icon draws as a light tile in dark mode there — so SpringBoard never asked for it. `docs/issues.md` §20.
+- **AX5 was walked on one device in portrait**, like everything else here. The map at AX5 was not examined closely: it's a graph of laid-out labels rather than a stack of rows, and `GraphLayout` is told the size of every label, so it should absorb the change — should.
+- **Nothing was tapped**, as ever.
+
+## Still open after phase 10
+
+- **One evening on a device**, and it is now the only item of its kind. Voice, transcription, camera OCR, the barcode, the share sheet, `NLContextualEmbedding`, the dark icon, and every haptic — eight things asserted and never observed, and they all clear at once. `docs/issues.md` §6.
+- **The reminder, received** — `docs/issues.md` §19. Phase 9 established the shell can't get past the permission prompt: `simctl privacy` has no notifications service and `simctl push` reports success and delivers nothing. Ten minutes of somebody's hands.
+- **A UI test target** — `docs/issues.md` §12. Still needs the Xcode GUI to add a target, which is why it isn't here.
+- **The keyboard accessory bar's `→ link` while composing**, the one piece of the spec still unbuilt. It waits on editing a note, which wants the same machinery — see phase 8's *standing until later*.
 
 Notifications turned out **not** to need the paid Apple Developer account — local notifications need no entitlement and no provisioning. Open question 4 still stands for CloudKit.
 

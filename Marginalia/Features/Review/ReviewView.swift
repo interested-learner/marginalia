@@ -89,7 +89,11 @@ struct ReviewView: View {
         .scrollPosition(id: $position)
         // A card is surfaced when it's actually paged past — never when the set
         // is built, or opening review would change tomorrow's set unread.
-        .onChange(of: position) { previous, _ in
+        .onChange(of: position) { previous, current in
+            // The haptic marks the card change itself, so it fires on arriving
+            // at the closing card and on `keep going` too — anywhere the deck
+            // moves. Surfacing is the narrower event and keeps its own guard.
+            if previous != current { Haptics.paged() }
             guard let previous, previous < today.count else { return }
             try? ReviewWriter.surface(today[previous], in: context)
         }
@@ -108,6 +112,12 @@ struct ReviewView: View {
         }
         .frame(maxWidth: .infinity)
         .padding(.bottom, 16)
+        // Where you are in the set and how to get to the next one — a signpost,
+        // like the tab bar under it. Unclamped it took a third of the screen at
+        // the accessibility sizes, off the card that is the actual reading.
+        // And `[▓░░░░░░░░░]` is ten cells of monospace: a progress bar that
+        // wraps to two lines has stopped being a bar. See `chromeTypeSize()`.
+        .chromeTypeSize()
     }
 
     // MARK: The set
@@ -155,7 +165,10 @@ struct ReviewView: View {
     private func actions(for note: Note) -> ReviewActions {
         ReviewActions(
             addThought: { composing = note },
-            toggleStar: { try? ReviewWriter.star(note, in: context) },
+            toggleStar: {
+                try? ReviewWriter.star(note, in: context)
+                Haptics.starred()
+            },
             openBook: note.book.map { book in { onOpenBook(book) } },
             shareCard: { ShareCard.rendered(row(note), in: scheme) },
             openWeb: { onOpenWeb(note.shortID) },

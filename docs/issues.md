@@ -2,7 +2,7 @@
 
 What's currently wrong, fragile, or worth changing — and for each one, whether it's **proven** or **suspected**. `docs/planning.md` says what's built and what's next; this file says what's broken and what it will cost to fix.
 
-Last updated 2026-08-14, after phase 8.
+Last updated 2026-08-14, after phase 10.
 
 ---
 
@@ -106,19 +106,30 @@ xcrun simctl shutdown all && xcrun simctl boot "iPhone 17"
 
 `docs/planning.md` already noted this; it's repeated here because it's the second most common time sink after issue 2, and the repeated `simctl launch` calls that screenshot passes depend on are what provoke it.
 
-### 4. The app has only ever run on iOS 26.5
+### 4. ~~The app has only ever run on iOS 26.5~~ — iOS 18.5 installed and run
 
-**Proven, and still true.** `xcrun simctl list runtimes` shows exactly one installed runtime, iOS 26.5. The deployment target is **18.0**, so roughly eight iOS versions of claimed support have never executed a line of this code.
+**Done in phase 10.** The runtime was downloaded, the whole suite runs against `iPhone 16, OS=18.5`, and the app was installed and walked across all four tabs there. **402 tests pass on both runtimes**, and the two are not merely both-green: the map draws the *same graph, node for node and edge for edge*, on 18.5 and on 26.5. Phase 5's `scrollTargetBehavior(.paging)` / `scrollPosition(id:)` / `containerRelativeFrame` — the specific reason to worry — behave the same on both.
 
-Phase 5 added `scrollTargetBehavior(.paging)`, `scrollPosition(id:)` and `containerRelativeFrame` — all iOS 17+ and therefore legal, but "compiles against 18" and "behaves on 18" are different claims, and paging scroll views in particular changed behavior across releases.
-
-**What to do.** Install an iOS 18 simulator runtime and run the suite against it. It's a multi-gigabyte download, which is why it wasn't done for you — it's one command and then a rerun:
+Use its own derived data, for the reason in §2:
 
 ```bash
-xcodebuild -downloadPlatform iOS -buildVersion 18.5
 xcodebuild -scheme Marginalia -destination 'platform=iOS Simulator,name=iPhone 16,OS=18.5' \
-  -derivedDataPath .build build test
+  -derivedDataPath .build-ios18 build test
 ```
+
+**One real difference came out of it**, and it's §21: the iOS 18.5 *test host* gets no embedder at all.
+
+Still true that only two of roughly nine supported versions have ever run this code — but the two are the ends of the range, which is the pair worth having.
+
+### 21. On iOS 18.5 the **test host** gets no embedder — the app does
+
+**Proven, and the distinction is the whole entry.** In the iOS 18.5 test host, `NLEmbedding.sentenceEmbedding(for: .english)` returns nil, so `NoteEmbedding.init?` returns nil and nothing is embedded. `ManualLinkTests.aHandMadeLinkSurvivesARecompute` was the only test that noticed, because it was the only one that *required* an embedder to exist.
+
+**The app on the same runtime embeds normally.** Installed on `iPhone 16, OS=18.5`, the map draws a graph identical to 26.5's — around fifty edges against the sixteen the seed pins, so the fallback ran. Whatever the test host is missing, the app process has.
+
+**Nothing to fix in the app**, and this is not the test being bent to go green: `NoteEmbedding` has documented a nil embedder as a supported outcome since phase 6 — *"a library with no connections rather than a crash"* — so a test that required one was asserting a promise the app never made. It now asserts the pinned edge either way and checks `embeddedAt == nil` when there's no embedder, which is the harder case and the one that was never covered before.
+
+**What's unresolved:** whether this is the 18.5 runtime's assets, the test host's sandbox, or iOS 18 itself. Same shape as §14 and the same answer — a device (§6) settles it.
 
 ### 5. ~~Release has never been built, and never run~~ — run on the simulator
 
@@ -205,11 +216,23 @@ What's still true: a delta would be wrong at any size, because mutual k-NN and t
 
 **It draws as a hub in a halo, which is what it is.** The spacing guarantee and the box still hold, so nothing overlaps and nothing runs off the screen; the halo simply never stops shuffling, and two launches a week apart would arrange those three hundred notes differently around the same hub. Nobody has a book with three hundred notes in it yet. Worth knowing before somebody does.
 
-### 18. Quotes are never wrapped in quote marks
+### 18. ~~Quotes are never wrapped in quote marks~~ — decided: no quote marks. **And this entry was wrong**
 
-`docs/design-system.md` says the review card shows a quote "wrapped in curly quotes". Nothing in the app does — not the card, not a stream row, not book detail, and not the map's preview panel. Noticed in phase 7 while checking the panel against the other surfaces; it predates the map by three phases and is consistent everywhere, which is why nobody saw it.
+**The premise was false and it survived three phases.** This said nothing in the app drew curly quotes. Two things did: `QuoteRule` (so every stream row, book-detail row and the scanner's preview) and `ReviewCard`, each wrapping in `\u{201C}`/`\u{201D}` since phase 1. It was caught in phase 10 by a screenshot at the largest accessibility size — the quote mark is right there at the head of the card — while looking for something else entirely. Nobody had read the two files; the entry was written from the design system and never checked against the code, which is the actual lesson.
 
-**Decide rather than patch.** The 2pt `ink` rule on the leading edge already says "this is quoted matter", and the printer's convention is a rule *or* quote marks, not both. If the rule is enough, the design system's sentence should go; if it isn't, one place — `NoteRowData` — wraps the text and every surface gets it at once. Either way it's ten minutes, and it should happen before phase 10 rather than in it.
+**Decided in favour of the rule.** The printer's convention is a rule *or* quote marks, never both, and the 2pt `ink` rule already says quoted matter. `“ ”` would also be the closest thing to a dingbat in a system that rules those out everywhere else. So the marks came *out* of both files, and the sentence came out of `docs/design-system.md`.
+
+Worth knowing: the review card doesn't draw the rule either (it's centred and open, with nothing beside it to rule against), so a quote there is marked by `[q] quote` in the metadata and `— book · page` underneath. That was already true and is now the whole of it.
+
+### 20. iOS 26 mangles a **tinted** app icon that has a transparent background
+
+**Proven by isolation, in phase 10, on the home screen.** The first icon shipped all three appearance variants with the tinted one drawn as Apple documents it — grayscale artwork on transparency, system supplies the ground. iOS 26.5 drew a dark tile with a **white disc** in the middle and the `[m]` scattered black across it: unrecognizable, and nothing like any of the three source PNGs.
+
+Isolated by shipping the variants one at a time and screenshotting each: light alone is correct, light + dark is correct, adding the transparent tinted variant breaks it. The cause is iOS 26's Liquid Glass pass, which puts a specular highlight behind the artwork — over a mostly-transparent image that highlight *is* the artwork.
+
+**Fixed by making the tinted variant opaque**, on a neutral dark ground (`Tools/MakeAppIcon.swift`). All three render correctly now. Contrary to Apple's own guidance, which is written for the pre-26 compositor.
+
+**What's still unverified:** the dark variant has never been *selected* on screen. This simulator's home screen is in Light icon appearance — every system icon, Photos and Reminders included, draws as a light tile in dark mode — so SpringBoard never asked for it. The PNG is correct and in the catalog; which one iOS picks is a system setting nothing on the command line reaches. A device (§6), or two taps in Settings.
 
 ---
 
@@ -262,14 +285,14 @@ The hold is the one to worry about. It's assembled out of a `LongPressGesture` f
 | 3 | ~~Delete, with confirmation~~ | **Done.** `Eraser` + `ConfirmSheet` | done |
 | 4 | ~~Replace the `fatalError` with a real failure screen~~ | **Done.** `StoreFailureView` | done |
 | 5 | ~~Duplicate book check~~, ~~`-tinyLibrary`~~, ~~run Release~~ | **Done.** §0 | done |
-| 6 | **Install an iOS 18 runtime, run the suite on it** | Eight versions of claimed support have never executed a line | a download + an hour |
-| 7 | **Run once on Nathaniel's iPhone** | Unblocks voice, OCR, barcode, share — four features asserted and never observed, plus Release at `-O` | an evening |
+| 6 | ~~Install an iOS 18 runtime, run the suite on it~~ | **Done.** §4 — 402 pass on 18.5, same graph as 26.5, and §21 came out of it | done |
+| 7 | **Run once on Nathaniel's iPhone** | Unblocks voice, OCR, barcode, share — four features asserted and never observed, plus Release at `-O`, plus the dark app icon (§20) | an evening |
 | 8 | **A minimal XCUITest target** | The only thing that can catch a dead button; delete-by-long-press and the map's hold-a-line have no visible affordance at all (§17) | half a day, and it needs the Xcode GUI |
 | 9 | Say something when the store falls back to memory | The quiet half of §7 — notes written into it vanish | an hour, plus a decision |
 | 10 | ~~Measure and then narrow the recompute~~ | **Done.** §15 — measured at 0.71 µs a pair, and 2× faster than it was | done |
 | 11 | Receive one reminder | §19 — the whole feature is unobserved, and the simulator can deliver it. **Not from a shell**: phase 9 established that neither `simctl privacy` nor `simctl push` can get past authorization | ten minutes of somebody's hands |
 
-**Item 7 has been promoted to first.** It was four features asserted and never observed; phase 6 added a fifth, and that one decides whether the app's defining feature works at all (§14). Item 6 is still the cheap one.
+**Item 7 is now the only expensive thing left, and it is first.** It was four features asserted and never observed; phase 6 added a fifth, and that one decides whether the app's defining feature works at all (§14). Item 6 is done, and doing it is what produced §21.
 
 ---
 

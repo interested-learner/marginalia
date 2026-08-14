@@ -86,6 +86,7 @@ struct StreamView: View {
     private func save(as kind: NoteKind) -> Bool {
         let capture = CaptureDraft(kind: kind, text: draft)
         guard (try? NoteWriter.save(capture, in: context)) != nil else { return false }
+        Haptics.saved()
         tag = TagIndex.all
         return true
     }

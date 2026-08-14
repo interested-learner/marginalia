@@ -201,6 +201,7 @@ struct CaptureSheet: View {
 
     private func save() {
         guard (try? NoteWriter.save(draft, to: book, in: context)) != nil else { return }
+        Haptics.saved()
         dismiss()
     }
 }

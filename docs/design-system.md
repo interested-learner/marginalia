@@ -49,7 +49,11 @@ Sizes are **one step up from the prototype**, which was drawn for a browser wind
 | Tab label | 13 | 400 / 700 active | — | |
 | Metadata, ids, timestamps | 13 | 400 | — | ← 12.5 |
 
-**Every size scales with Dynamic Type.** Define the scale once in `Typography` against a text style and let it move with the reader's setting — never `.system(size:)` with a fixed number. Layouts must survive the accessibility sizes without clipping; the margin column widens with the id, and note bodies wrap rather than truncate.
+**Every size scales with Dynamic Type.** Define the scale once in `Typography` against a text style and let it move with the reader's setting — never `.system(size:)` with a fixed number. Layouts must survive the accessibility sizes without clipping, and note bodies wrap rather than truncate.
+
+**Chrome stops growing at `xLarge`; content never stops.** `Typography.chromeCeiling` and the `chromeTypeSize()` modifier, and they go on exactly three things: the tab bar, `ScreenHeader`, and review's foot. Everything else — every note body, quote, source line, thread, book title, field and button — is uncapped.
+
+The rule is about what the text is *for*. A note is what the reader came to read and gets every point it asks for. A signpost that fills the room it points out of is worse at its job, not better: at `accessibility-extra-extra-extra-large` the four tab labels wrapped through each other, the stream's header came apart into eleven lines, and the ten-cell `[████░░░░░░]` progress bar wrapped onto two — a bar that has stopped being a bar. **This is the only ceiling in the app.** Anywhere else, `relativeTo:` is the whole story.
 
 Long-form text (note bodies, review cards) sets `text-wrap: pretty` — in SwiftUI, balance line breaking and never truncate a note body mid-thought.
 
@@ -131,6 +135,8 @@ n.09 │ [q] quote · #stoicism
 
 The id sits at 13 `textAsh`, nudged down 2pt onto the first text baseline. The rule runs the full height of the row, meeting the row divider at both ends. The column widens under larger Dynamic Type sizes so the id never clips.
 
+**And it folds at the accessibility sizes.** Past `isAccessibilitySize` the column and its rule go, and the id sits on its own line above the note with the full width under it — which is where the review card has always put it. This is the one conditional in the margin rule and it is not a softening of it: the column is a `@ScaledMetric` 48, so at `accessibility-extra-extra-extra-large` it is 110pt of a 393pt screen and the note it annotates gets about five characters a line. The margin is the identity at every size somebody reads at by choice; at the sizes somebody reads at by necessity, the note has to win. **No vertical hairline in the folded form** — a rule down the edge of a full-width row is a border, and this system doesn't have any.
+
 The review card does **not** use the margin — it's centered and open by design.
 
 ### Tag chip
@@ -153,7 +159,9 @@ The margin column plus a content column. Padding `12 × 20`, `hairline` beneath.
 
 Quotes are marked by a **2pt `ink` rule on the leading edge** — the printer's convention for quoted matter, and what you'd actually draw beside a passage in a book. **No fill, no radius, no block.**
 
-Text is 15/1.6 in **`ink`** (not `textBody`), wrapped in curly quotes `" "`, indented 12pt from the rule, with 8pt of clear space above and below. The color difference from a thought body is what keeps the two distinguishable now that the fill is gone.
+Text is 15/1.6 in **`ink`** (not `textBody`), indented 12pt from the rule, with 8pt of clear space above and below. The color difference from a thought body is what keeps the two distinguishable now that the fill is gone.
+
+**No quote marks.** This paragraph asked for curly quotes for three phases and no surface ever drew them — `docs/issues.md` §18. Resolved in favour of the app: the printer's convention is a rule *or* quote marks, never both, and the rule is already here doing that job. `" "` would also be the closest thing to a dingbat the system carries, in an app that has ruled those out everywhere else.
 
 The prototype used a `surfaceSoft` filled block here. That was the one element borrowed from messaging UI rather than print, and it competed with the page in dark mode. `surfaceSoft` remains in use for inputs and pressed states.
 
@@ -306,7 +314,7 @@ Layout is force-directed and cached; it only recomputes when the graph changes. 
 
 Full screen, one note, **vertical** paging. Header shows `daily review` at 18/700 with the position `3 of 8` at 13 `textAsh` on the right, clamped so the closing card reads `8 of 8` rather than `9 of 8`.
 
-The note is vertically centered with 16pt gaps: metadata at 13 `textAsh`, the text at 18/1.7 `ink` (quotes wrapped in curly quotes), the source at 13 `textMute` behind an em dash, then linked notes, then the thread if the note has one. It scrolls only once a long note plus its thread outgrows the screen — centering inside a scroll view is a `minHeight` frame, not a pair of `Spacer`s, which collapse there.
+The note is vertically centered with 16pt gaps: metadata at 13 `textAsh`, the text at 18/1.7 `ink` (a quote wears the rule and no quote marks — see *Quote rule*), the source at 13 `textMute` behind an em dash, then linked notes, then the thread if the note has one. It scrolls only once a long note plus its thread outgrows the screen — centering inside a scroll view is a `minHeight` frame, not a pair of `Spacer`s, which collapse there.
 
 **The card does not use the margin.** It's centered and open by design; the margin belongs to screens where a row is one of many.
 

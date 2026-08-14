@@ -91,6 +91,11 @@ struct TextScannerScreen: View {
                 TextScanner(
                     onTap: { line in
                         passage = ScannedPassage.appending(line, to: passage)
+                        // The phone is held over an open book and the reader is
+                        // looking at the page, not at the preview box. The
+                        // haptic is the only confirmation they get without
+                        // moving their eyes, which is why this screen has one.
+                        Haptics.captured()
                     },
                     onProblem: { problem = $0 }
                 )

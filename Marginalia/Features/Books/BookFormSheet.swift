@@ -283,6 +283,7 @@ struct BookFormSheet: View {
         } catch {
             return
         }
+        Haptics.saved()
         dismiss()
     }
 

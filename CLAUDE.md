@@ -4,9 +4,9 @@ Working context for Claude Code in this repository. Read this before touching an
 
 > **Starting a session?** Read [`docs/planning.md`](docs/planning.md) first — it says what's built, what's next, and what's temporary scaffolding waiting to be replaced. If a build hangs or the app crashes, read [`docs/issues.md`](docs/issues.md) before debugging — it is probably already in there.
 >
-> **Phase 9 is complete, and with it every feature in the spec.** The app builds, runs in both appearances, and passes 402 tests. Every screen reads and writes SwiftData; notes connect themselves; the map draws the real graph; search, Markdown export, settings and the daily reminder are in; and `[s] scan` is now the fourth capture type — VisionKit's text scanner, tap-to-select, the passage editable before it's saved. What's left is phase 10: polish, an icon, and a device.
+> **Phase 10 is complete, and with it every phase.** The app builds, runs in both appearances, and passes **402 tests on iOS 18.5 and on 26.5** — the map draws the same graph on both. It has an icon (`[m]`, rendered by `Tools/MakeAppIcon.swift`), it survives the largest accessibility size, and it has haptics.
 >
-> **Two things are open and neither is a detail.** The simulator can't compile `NLContextualEmbedding`'s assets, so everything seen so far came out of the `NLEmbedding` fallback, whose connections are about half defensible — read `docs/planning.md` §phase 6 before tuning the floor or the weights, which were deliberately left at the spec's values. And **no camera has ever run**: OCR and the barcode have only ever shown their written fallbacks here.
+> **What's left is one evening on a device, and it's the only thing of its kind.** Voice, transcription, camera OCR, the barcode, the share sheet, `NLContextualEmbedding`, the dark app icon and every haptic are eight things asserted and never observed. The simulator can't compile `NLContextualEmbedding`'s assets, so every connection anyone has looked at came out of the `NLEmbedding` fallback, and about half of them are defensible — read `docs/planning.md` §phase 6 before tuning the floor or the weights, which were deliberately left at the spec's values.
 
 ## What this is
 
@@ -41,7 +41,8 @@ The look comes from the **OpenCode design system**. It is severe on purpose, and
 6. **No cover art, no images, no color-coding.** Books are title + author + status marker + note count. The absence of imagery is the identity; a row of cover thumbnails would make this a different app.
 7. **Lowercase chrome.** Tab labels, the wordmark, screen titles, and placeholder text are all lowercase (`stream`, `books`, `map`, `add a thought…`).
 8. **One header per screen.** The wordmark appears on **stream only**. Every other screen gets a single header with its own name — never a wordmark row stacked above a title row.
-9. **Support Dynamic Type.** Every size in `Typography` scales with the reader's setting. Never a hardcoded `.system(size:)`.
+9. **Support Dynamic Type.** Every size in `Typography` scales with the reader's setting. Never a hardcoded `.system(size:)`. **Chrome stops growing at `xLarge` and content never stops** — `chromeTypeSize()`, on the tab bar, `ScreenHeader` and review's foot, and on nothing else. A note gets every point it asks for; a signpost that fills the room it points out of is worse at its job. **The margin folds** past `isAccessibilitySize` and the id moves above the note — the one conditional in the margin rule, and `docs/design-system.md` says why.
+10. **A quote wears the rule and no quote marks.** `“ ”` is a rule *and* quote marks, which is not a convention, and it would be the closest thing to a dingbat in the app. The 2pt `ink` rule is the mark. `docs/issues.md` §18 — which asserted for three phases that the app didn't draw them while two files did.
 
 Colors, condensed — but `Theme.swift` is authoritative:
 
@@ -116,8 +117,10 @@ Marginalia/
   MarginaliaApp.swift        @main, ModelContainer, root TabView
   Design/
     Theme.swift              every hex, light + dark. The only place colors live
-    Typography.swift         font registration + Dynamic Type scale
+    Typography.swift         font registration + Dynamic Type scale, and
+                             `chromeTypeSize()` — the one ceiling in the app
     Glyphs.swift             the ASCII vocabulary, named
+    Haptics.swift            the five events, named for what happened
     Components/              shared views — see docs/design-system.md
   Model/
     Book  Note  FollowUp  NoteEdge      the four @Model types
@@ -175,7 +178,11 @@ Marginalia/
     MarkdownExport           the library as one document. Pure
   Resources/Fonts/           JetBrains Mono (SIL OFL)
 MarginaliaTests/
+Tools/
+  MakeAppIcon.swift          the icon, as source. `swift Tools/MakeAppIcon.swift`
 ```
+
+**The app icon is generated, not exported.** `Tools/MakeAppIcon.swift` reads the repo's own JetBrains Mono and the two hexes `Theme` defines, and writes the three PNGs and the catalog's `Contents.json`. Edit the script, re-run it, rebuild — never hand-edit the PNGs, or the icon and the palette drift apart silently. **The tinted variant must stay opaque**: iOS 26's Liquid Glass pass puts a specular highlight behind the artwork and over a transparent image that highlight *becomes* the artwork. See `docs/issues.md` §20.
 
 `Marginalia.xcodeproj` uses **synchronized file groups** (`PBXFileSystemSynchronizedRootGroup`, Xcode 16+). New `.swift` files under `Marginalia/` are picked up automatically — **do not hand-edit the project file to add sources.** If you're about to touch `project.pbxproj`, you almost certainly don't need to.
 
@@ -234,6 +241,18 @@ xcrun simctl launch booted com.marginalia.app
 xcrun simctl ui booted appearance dark      # or: light
 xcrun simctl io booted screenshot /tmp/marginalia.png
 
+# and the largest text, which is where layout actually breaks. Note the
+# underscore — `content-size` is not the option name and prints the usage.
+xcrun simctl ui booted content_size accessibility-extra-extra-extra-large
+xcrun simctl ui booted content_size large   # put it back
+
+# the other supported runtime. Its own derived data, for the reason in issues.md §2
+xcodebuild -scheme Marginalia -destination 'platform=iOS Simulator,name=iPhone 16,OS=18.5' \
+  -derivedDataPath .build-ios18 build test
+
+# the app icon, after editing Tools/MakeAppIcon.swift
+swift Tools/MakeAppIcon.swift
+
 # the simulator can't be tapped from the command line, so to screenshot
 # any tab that isn't stream:
 xcrun simctl launch booted com.marginalia.app -startTab map
@@ -245,7 +264,8 @@ Tests use **Swift Testing** (`@Test`, `#expect`), not XCTest.
 
 ## Working notes
 
-- **Verify visually, not by reasoning.** After a UI change, screenshot the simulator in *both* appearances and actually look at the images. Dark mode regressions are invisible in code review and obvious in a screenshot.
+- **Verify visually, not by reasoning.** After a UI change, screenshot the simulator in *both* appearances **and at `accessibility-extra-extra-extra-large`**, and actually look at the images. Five real defects so far were invisible in code review and obvious in an image — and the AX5 screenshot that found the tab bar coming apart is also what caught the app drawing curly quotes it had been documented for three phases as not drawing. Look at the whole image, not the thing you changed.
+- **Haptics go through `Haptics`**, never a `UIFeedbackGenerator` at a call site. Five events named for what happened — `saved` `starred` `erased` `paged` `captured` — and navigation gets none: a haptic marks something that happened to the *library*. `erased` fires from `ConfirmSheet`'s button, the one door every delete goes through. **No haptic has ever been felt**; the simulator has no Taptic Engine.
 - **Tests can't tell you whether the links are any good.** They prove `AffinityEngine` respects its floor, its k-NN rule, and its degree cap. Whether the connections are *defensible* needs a human reading real output — `AffinityDumpTests` prints each seed note's top 5, and it's off unless asked for:
   ```bash
   TEST_RUNNER_MARGINALIA_DUMP=1 xcodebuild -scheme Marginalia \

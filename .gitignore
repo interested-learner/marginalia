@@ -30,3 +30,4 @@ Package.resolved
 # Screenshots taken while verifying UI work
 /screenshots/
 .build-release/
+.build-ios18/

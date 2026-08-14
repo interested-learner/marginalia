@@ -27,7 +27,11 @@ struct ReviewCard: View {
                 .font(Typography.meta)
                 .foregroundStyle(Theme.textAsh)
 
-            Text(note.isQuote ? "\u{201C}\(note.text)\u{201D}" : note.text)
+            // No quote marks on a passage here either — see `QuoteRule`. The
+            // card doesn't draw the rule (it's centred and open, with nothing
+            // beside it to rule against), so a quote is marked by `[q] quote`
+            // in the metadata line above and by `— book · page` below it.
+            Text(note.text)
                 .font(Typography.reviewBody)
                 .lineSpacing(Typography.reviewLeading)
                 .foregroundStyle(Theme.ink)

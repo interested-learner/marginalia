@@ -42,6 +42,11 @@ struct ConfirmSheet: View {
             // backing out isn't an action, it's the absence of one.
             MarkerButton(title: confirmTitle, kind: .danger) {
                 confirm()
+                // Every delete in the app goes through this button, so this is
+                // the only place the erase haptic is fired from — the same
+                // one-path-in rule `Eraser` itself follows. `cancel` below is
+                // deliberately silent.
+                Haptics.erased()
                 dismiss()
             }
             MarkerButton(title: "cancel", kind: .secondary) { dismiss() }

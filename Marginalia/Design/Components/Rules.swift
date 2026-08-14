@@ -21,6 +21,15 @@ struct Hairline: View {
 /// edge, so the column reads as an actual margin and the id annotates the text
 /// beside it. Used on stream rows and book detail — the review card is centered
 /// and open by design, and does not use this.
+///
+/// **It folds at the accessibility sizes, and the id goes above the note.** The
+/// column is a `@ScaledMetric` 48, so at
+/// `accessibility-extra-extra-extra-large` it is 110pt of a 393pt screen and
+/// the note it is annotating gets about five characters a line. The margin is
+/// the app's identity at every size somebody reads at by choice; at the sizes
+/// somebody reads at by necessity it costs nearly half the width of the thing
+/// it exists to annotate, and the note has to win that. The id doesn't
+/// disappear — it moves, to exactly where the review card has always put it.
 struct MarginColumn<Content: View>: View {
     let label: String
     /// Applied inside the column so the rule still spans the full row height and
@@ -29,8 +38,14 @@ struct MarginColumn<Content: View>: View {
     @ViewBuilder var content: Content
 
     @ScaledMetric(relativeTo: .footnote) private var width: CGFloat = 48
+    @Environment(\.dynamicTypeSize) private var typeSize
 
     var body: some View {
+        if typeSize.isAccessibilitySize { folded } else { ruled }
+    }
+
+    /// The margin proper.
+    private var ruled: some View {
         HStack(alignment: .top, spacing: 0) {
             Text(label)
                 .font(Typography.meta)
@@ -45,6 +60,22 @@ struct MarginColumn<Content: View>: View {
                 .padding(.vertical, inset)
                 .frame(maxWidth: .infinity, alignment: .leading)
         }
+        .fixedSize(horizontal: false, vertical: true)
+    }
+
+    /// No column, no rule: the id sits above the note with the full width under
+    /// it. There is no vertical hairline here on purpose — a rule down the edge
+    /// of a full-width row would be a border, and this system doesn't have any.
+    private var folded: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Text(label)
+                .font(Typography.meta)
+                .foregroundStyle(Theme.textAsh)
+
+            content
+        }
+        .padding(.vertical, inset)
+        .frame(maxWidth: .infinity, alignment: .leading)
         .fixedSize(horizontal: false, vertical: true)
     }
 }
@@ -105,6 +136,12 @@ struct ThreadRule: View {
 ///
 /// Quote text is `ink` while thought bodies are `textBody`; that difference is
 /// what keeps the two distinguishable now the fill is gone.
+///
+/// **The rule is the quotation mark, and there are no others.** The printer's
+/// convention is a rule *or* quote marks, never both, and `“ ”` would be the
+/// closest thing to a dingbat in a system that has ruled those out everywhere
+/// else. `docs/issues.md` §18 asked the question and recorded the wrong answer
+/// on the way past — it said no surface drew them when in fact two did.
 struct QuoteRule: View {
     let text: String
 
@@ -114,7 +151,7 @@ struct QuoteRule: View {
                 .fill(Theme.ink)
                 .frame(width: 2)
 
-            Text("\u{201C}\(text)\u{201D}")
+            Text(text)
                 .font(Typography.noteBody)
                 .lineSpacing(Typography.bodyLeading)
                 .foregroundStyle(Theme.ink)

@@ -119,7 +119,6 @@ struct ManualLinkTests {
     /// would never have suggested it.
     @Test func aHandMadeLinkSurvivesARecompute() async throws {
         let context = try store()
-        let source = try #require(NoteEmbedding()?.source)
 
         let a = Note(shortID: 1, text: "a note about attention and memory")
         let b = Note(shortID: 2, text: "a completely unrelated note about kitchen taps")
@@ -131,8 +130,24 @@ struct ManualLinkTests {
         let written = try edges(in: context)
         #expect(written.count == 1)
         #expect(written[0].isPinned)
-        // The recompute embedded them on the way past, which is the queue doing
-        // its job — the pinned edge is what's being asserted.
-        #expect(a.embeddingSource == source)
+
+        // **The embedder is allowed not to exist**, and this assertion is
+        // conditional because of a real difference between two runtimes rather
+        // than to make a red test green. On the iOS 18.5 simulator
+        // `NLEmbedding.sentenceEmbedding(for: .english)` returns nil, so
+        // `NoteEmbedding.init?` returns nil and nothing is embedded at all —
+        // see `docs/issues.md` §21. `NoteEmbedding` documents that as a
+        // supported outcome ("a library with no connections rather than a
+        // crash"), so a test that *required* an embedder was asserting
+        // something the app never promised.
+        //
+        // What the test is actually for is the pinned edge above, and that
+        // holds either way: a hand-made link outlives a recompute that had no
+        // vectors to score with, which is if anything the harder case.
+        if let source = NoteEmbedding()?.source {
+            #expect(a.embeddingSource == source)
+        } else {
+            #expect(a.embeddedAt == nil)
+        }
     }
 }

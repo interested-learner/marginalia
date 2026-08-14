@@ -75,6 +75,11 @@ struct ScreenHeader<Detail: View>: View {
             Hairline()
         }
         .background(Theme.canvas)
+        // The header names the screen; it isn't the screen. See
+        // `chromeTypeSize()` — and note this covers `detail` too, which is
+        // where book detail's progress bar lives: `[████░░░░░░]` is ten cells
+        // of monospace and a bar that wraps is not a bar.
+        .chromeTypeSize()
     }
 }
 
@@ -137,6 +142,10 @@ struct TabBar: View {
             .padding(.bottom, 26)          // clears the home indicator
         }
         .background(Theme.canvas)
+        // Four fixed labels sharing one row, so this is the ceiling that
+        // matters most — see `chromeTypeSize()`. Above it the labels wrapped
+        // into each other and `map` sat a line below its neighbours.
+        .chromeTypeSize()
     }
 }
 

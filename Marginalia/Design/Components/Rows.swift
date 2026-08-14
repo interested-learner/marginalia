@@ -146,6 +146,7 @@ struct BookRow: View {
     let book: BookRowData
 
     @ScaledMetric(relativeTo: .footnote) private var indent: CGFloat = 34
+    @Environment(\.dynamicTypeSize) private var typeSize
 
     var body: some View {
         VStack(spacing: 0) {
@@ -164,13 +165,24 @@ struct BookRow: View {
                         .foregroundStyle(Theme.textAsh)
                 }
 
-                HStack(spacing: 8) {
-                    Text(book.author)
-                        .font(Typography.source)
-                        .foregroundStyle(Theme.textMute)
-                    Text("· \(book.status)")
-                        .font(Typography.source)
-                        .foregroundStyle(Theme.textAsh)
+                // `Daniel Kahneman · reading` side by side until it stops
+                // fitting, then one above the other. At the accessibility
+                // sizes the two used to wrap through each other — `Kahnem/an`
+                // interleaved with `readi/ng` — which is unreadable in a way
+                // that a stack simply isn't. The interpunct goes with the
+                // stack: it separates things on a line, and there's no line.
+                Group {
+                    if typeSize.isAccessibilitySize {
+                        VStack(alignment: .leading, spacing: 3) {
+                            author
+                            status(separated: false)
+                        }
+                    } else {
+                        HStack(spacing: 8) {
+                            author
+                            status(separated: true)
+                        }
+                    }
                 }
                 .padding(.leading, indent)
             }
@@ -179,5 +191,19 @@ struct BookRow: View {
 
             Hairline()
         }
+    }
+
+    private var author: some View {
+        Text(book.author)
+            .font(Typography.source)
+            .foregroundStyle(Theme.textMute)
+            .fixedSize(horizontal: false, vertical: true)
+    }
+
+    private func status(separated: Bool) -> some View {
+        Text(separated ? "· \(book.status)" : book.status)
+            .font(Typography.source)
+            .foregroundStyle(Theme.textAsh)
+            .fixedSize(horizontal: false, vertical: true)
     }
 }
