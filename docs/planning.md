@@ -2,19 +2,23 @@
 
 Where the project stands and what happens next. **Read this first in a new session**, then `CLAUDE.md` for the rules.
 
-Last updated 2026-08-14, after phase 7.
+Last updated 2026-08-14, after phase 8.
 
 ---
 
 ## State
 
-The app **builds clean, runs on the simulator in both appearances — Debug and Release — and passes 321 tests (one of them a recorded known issue — see phase 6 below).** Every screen reads from SwiftData, and the app writes notes, books *and* follow-ups: `[+]` in the stream bar files a thought into the Inbox with a fresh id, the full sheet files one against a book, books arrive by Open Library search or barcode or by hand, and review pages through a day-stable set of eight whose actions all do something.
+The app **builds clean, runs on the simulator in both appearances — Debug and Release — and passes 385 tests (one of them a recorded known issue — see phase 6 below).** Every screen reads from SwiftData, and the app writes notes, books *and* follow-ups: `[+]` in the stream bar files a thought into the Inbox with a fresh id, the full sheet files one against a book, books arrive by Open Library search or barcode or by hand, and review pages through a day-stable set of eight whose actions all do something.
 
 **And now removes them.** Notes, books and follow-ups all delete, through `Eraser` and the app's own confirmation — see the issues pass below.
 
 **And now connects them.** Phase 6 landed: every note is vectorized on save, `AffinityEngine` scores every pair, and the connections that survive its three constraints are written as edges and drawn on the stream, on book detail and on the review card. Nobody was asked to link anything.
 
 **And now draws them.** Phase 7 landed: the map is the real graph. `GraphLayout` places every node, `MapGraph` decides which nodes belong in a view, and there are three of them — the whole library, two hops out from one note, and one book on its own. Nothing on that screen is hand-placed any more.
+
+**And now finds them, exports them, and comes back for them.** Phase 8 landed: one field searches every note, thread, book, author and tag; the library leaves as one Markdown document; settings carries the appearance, the reminder, the export and *rebuild connections*; and one notification a day is scheduled seven ahead, each one carrying the actual text of the note it will open.
+
+**And the three things earlier phases wrote down and left are done.** `→ link` on a review card writes a pinned edge, so `isPinned` finally has a writer. The recompute was measured rather than argued about — and made twice as fast on the way past, with the graph unchanged. And both missing routes exist: a source line's book title opens the book, and `[◇] connections` opens a note's own corner of the map from the stream or the review card.
 
 **Nothing in the app is scaffolding now.** Every tab reads and writes the store, and the placeholder that survived five phases is gone.
 
@@ -32,11 +36,43 @@ History is one commit per phase on `main` — `git log --oneline` is the authori
 | 5 | Review — paged cards, `ReviewSetBuilder`, stars, follow-ups | **done** |
 | 6 | Linking — embeddings + `AffinityEngine` | **done** · output read; see below |
 | 7 | Map — `GraphLayout`, real graph | **done** (its gestures need a finger) |
-| 8 | Search, export, settings, notifications | **next** |
-| 9 | Camera OCR capture | |
+| 8 | Search, export, settings, notifications | **done** (the reminder has never been received — `docs/issues.md` §19) |
+| 9 | Camera OCR capture | **next** |
 | 10 | Polish, app icon, device install | |
 
 Full detail for every phase is in `docs/specs/2026-08-13-marginalia-design.md`. The reasoning behind the choices is in `docs/decisions.md` — **don't re-litigate those.**
+
+---
+
+## What phase 8 built
+
+- **Search — `SearchQuery` and `SearchIndex`, both pure.** What was typed comes apart into words and `#tags`; a note matches when **every** word appears somewhere about it and **every** tag is on it, so a second word narrows rather than widens. What's searched is everything that is *about* a note: its text, the thread under it, its tags, and its book's title and author — being told nothing was found while four notes from *Thinking, Fast and Slow* sit in the library would read as a broken field. Results are note rows grouped by book, **the book with the most to say first**, and the rows drop the book from their source line because the header above already says it.
+- **Search and settings hang off the stream's header**, which is now the only header in the app carrying actions. There is no fifth tab and there isn't going to be one; the stream is home, so its header carries the two screens that don't have a tab. Both keep the tab bar and both carry `← stream` — a screen, not a question.
+- **`MarkdownExport` — pure, one section per book.** Notes oldest first, because a feed reads backwards and a document reads forwards. `[[n.05]]` wiki-links so an Obsidian vault understands them. Dates as `2026-08-14` rather than `aug 14`: an export is something else's software reading it. A quote is a blockquote and a thread is **nested one level under whatever it answers**, so a thread under a quote sits inside the quote it grew out of. Delivered as a real `.md` file through `ShareLink`, because a note that arrives as a file can be filed and one that arrives as text can only be pasted.
+- **Settings, with no iOS controls on it.** A `Toggle` is a green pill and a `DatePicker` is a wheel; either would be the only thing in the app that looked like iOS. So a setting is on when its box is filled — `[*] one note a day` — and the time opens inline as a list of half-hours, the same field the capture sheet's book picker already is. Appearance is a three-segment row and it reaches the whole app through one `@AppStorage` read on the root view.
+- **`NotificationPlan` is pure and `NotificationScheduler` is not**, the same split `AffinityEngine` and `LinkWriter` have. The plan asks `ReviewSetBuilder` what each of the next seven days looks like and takes **the first card of that day's set** — the whole set, not a set of one, because the "at least one book you're reading" rule can pick a different note when there's only one slot, and a reminder that named a note the screen doesn't open on would be its own small lie. Seven separate requests rather than one repeating trigger, because the note changes every day. Rewritten on every launch by `.reminders()`, which is the same shape as `.linking()` and for the same reason.
+- **Manual linking, at last.** `LinkWriter.pin` is the only writer of `isPinned`, reached from `→ link` on a review card, which opens a picker over the library — the search sheet the spec asked for, built on the search machinery that had just been written. Pinning a pair the app already found adopts that edge and keeps its score; pinning a pair the reader once **disconnected** un-suppresses it, because both flags record a deliberate act and this is the newer one.
+- **The recompute, measured.** `docs/issues.md` §15 asked for a number instead of a paragraph and now has a table. **0.71 µs a pair at `-O`** — 356 ms at a thousand notes, ~9 seconds at five thousand, off the main actor throughout. The incremental path the spec described is **not needed**, and that's now a measurement rather than an opinion.
+- **And half that cost was work in the wrong place.** `AffinityEngine` was normalizing tags and re-deriving vector magnitudes inside the pair loop — O(N) jobs done O(N²) times. Hoisting them per subject took it from 1.50 µs a pair to 0.71, with the graph **unchanged edge for edge at every size measured**, which is the check that made it an optimization rather than a change.
+- **The two routes.** A source line's book title opens the book, through a `marginalia://book/…` link resolved by the same route `→ n.11` already took — **a book is addressed by one of its notes**, because books have no id of their own and inventing one to shorten a URL would be a schema change in the service of a link. And `[◇] connections` opens a note's local map, from a stream row's long-press menu and from a third row on the review card.
+
+### The bug the screenshot caught
+
+**The scheduler was asking for permission at launch.** `.reminders()` called `authorize()` — which can put a system alert on screen — on every launch where the reminder was on, breaking the app's own rule that permission is requested at first use and never at launch. It's invisible in code and it is the first thing in the screenshot. The fix is the split that should have been there: `isAuthorized()` never prompts and is what the scheduler uses; `authorize()` prompts and is reached only by the toggle in settings. That's the fourth time on this project that an image has said something a code review didn't.
+
+The same screenshot cost half an hour, because **a stuck permission alert survives an uninstall** and sits over every screenshot taken afterwards. `simctl shutdown all && simctl boot` clears it. `docs/issues.md` §19.
+
+### Unverified, and honestly so
+
+- **The reminder has never been received.** Scheduling, the alert's wording on a lock screen, and the tap that should land on the right review card are all written and none has run. Local notifications *do* work in the simulator, so this is ten minutes of somebody's hands — `docs/issues.md` §19.
+- **Nothing was tapped**, as ever. `search`, `settings`, a result row, a book title in a source line, `[◇] connections` in a long-press menu, `→ link` picking a note: every one reached by launch argument. The two worth doubting are the ones with no visible affordance — the title, which the design system says not to underline, and `connections`, which is inside a menu.
+- **The share sheet still hasn't been opened.** `ShareLink` now has a `.md` file to hand over as well as an image, and what iOS actually does with either is unseen.
+- **The export was read, though.** The document phase 8 writes from the seed library is in the simulator's container and it is correct: five sections, the empty book skipped, threads nested, `[[n.18]]` links where the edges are.
+
+### Standing until later
+
+- **Nothing links from the composer.** The spec puts `→ link` on the keyboard accessory bar *while composing* as well as on the review card. The card half is built; the composer half isn't, because a note being written doesn't exist yet and the edge would have to be held and written after the save. Worth doing when editing a note arrives, which wants the same machinery.
+- **`surfaceCount` still has no way back** (§10), and the day's set still doesn't notice midnight (§11). Neither changed.
 
 ---
 
@@ -67,8 +103,8 @@ A cancelled `.task(id:)` **still finishes what it was awaiting**. `Task.detached
 
 ### Standing until later
 
-- **A local map is reachable from the map and nowhere else.** The spec says "reachable from any note", and today that means selecting the note on the map and tapping `[◇] connections`. The route from a stream row or a review card doesn't exist — `docs/design-system.md` doesn't give a row an action for it, and inventing one wasn't phase 7's job. Worth deciding in phase 8, next to the source line's tappable book title, which is still waiting too.
-- **Nothing creates a link by hand**, still. Phase 6 said it and it's unchanged: `isSuppressed` now has a way in — holding a line — but `isPinned` is written by the seed and by nothing else. The composer's `→ link` accessory has no phase.
+- ~~**A local map is reachable from the map and nowhere else.**~~ Phase 8: `[◇] connections` in a stream row's long-press menu and on the review card.
+- ~~**Nothing creates a link by hand.**~~ Phase 8: `→ link` on the review card, through `LinkWriter.pin`.
 
 ---
 
@@ -99,14 +135,14 @@ On `NLEmbedding.sentenceEmbedding`, over the forty seed notes: 30 connections fo
 
 ### Standing until later
 
-- **Nothing creates a link by hand.** `isPinned` is written by the seed and by nothing else, and `isSuppressed` by nothing at all — the machinery honours both, and `LinkWriterTests` proves it, but the reader has no way to produce either. The spec puts manual creation on the composer's keyboard accessory bar (`→ link · # tag · p. page`) and on the review card, opening a search sheet over notes; **no phase owns it.** It should be scheduled — probably phase 8, next to *rebuild connections* — and until it is, "manual linking exists as override" is true of the model and not of the app.
+- ~~**Nothing creates a link by hand.**~~ Phase 8: `LinkWriter.pin`, reached from `→ link` on a review card. The composer half of the spec's answer — the keyboard accessory bar — is still unbuilt and now the only part outstanding.
 - **A note can't be edited, so a note's vector can't go stale by editing.** When editing arrives, whatever writes the new text has to clear `embeddedAt` — the queue is the only thing that would notice.
 
 ### Unverified, and honestly so
 
 - **The contextual path has never executed.** Asset request, load, `enumerateTokenVectors`, mean pooling, and the re-embed-on-source-change path are all written and all unexercised. The fallback path is what every test and every screenshot in this phase went through.
 - **Nothing was tapped**, as ever. A capture that triggers a relink was proven by `LinkWriterTests` against a real store, not by typing into the bar.
-- **Timing is unmeasured.** Forty notes embed fast enough that nothing was ever seen to hang, but no one has run this at a thousand notes, and the O(N²) pass has no measurement behind the claim that it's fine.
+- ~~**Timing is unmeasured.**~~ Phase 8 measured the scoring pass: 0.71 µs a pair at `-O`, and 2× faster than it was. **The embedding half is still unmeasured**, and can't honestly be measured here — the only model this machine will run is the fallback.
 
 ---
 
@@ -224,17 +260,18 @@ Between phase 5 and phase 6, six of the thirteen entries in `docs/issues.md` wer
 
 ---
 
-## Next: phase 8 — search, export, settings, notifications
+## Next: phase 9 — camera OCR capture
 
-Full-text search across note bodies, follow-ups, book titles, authors and tags, with `#tag` in the query filtering by tag. Markdown export. A settings screen — notification time, appearance, about — and one notification a day, seven scheduled ahead.
+`[s] scan` is the fourth capture type and the last one that doesn't exist. VisionKit's `DataScannerViewController` in text mode: point at the page, tap the passage, correct whatever OCR fumbled, save it as a quote. The page number is typed, never inferred — inferring it would be wrong often enough to be worse than useless.
 
-**Three things have been waiting for a phase and phase 8 is where they belong**, all written down rather than pretended away:
+Two things arrive with it:
 
-- **Manual linking.** The spec puts `→ link` on the composer's accessory bar and a search sheet on the review card. `NoteEdge` has honoured `isPinned` since phase 6 and nothing writes it. Next to *rebuild connections* in settings.
-- **The incremental recompute**, `docs/issues.md` §15 — a measurement first, then a background `ModelActor`. Settings' *rebuild connections* wants the same machinery.
-- **The two routes that don't exist**: a source line's book title should open the book (phase 4 left it, phase 5 built the route it was waiting on), and a note should reach its own local map from somewhere other than the map.
+- **The type selector becomes four segments, which means two rows of two.** `docs/design-system.md` §Segmented control has said so since phase 3, and the arithmetic is the same one that gave the review card three rows rather than one.
+- **It cannot be tested here.** The simulator has no camera, so `DataScannerViewController.isSupported` is false and only the written fallback will be seen — the same position the barcode scanner has been in since phase 4. Phase 9 is the strongest argument yet for the device evening.
 
-Notifications need the paid Apple Developer account — open question 4 below.
+**One thing from phase 8 is still open and belongs with it:** the reminder has never been received (`docs/issues.md` §19), and unlike OCR the simulator *can* deliver it. Ten minutes.
+
+Notifications turned out **not** to need the paid Apple Developer account — local notifications need no entitlement and no provisioning. Open question 4 still stands for CloudKit.
 
 ---
 
@@ -251,7 +288,7 @@ Nothing here blocks phase 7 except the first one, which blocks *judging* it.
 1. **Is the dark palette right?** The prototype only ever specified light; every dark value is derived.
 2. **Is the body leading comfortable?** `Typography.bodyLeading` is 4pt on 15pt text (~1.6). Tightened once already from 5.
 3. **Do the seed notes read as real notes?** They're the content phase 6 tunes the linking against, so if any of them feel like filler it's much cheaper to say so now.
-4. **Is the Apple Developer account paid?** Needed before CloudKit sync or notifications can be provisioned. Phase 8 hits this.
+4. **Is the Apple Developer account paid?** Needed before CloudKit sync. **Not** needed for the daily reminder after all — a local notification needs no entitlement, so phase 8 shipped it without touching this.
 5. **Is "marginalia" available on the App Store?** Likely contested. Doesn't block anything — the bundle id can change — but worth knowing before phase 10.
 
 ---
@@ -270,6 +307,13 @@ Learned the hard way in phases 1 and 2.
   xcrun simctl launch booted com.marginalia.app -startTab books -addBook 1 -bookSearch "meditations"
   xcrun simctl launch booted com.marginalia.app -startTab books -openBook "Med" -confirmDelete book
   xcrun simctl launch booted com.marginalia.app -tinyLibrary 2 -startTab review   # uninstall first
+  xcrun simctl launch booted com.marginalia.app -search "error"
+  xcrun simctl launch booted com.marginalia.app -settings 1
+  xcrun simctl launch booted com.marginalia.app -startTab review -link 1
+  ```
+- **A permission prompt sticks to the simulator, and it survives an uninstall.** `-preference.notifications 1` raises the notification alert; nothing on the command line can answer it, so it sits on the SpringBoard over every screenshot taken afterwards — including after `simctl uninstall` and a reinstall. Reboot the simulator to clear it.
+  ```bash
+  xcrun simctl shutdown all && xcrun simctl boot "iPhone 17"
   ```
 - **`simctl openurl` is not the in-app path.** Opening `marginalia://note/20` from outside raises the system's *Open in "marginalia"?* alert, which blocks the simulator until it's dismissed by hand. In-app taps are intercepted by `OpenURLAction` in `RootView` and never reach the system. Use `-openNote` to screenshot that path.
 - **Reinstall before screenshotting a seed change.** The seed only runs against an empty store, so an existing install keeps the old notes.

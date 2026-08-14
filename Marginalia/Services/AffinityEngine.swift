@@ -84,21 +84,41 @@ nonisolated enum AffinityEngine {
     ) -> [Link] {
         guard subjects.count > 1 else { return [] }
 
-        // Every pair, scored once. O(N²), which is seconds at library sizes
-        // this app will ever see and the reason `LinkWriter` runs it off the
-        // main thread rather than inline.
+        // **Everything that depends on one note is computed once, here.**
+        // Normalizing a tag and squaring a vector are both O(N) jobs that the
+        // pair loop was doing O(N²) times — half a million times over at a
+        // thousand notes, for a thousand notes' worth of answers. Hoisting them
+        // takes the pass from 1.50 µs a pair to 0.71, measured, at `-O`, with
+        // the resulting graph unchanged edge for edge. `AffinityBenchmarkTests`
+        // is where those numbers come from and `docs/issues.md` §15 is what
+        // they replaced.
+        let ids = subjects.map(\.id)
+        let vectors = subjects.map(\.vector)
+        let labels = subjects.map { Set($0.tags.map(TagIndex.normalized).filter { !$0.isEmpty }) }
+        // Sum of squares rather than the magnitude, so the arithmetic below is
+        // the same expression `cosine` uses and returns the same bits.
+        let squares = vectors.map { vector in vector.reduce(Float(0)) { $0 + $1 * $1 } }
+
+        // Every pair, scored once. Still O(N²) — a full recompute is what makes
+        // mutual k-NN and the degree cap correct, and `docs/decisions.md` §14
+        // chose that deliberately — but the constant is now a dot product.
         var scores: [Pair: Double] = [:]
         var ranked = [[(id: Int, score: Double)]](repeating: [], count: subjects.count)
 
         for i in subjects.indices {
+            let a = ids[i]
+            let vector = vectors[i]
+            let squared = squares[i]
+            let tags = labels[i]
+
             for j in (i + 1)..<subjects.count {
-                let a = subjects[i]
-                let b = subjects[j]
-                guard a.id != b.id else { continue }
-                let score = score(a, b)
-                scores[Pair(a.id, b.id)] = score
-                ranked[i].append((b.id, score))
-                ranked[j].append((a.id, score))
+                let b = ids[j]
+                guard a != b else { continue }
+                let score = vectorWeight * cosine(vector, vectors[j], squared, squares[j])
+                    + tagWeight * jaccard(tags, labels[j])
+                scores[Pair(a, b)] = score
+                ranked[i].append((b, score))
+                ranked[j].append((a, score))
             }
         }
 
@@ -163,16 +183,37 @@ nonisolated enum AffinityEngine {
     static func cosine(_ a: [Float], _ b: [Float]) -> Double {
         guard a.count == b.count, !a.isEmpty else { return 0 }
 
-        var dot = Float(0)
         var left = Float(0)
         var right = Float(0)
         for index in a.indices {
-            dot += a[index] * b[index]
             left += a[index] * a[index]
             right += b[index] * b[index]
         }
+        return cosine(a, b, left, right)
+    }
 
-        let magnitude = (left * right).squareRoot()
+    /// The same cosine with both sums of squares already in hand — the shape a
+    /// full pass wants, where every vector's own magnitude is a property of one
+    /// note and not of the pair it's in.
+    ///
+    /// Same expression, same order of accumulation, so it returns the same bits
+    /// as the two-argument form. That matters: a score sits either side of a
+    /// floor, and a graph that changed shape because a magnitude was factored
+    /// out differently would be a bug nobody could see.
+    private static func cosine(
+        _ a: [Float],
+        _ b: [Float],
+        _ aSquared: Float,
+        _ bSquared: Float
+    ) -> Double {
+        guard a.count == b.count, !a.isEmpty else { return 0 }
+
+        var dot = Float(0)
+        for index in a.indices {
+            dot += a[index] * b[index]
+        }
+
+        let magnitude = (aSquared * bSquared).squareRoot()
         guard magnitude > 0 else { return 0 }
         return Double(dot / magnitude)
     }
@@ -181,8 +222,14 @@ nonisolated enum AffinityEngine {
     /// would let a note tagged with everything score highly against everything,
     /// which is the same failure mutual k-NN exists to prevent.
     static func tagOverlap(_ a: [String], _ b: [String]) -> Double {
-        let left = Set(a.map(TagIndex.normalized).filter { !$0.isEmpty })
-        let right = Set(b.map(TagIndex.normalized).filter { !$0.isEmpty })
+        jaccard(Set(a.map(TagIndex.normalized).filter { !$0.isEmpty }),
+                Set(b.map(TagIndex.normalized).filter { !$0.isEmpty }))
+    }
+
+    /// The same measure over tags already normalized. One definition, two ways
+    /// in: a full pass normalizes each note's tags once and comes here, and
+    /// anything holding two raw lists goes through `tagOverlap` above.
+    private static func jaccard(_ left: Set<String>, _ right: Set<String>) -> Double {
         guard !left.isEmpty, !right.isEmpty else { return 0 }
         return Double(left.intersection(right).count) / Double(left.union(right).count)
     }

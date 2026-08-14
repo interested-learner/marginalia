@@ -6,6 +6,11 @@ import SwiftData
 struct StreamView: View {
     /// A `→ n.11` tapped anywhere in the app lands here.
     @Binding var focus: Int?
+    /// `[◇] connections` on a row: the map, two hops out from that note.
+    let onOpenWeb: (Int) -> Void
+    /// The two screens that aren't tabs, from the one header that carries them.
+    let onSearch: () -> Void
+    let onSettings: () -> Void
 
     @Query(sort: \Note.createdAt, order: .reverse) private var notes: [Note]
     @Query private var edges: [NoteEdge]
@@ -22,7 +27,15 @@ struct StreamView: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            ScreenHeader(style: .wordmark(subtitle: "stream"))
+            // The only header in the app carrying actions. Search and settings
+            // are screens without a tab, and the stream is home.
+            ScreenHeader(
+                style: .wordmark(subtitle: "stream"),
+                actions: [
+                    HeaderAction(label: "search", action: onSearch),
+                    HeaderAction(label: "settings", action: onSettings)
+                ]
+            )
 
             if !chips.isEmpty {
                 ScrollView(.horizontal, showsIndicators: false) {
@@ -49,7 +62,8 @@ struct StreamView: View {
                                 NoteRow(
                                     note: NoteRowData(note, connections: connections[note.shortID] ?? []),
                                     onDelete: { erasing = .note(note) },
-                                    onDeleteFollowUp: { erasing = .thought($0, of: note) }
+                                    onDeleteFollowUp: { erasing = .thought($0, of: note) },
+                                    onConnections: { onOpenWeb(note.shortID) }
                                 )
                                 .id(note.shortID)
                             }

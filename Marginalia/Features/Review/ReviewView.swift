@@ -8,9 +8,17 @@ import SwiftData
 /// would reshuffle the deck under the reader's thumb the moment they starred
 /// something, because a star is one of the things the set is scored on.
 struct ReviewView: View {
+    /// A note handed over by a tapped reminder. The card opens on it when it's
+    /// in the day's set, and on the first card when it isn't — a notification
+    /// tapped a day late shouldn't land on somebody else's note. Cleared once
+    /// it's been used.
+    @Binding var card: Int?
+
     /// Cross-tab: `→ open book` hands the book up to `RootView`, which switches
     /// to the library and pushes its detail. The map will want the same route.
     let onOpenBook: (Book) -> Void
+    /// `[◇] connections` — the map, two hops out from the card you're reading.
+    let onOpenWeb: (Int) -> Void
 
     @Query(sort: \Note.createdAt, order: .reverse) private var notes: [Note]
     @Query private var edges: [NoteEdge]
@@ -21,6 +29,8 @@ struct ReviewView: View {
     @State private var today: [Note] = []
     @State private var position: Int? = 0
     @State private var composing: Note?
+    /// Which card is picking a note to link to.
+    @State private var linking: Note?
 
     var body: some View {
         VStack(spacing: 0) {
@@ -37,8 +47,17 @@ struct ReviewView: View {
         }
         .background(Theme.canvas)
         .task { open() }
+        // A reminder tapped while review is already on screen. The `.task`
+        // covers arriving from another tab; this covers not moving at all.
+        .onChange(of: card) { _, _ in arrive() }
         .sheet(item: $composing) { note in
             FollowUpSheet(note: note)
+                .presentationBackground(Theme.canvas)
+                .presentationCornerRadius(0)
+                .presentationDragIndicator(.hidden)
+        }
+        .sheet(item: $linking) { note in
+            NotePicker(subject: note)
                 .presentationBackground(Theme.canvas)
                 .presentationCornerRadius(0)
                 .presentationDragIndicator(.hidden)
@@ -94,9 +113,20 @@ struct ReviewView: View {
     // MARK: The set
 
     private func open() {
-        guard today.isEmpty else { return }
-        today = ReviewSetBuilder.set(from: notes, on: .now)
-        openAtLaunch()
+        if today.isEmpty {
+            today = ReviewSetBuilder.set(from: notes, on: .now)
+            openAtLaunch()
+        }
+        arrive()
+    }
+
+    /// A tapped reminder. Switching tabs rebuilds this view, so the handover
+    /// happens on arrival — the same place `BooksView` pushes its book.
+    private func arrive() {
+        guard let wanted = card else { return }
+        card = nil
+        guard let landing = today.firstIndex(where: { $0.shortID == wanted }) else { return }
+        position = landing
     }
 
     /// `[↻] keep going` extends past the day's eight rather than starting the
@@ -127,7 +157,9 @@ struct ReviewView: View {
             addThought: { composing = note },
             toggleStar: { try? ReviewWriter.star(note, in: context) },
             openBook: note.book.map { book in { onOpenBook(book) } },
-            shareCard: { ShareCard.rendered(row(note), in: scheme) }
+            shareCard: { ShareCard.rendered(row(note), in: scheme) },
+            openWeb: { onOpenWeb(note.shortID) },
+            link: { linking = note }
         )
     }
 
@@ -164,6 +196,7 @@ struct ReviewView: View {
         if card > 0 { position = min(card - 1, today.count) }
         if defaults.bool(forKey: "reviewEnd") { position = today.count }
         if defaults.bool(forKey: "followUp") { composing = today[safe: index] }
+        if defaults.bool(forKey: "link") { linking = today[safe: index] }
     }
 }
 

@@ -50,6 +50,49 @@ enum LinkWriter {
     /// The one in flight, if any. See `relink`.
     private static var pass: Task<Void, Error>?
 
+    // MARK: By hand
+
+    /// Connects two notes because the reader said so.
+    ///
+    /// **The only thing in the app that writes `isPinned`.** Everything else on
+    /// the graph is the app's own work — this is the override the model has
+    /// carried since phase 6 and nothing could produce until now. A pinned edge
+    /// is never pruned by a recompute and never re-suggested, but it still spends
+    /// degree budget at both ends: the cap is about how many lines meet at a
+    /// node, and a hand-made line is still a line.
+    ///
+    /// Pinning a pair the reader once **suppressed** un-suppresses it. Both flags
+    /// are records of a deliberate act and this is the more recent one — the same
+    /// resolution `Eraser.suppress` makes in the other direction.
+    ///
+    /// Returns false when there was nothing to do: a note joined to itself, or a
+    /// pair already connected by hand.
+    @discardableResult
+    static func pin(_ a: Note, to b: Note, in context: ModelContext) throws -> Bool {
+        guard a.shortID != b.shortID else { return false }
+
+        let pair = AffinityEngine.Pair(a.shortID, b.shortID)
+        let existing = try context.fetch(FetchDescriptor<NoteEdge>()).first { edge in
+            guard let from = edge.from?.shortID, let to = edge.to?.shortID else { return false }
+            return AffinityEngine.Pair(from, to) == pair
+        }
+
+        if let existing {
+            guard !existing.isPinned || existing.isSuppressed else { return false }
+            existing.isPinned = true
+            existing.isSuppressed = false
+        } else {
+            // Direction low → high, the same way a recompute writes one. It's
+            // stored and never displayed, so there's nothing to be gained by
+            // recording which end the reader happened to start from.
+            let ends = a.shortID < b.shortID ? (a, b) : (b, a)
+            context.insert(NoteEdge(from: ends.0, to: ends.1, score: 0, isPinned: true))
+        }
+
+        try context.save()
+        return true
+    }
+
     private static func run(in context: ModelContext) async throws {
         var notes: [Int: Note] = [:]
         for note in try context.fetch(FetchDescriptor<Note>()) where notes[note.shortID] == nil {

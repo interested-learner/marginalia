@@ -4,7 +4,7 @@ Working context for Claude Code in this repository. Read this before touching an
 
 > **Starting a session?** Read [`docs/planning.md`](docs/planning.md) first — it says what's built, what's next, and what's temporary scaffolding waiting to be replaced. If a build hangs or the app crashes, read [`docs/issues.md`](docs/issues.md) before debugging — it is probably already in there.
 >
-> **Phase 6 is complete.** The app builds, runs in both appearances, and passes its tests. Every screen reads from SwiftData; notes, books and follow-ups are written and deleted; and **notes now connect themselves** — `NoteEmbedding` vectorizes on save, `AffinityEngine` scores, `LinkWriter` writes the edges, and the connections show up on the stream, on book detail and on the review card without anybody asking for them. Phase 7 is the map, and it builds on that graph.
+> **Phase 8 is complete.** The app builds, runs in both appearances, and passes 385 tests. Every screen reads and writes SwiftData; notes connect themselves; the map draws the real graph; and the app now has its **search**, **Markdown export**, **settings** and **daily reminder**, plus the three things earlier phases wrote down and left: **manual linking** (`isPinned` finally has a writer), the **recompute measured** rather than guessed at, and the **two routes** that didn't exist — a source line's book title, and a note's own local map.
 >
 > **One thing is open and it is not a detail:** the simulator can't compile `NLContextualEmbedding`'s assets, so everything seen so far came out of the `NLEmbedding` fallback, whose connections are about half defensible. Read `docs/planning.md` §phase 6 before tuning the floor or the weights — they were deliberately left at the spec's values.
 
@@ -17,9 +17,11 @@ Working context for Claude Code in this repository. Read this before touching an
 - **map** — the whole library as a graph. Notes are nodes, books are hubs, edges are connections the app found on its own.
 - **review** — a daily set of ~8 older notes, one per screen, swiped through. Resurfacing what you already thought.
 
+Two screens have no tab and hang off the **stream's header**, which is the only header in the app that carries actions: **search** (one field over every note, thread, book, author and tag, with `#tag` filtering) and **settings** (the daily reminder, appearance, export, rebuild connections, about). Both keep the tab bar and both carry `← stream` — they're screens, not questions, so neither arrives as a sheet.
+
 Notes are zettel-style: they carry ids (`n.11`), connect to each other, and accumulate threaded follow-ups. Quick captures with no book land in an **Inbox**.
 
-**Nobody creates links by hand.** The app connects notes by meaning as they're written — see *Linking* below. Manual linking exists only as override.
+**Nobody creates links by hand.** The app connects notes by meaning as they're written — see *Linking* below. Manual linking exists only as override, on the review card's `→ link` and nowhere else.
 
 Built from a Claude Design prototype, archived at `docs/prototype/Marginalia.dc.html`. It is the authority on **look**; `docs/specs/` is the authority on **behavior** and overrides it where they disagree.
 
@@ -73,6 +75,8 @@ Notes connect themselves. The user is never asked to link anything and there is 
 - Three constraints keep the graph from becoming a hairball: a **floor** of `score ≥ 0.55`, **mutual k-NN** (each note in the other's top 8), and a **degree cap** of 6.
 - **Automatic and manual links render identically.** `isPinned` and `isSuppressed` on `NoteEdge` exist only to make override work — never surface them in the UI, never draw a manual link differently.
 - **Backlinks are always shown.** Edges store direction but display both ways, or half of every note's connections are invisible.
+- **`LinkWriter.pin` is the only writer of `isPinned`**, reached from `→ link` on a review card and from nowhere else. Pinning a pair the reader once disconnected un-suppresses it: both flags record a deliberate act and this is the newer one.
+- **The recompute has been measured**, so nobody has to guess again: **0.71 µs a pair at `-O`** — 350 ms at a thousand notes, ~9 seconds at five thousand, off the main actor throughout. `AffinityBenchmarkTests` is the measurement and it must be run in **Release**; the same pass is 60× slower unoptimized, so a Debug number says nothing about the app anybody installs.
 
 ## The map — three views, one renderer
 
@@ -100,6 +104,9 @@ Three types take plain values and return plain values, with no SwiftData inside.
 - **`ReviewSetBuilder`** — `[Note]` + `Date` → the day's set (day-stable, ≤8, ≤2 per book, starred weighted, ≥1 currently-reading)
 - **`AffinityEngine`** — vectors + tags → edges
 - **`GraphLayout`** — nodes + edges → positions
+- **`SearchQuery` / `SearchIndex`** — what was typed → which notes, grouped by book
+- **`MarkdownExport`** — plain records → the document. Only `file(_:)` at the foot of it touches a disk
+- **`NotificationPlan`** — `[Note]` + a time → the next seven reminders. `NotificationScheduler` is the half that talks to iOS
 
 ## File map
 
@@ -126,8 +133,11 @@ Marginalia/
     Eraser                   the one path anything takes to stop existing, and
                              `Erasure` — what a confirmation is about to remove
     BookShelf                the order the library reads in, and its filters. Pure
-    RowMapping               models → NoteRowData / BookRowData. The only
-                             file that knows about both sides
+    RowMapping               models → NoteRowData / BookRowData, and models →
+                             MarkdownExport's records. The only file that knows
+                             about both sides
+    Preferences              appearance, reminder time, reminder on/off — the
+                             keys, once, plus `Appearance` and `ClockTime`. Pure
     RelativeTime             `2 mins ago`, `aug 01`, `0:07`
     ConnectionIndex          edges → who connects to whom, both directions
     LinkWriter               the one path an edge takes to exist, and `.linking()`,
@@ -139,7 +149,11 @@ Marginalia/
                              FollowUpSheet
     Map/                     MapView, and MapGraph — which nodes belong in a
                              view and which lines join them. Pure
-    Books/  Search/  Settings/
+    Search/                  SearchView, SearchQuery, SearchIndex — and
+                             NotePicker, the one sheet that makes a link by hand
+    Settings/                SettingsView — the reminder, appearance, export,
+                             rebuild connections, about
+    Books/
   Services/
     NoteEmbedding            NLContextualEmbedding + fallback, and the packing
     AffinityEngine           scoring, mutual k-NN, pinning, suppression. Pure
@@ -149,8 +163,10 @@ Marginalia/
     TextScanner              VisionKit → passage text
     BarcodeScanner           VisionKit → ISBN
     BookLookup               Open Library
-    NotificationScheduler    one per day, 7 scheduled ahead
-    MarkdownExport
+    NotificationPlan         which note each of the next 7 days carries. Pure
+    NotificationScheduler    the half that talks to UserNotifications, and
+                             `.reminders()`, the one place scheduling happens
+    MarkdownExport           the library as one document. Pure
   Resources/Fonts/           JetBrains Mono (SIL OFL)
 MarginaliaTests/
 ```
@@ -183,6 +199,11 @@ MarginaliaTests/
 | `-mapNote <id>` | opens the map two hops out from `n.<id>` |
 | `-mapBook "<title>"` | opens the map on that book alone — matched on any part of the title |
 | `-mapCollapse 1` | forces the book-hub view, which needs 150 nodes otherwise |
+| `-search "<query>"` | opens the search screen with that query already run |
+| `-settings 1` | opens settings |
+| `-preference.notifications 1` | settings with the reminder on — **and the permission prompt, which sticks to the simulator until it's answered by hand.** Reboot the simulator to clear it |
+| `-link 1` | opens the link picker over the current review card |
+| `-linkSearch "<query>"` | fills the link picker's field |
 | `-tinyLibrary <n>` | seeds `n` notes instead of forty — **uninstall first** |
 | `-storeFailure 1` | opens the "library won't open" screen |
 
@@ -223,8 +244,15 @@ Tests use **Swift Testing** (`@Test`, `#expect`), not XCTest.
     -destination 'platform=iOS Simulator,name=iPhone 17' -derivedDataPath .build \
     test -only-testing:MarginaliaTests/AffinityDumpTests 2>&1 | grep '^|'
   ```
+- **A performance number from a Debug build is not a number.** `AffinityEngine` is 60× slower unoptimized, so `AffinityBenchmarkTests` is only worth running at `-O`. Release disables `-enable-testing`, so `@testable` needs it turned back on by hand:
+  ```bash
+  TEST_RUNNER_MARGINALIA_BENCH=1 xcodebuild -scheme Marginalia \
+    -configuration Release SWIFT_ENABLE_TESTABILITY=YES \
+    -destination 'platform=iOS Simulator,name=iPhone 17' -derivedDataPath .build-release \
+    test -only-testing:MarginaliaTests/AffinityBenchmarkTests 2>&1 | grep '^|'
+  ```
 - **The simulator gets the fallback embedder, always.** `NLContextualEmbedding`'s assets are present but can't compile — `/var/db/com.apple.naturallanguaged` isn't writable from an app sandbox there, and the log says `Permission denied` before the fallback takes over. Nothing seen on this machine is evidence about the model the app is actually built around. See `docs/issues.md` §14.
-- **Permissions are requested at first use**, never at launch. Microphone, speech recognition, and camera each prompt at the moment the feature is invoked.
+- **Permissions are requested at first use**, never at launch. Microphone, speech recognition, camera and notifications each prompt at the moment the feature is invoked. That rule is why `NotificationScheduler` has both `isAuthorized` (never prompts, used by the scheduler on every launch) and `authorize` (prompts, used only by the toggle in settings) — a scheduler that asked would break the rule every time the app opened, and the screenshot that caught it is the only reason anybody noticed.
 - **The simulator cannot test** microphone, transcription, camera OCR, or barcode scanning. Those need the device. Don't claim they work from a simulator run.
 - **Open Library needs no API key** and imposes no attribution requirement. Manual book entry must always remain available — treat lookup failure as routine, not exceptional.
 - **Seed ~40 notes**, not 12. A sparse map proves nothing about whether the layout works. `SeedLibrary` has them, and the cross-book tag overlap in them is deliberate — it's what phase 6 tunes against.

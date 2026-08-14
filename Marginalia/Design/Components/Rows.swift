@@ -10,6 +10,10 @@ struct NoteRowData: Identifiable {
     let text: String
     let isQuote: Bool
     let source: String
+    /// The book's title as it appears at the head of `source`, so the row can
+    /// make that much of the line open the book. Empty on book detail, where the
+    /// title is already at the top of the screen and isn't in the line at all.
+    var bookTitle: String = ""
     /// Connected notes, by short id. Rendered `→ n.09`.
     var links: [Int] = []
     /// Threaded beneath the note, oldest first — shown everywhere the note is.
@@ -40,6 +44,10 @@ struct NoteRow: View {
     var onDelete: (() -> Void)?
     /// Deletes one thought from the thread, by its position in it.
     var onDeleteFollowUp: ((Int) -> Void)?
+    /// The map, two hops out from this note. In the long-press menu beside
+    /// `delete` rather than on the row: there is nowhere on a row this dense to
+    /// put a second permanent word without it competing with the note.
+    var onConnections: (() -> Void)?
 
     var body: some View {
         VStack(spacing: 0) {
@@ -81,6 +89,9 @@ struct NoteRow: View {
             // confirmation is the app's own; this is only the way in.
             .contentShape(Rectangle())
             .contextMenu {
+                if let onConnections {
+                    Button("\(Glyphs.tabMap) connections", action: onConnections)
+                }
                 if let onDelete {
                     Button("delete \(note.idLabel)", role: .destructive, action: onDelete)
                 }
@@ -93,9 +104,21 @@ struct NoteRow: View {
     /// `Thinking, Fast and Slow · p.214 · #systems · → n.09`
     ///
     /// Connections carry a `marginalia://note/…` link so they stay tappable
-    /// while still flowing inline; `RootView` intercepts the scheme.
+    /// while still flowing inline; `RootView` intercepts the scheme. The book's
+    /// title carries `marginalia://book/…` for the same reason and by the same
+    /// route — the whole line has to stay one wrapping paragraph, so everything
+    /// tappable in it is a link rather than a button.
+    ///
+    /// **The title isn't underlined.** `docs/design-system.md` underlines the
+    /// connections and says only that the book is tappable; a rule under every
+    /// title would put a second underline on most rows in the app.
     private var sourceLine: AttributedString {
         var line = AttributedString(note.source)
+
+        if !note.bookTitle.isEmpty, let title = line.range(of: note.bookTitle) {
+            line[title].link = NoteLink.url(forBookOf: note.id)
+        }
+
         for shortID in note.links {
             line += AttributedString(" · ")   // separator stays unadorned
             // Non-breaking, or a wrap drops the arrow on one line and the id it

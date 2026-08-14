@@ -99,10 +99,12 @@ All chrome is lowercase — tab labels, the wordmark, screen titles, placeholder
 
 **The wordmark appears on stream only.** Every other screen gets a single header carrying its own name and count. Never stack a wordmark row above a title row — that was the prototype's arrangement and it wasted ~50pt on every screen restating what the tab bar already says.
 
-- **Stream** — padding `54 / 20 / 12`, wordmark `marginalia` at 16/700 `ink`, then ` · stream` at 13 `textAsh`.
+- **Stream** — padding `54 / 20 / 12`, wordmark `marginalia` at 16/700 `ink`, then ` · stream` at 13 `textAsh`. On the right, `search` and `settings` as link buttons.
 - **Everything else** — padding `54 / 20 / 12`, the screen name at 18/700 `ink`, with any count right-aligned at 13 `textAsh`.
 
 A `hairline` beneath, always.
+
+**The stream's header is the only one that carries actions**, and it carries exactly two. Search and settings are screens with no tab — there is no fifth tab to give them and there will not be one — so they hang off the screen that is the app's home. Link buttons, like every other action in the app that isn't the one thing the screen is for. Both push a screen with `← stream` and both keep the tab bar: a screen, not a question.
 
 ### Tab bar
 
@@ -145,7 +147,7 @@ The margin column plus a content column. Padding `12 × 20`, `hairline` beneath.
 - Margin — id at 13 `textAsh`, with the rule as described above
 - Metadata — type label and relative time, 13 `textAsh`
 - Body — 15/1.6 `textBody`, or the quote rule below if the note is a quote
-- Source — book · page · tag, 13 `textMute`, tappable to open the book. Connections (`→ n.09`) follow on the same line, underlined at 2pt offset
+- Source — book · page · tag, 13 `textMute`, tappable to open the book. Connections (`→ n.09`) follow on the same line, underlined at 2pt offset. **The title is tappable and not underlined** — the connections carry the rule, and a second one under every title would put an underline on most rows in the app. Both are links inside one `AttributedString` rather than buttons, because the line has to stay one wrapping paragraph
 
 ### Quote rule
 
@@ -301,9 +303,21 @@ The action row sits below the note as link buttons, never filled ones:
 ```
 [+] add a thought   [ ] star
 → open book   share
+[◇] connections   → link
 ```
 
-**Two rows of two, not one row of four.** The four labels are ~320pt of 13pt mono before gaps, which overflows a phone at the default text size and is hopeless above it — the same arithmetic that gives the capture sheet three segments instead of four. A starred note reads `[*] starred`; there is no other state change. `share` is bare rather than glyphed: every marker here is bracket-plus-character, and no bracketed character means "share" without becoming a picture.
+**Rows of two, never a row of four.** Four labels are ~320pt of 13pt mono before gaps, which overflows a phone at the default text size and is hopeless above it — the same arithmetic that gives the capture sheet three segments instead of four. Six actions is three rows by the same arithmetic. A starred note reads `[*] starred`; there is no other state change. `share` is bare rather than glyphed: every marker here is bracket-plus-character, and no bracketed character means "share" without becoming a picture.
+
+`[◇] connections` opens the map two hops out from this note — the same view the map's own panel offers, from the screen where you're actually reading the note. `→ link` opens the note picker below.
+
+### Note picker
+
+The one place a reader makes a connection. A full-height sheet — `link n.04` and `[x]` over one field and the library, newest first.
+
+- Rows are compact: `n.40 · [v] voice · 3 mins ago` over three lines of the note and its source. **No margin column** — this is a list of things to choose, not a list of things to read.
+- The note itself and everything it's already joined to are left off the list. A pair the reader once *disconnected* stays on it: they're allowed to change their mind.
+- An empty field lists the whole library rather than nothing. It's a picker first and a search second.
+- **Nothing here says the link will look different afterwards, because it won't.** A hand-made connection is drawn exactly like one the app found.
 
 The foot carries the progress bar and the hint `↑ swipe up for next`. The hint goes on the closing card, where there is nothing left to swipe to.
 
@@ -327,6 +341,36 @@ n.04 │ [q] quote · jul 09
 The same device as the quote rule and deliberately the quieter half of it: a 1px `hairline` on the leading edge where a quote gets 2pt of `ink`. A follow-up is subordinate to the note it grew out of, and the weight of the rule is what says so.
 
 Indented 12pt from the rule, 8pt of clear space above, 12pt between two follow-ups. The timestamp sits at 13 `textAsh` over the text at 15/1.6 `textBody`. **Oldest first** — a thread reads forward, because the answer comes after the thing it answers.
+
+### Search
+
+`← stream` over `search`, the count of what was found on the right, then one field and the results.
+
+```
+← stream
+search                                     [7]
+──────────────────────────────────────────────
+[ notes, books, authors, #tags…             ]
+──────────────────────────────────────────────
+Thinking, Fast and Slow
+n.31 │ [t] thought · 5 days ago
+     │ …
+```
+
+- The field is an `InputField` at `20 / 12`, focused on arrival — a screen whose whole purpose is one field opens with the keyboard up. A `hairline` under it.
+- **Results are note rows grouped by book**, under the same `GroupHeader` the stream groups dates with. The rows drop the book from their source line, because the header above already says it — the rule book detail follows.
+- A row is a button: tapping it opens the note in the stream. That's the only difference from a stream row, and it's the reason search is the one list in the app whose rows are tappable as a whole.
+- Nothing typed says `[x] type to search every note, thread, book and tag`; nothing found names what was asked for.
+
+### Settings
+
+`← stream` over `settings`, then four groups, each behind a `hairline`, each titled at 13 `textAsh` like a date header: **daily review**, **appearance**, **library**, **about**.
+
+- **A setting is on when its box is filled**: `[*] one note a day`, `[ ]` when it's off. There is no `Toggle` anywhere in this app — it is a green pill, and it would be the only pill in the design system.
+- **The time opens inline**, `at 8:00 am ▼`, expanding a list of half-hours in a 200pt box scrolled to the current setting. Not a `DatePicker`: a wheel is the same piece of iOS chrome the capture sheet's book picker was written to avoid.
+- **Appearance is a `SegmentedRow`** — `system` · `light` · `dark`, three segments, which is what fits.
+- `export as markdown` and `rebuild connections` are secondary buttons, each with a sentence under it at 13 `textMute` saying what it does.
+- **About is prose, not a table.** Version, what stays on the phone, and the two credits. Lowercase, like every other sentence the app says about itself.
 
 ### Confirmation sheet
 
@@ -353,6 +397,8 @@ be undone.
 ### Deleting a row
 
 A note or a follow-up is deleted by **long-pressing the row**, which opens the confirmation above. There is no permanent `delete` on a stream row — there is nowhere on a row that dense to put one without it competing with the note itself.
+
+The same long press carries `[◇] connections`, which opens the map two hops out from that note. It is there for the same reason `delete` is: a row this dense has no room for a second permanent word, and the gesture is already learned.
 
 **A row can be deleted where it is listed, not where it is being read.** Stream rows and book-detail rows carry the gesture; the review card does not, because review is a reading surface and destroying the card under your thumb is not worth being able to do by accident.
 

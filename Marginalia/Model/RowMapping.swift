@@ -25,6 +25,10 @@ extension NoteRowData {
             text: note.text,
             isQuote: note.kind == .quote,
             source: Self.source(for: note, showingBook: showingBook),
+            // What the row makes tappable inside the source line. Empty where
+            // the title isn't in the line at all, so the row never hunts for a
+            // range that isn't there.
+            bookTitle: showingBook ? (note.book?.title ?? "") : "",
             links: connections,
             followUps: Self.thread(for: note, now: now, calendar: calendar),
             isStarred: note.isStarred
@@ -85,6 +89,46 @@ extension BookRowData {
             author: book.author,
             status: book.status.label,
             count: book.noteCount
+        )
+    }
+}
+
+extension Book {
+
+    /// The book as `MarkdownExport` wants it. The same seam `NoteRowData` is —
+    /// models on one side, plain values on the other, and the export itself
+    /// never sees SwiftData.
+    ///
+    /// **Oldest first**, unlike every screen in the app. A feed reads backwards
+    /// because the newest note is the one you want; a document reads forwards.
+    func exported(connections: [Int: [Int]]) -> MarkdownExport.Book {
+        MarkdownExport.Book(
+            title: title,
+            author: author,
+            status: status.label,
+            notes: (notes ?? [])
+                .sorted { $0.createdAt < $1.createdAt }
+                .map { $0.exported(connections: connections[$0.shortID] ?? []) }
+        )
+    }
+}
+
+extension Note {
+
+    func exported(connections: [Int]) -> MarkdownExport.Note {
+        MarkdownExport.Note(
+            id: shortID,
+            kind: kind.label,
+            text: text,
+            isQuote: kind == .quote,
+            page: page,
+            tags: tags,
+            createdAt: createdAt,
+            isStarred: isStarred,
+            followUps: thread.map {
+                MarkdownExport.FollowUp(text: $0.text, createdAt: $0.createdAt)
+            },
+            links: connections
         )
     }
 }

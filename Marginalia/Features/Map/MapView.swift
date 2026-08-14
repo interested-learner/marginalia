@@ -13,6 +13,13 @@ struct MapView: View {
     /// Tapping through from the panel at the foot. Both routes already exist —
     /// the stream takes a note id, the library takes a book — and the map is
     /// the third thing to use them.
+    /// A note handed over from another tab — `[◇] connections` on a stream row
+    /// or a review card. The spec has always said the local view is "reachable
+    /// from any note"; until phase 8 the only note it was reachable from was one
+    /// already on this screen. Cleared once it's been shown, so coming back to
+    /// the map later opens on the library.
+    @Binding var note: Int?
+
     let onOpenNote: (Int) -> Void
     let onOpenBook: (Book) -> Void
 
@@ -507,6 +514,15 @@ struct MapView: View {
     /// connection on the graph. A line can only be held down on with a finger,
     /// so this is the same device `-confirmDelete book` is on book detail.
     private func openAtLaunch() {
+        // Arriving from another tab. Switching tabs rebuilds this view, so the
+        // handover happens here rather than in an `onChange` that never fires —
+        // the same reason `BooksView` pushes its book in `onAppear`.
+        if let arriving = note {
+            note = nil
+            show(.note(arriving))
+            return
+        }
+
         if let wanted = UserDefaults.standard.string(forKey: "mapBook"),
            !wanted.isEmpty, focus == .library,
            let match = shelf.firstIndex(where: {

@@ -87,14 +87,22 @@ struct ReviewActions {
     /// sitting there doing nothing.
     let openBook: (() -> Void)?
     let shareCard: () -> Image?
+    /// The map, two hops out from this note.
+    let openWeb: () -> Void
+    /// Connect this note to another by hand. The one thing in the app that
+    /// writes `isPinned`, and the only place the reader ever *makes* a link —
+    /// everything else on the graph is the app's own work.
+    let link: () -> Void
 }
 
-/// `[+] add a thought` · `[ ] star` · `→ open book` · `share`.
+/// `[+] add a thought` · `[ ] star` · `→ open book` · `share` ·
+/// `[◇] connections` · `→ link`.
 ///
-/// **Two rows of two, not one row of four.** At 13pt mono the four labels are
-/// about 320pt of text before gaps, which overflows a phone at the default text
-/// size and is hopeless above it — the same reason the capture sheet's type
-/// selector offers three segments rather than four.
+/// **Rows of two, never a row of four.** At 13pt mono four labels are about
+/// 320pt of text before gaps, which overflows a phone at the default text size
+/// and is hopeless above it — the same reason the capture sheet's type selector
+/// offers three segments rather than four. Six actions is three rows, by the
+/// same arithmetic.
 private struct ActionRow: View {
     let note: NoteRowData
     let actions: ReviewActions
@@ -114,6 +122,13 @@ private struct ActionRow: View {
                                  action: openBook)
                 }
                 ShareCardLink(note: note, image: actions.shareCard)
+                Spacer(minLength: 0)
+            }
+
+            HStack(spacing: 20) {
+                MarkerButton(title: "\(Glyphs.tabMap) connections", kind: .link,
+                             action: actions.openWeb)
+                MarkerButton(title: "\(Glyphs.forward) link", kind: .link, action: actions.link)
                 Spacer(minLength: 0)
             }
         }

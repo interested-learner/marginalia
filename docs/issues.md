@@ -2,7 +2,7 @@
 
 What's currently wrong, fragile, or worth changing — and for each one, whether it's **proven** or **suspected**. `docs/planning.md` says what's built and what's next; this file says what's broken and what it will cost to fix.
 
-Last updated 2026-08-14, after phase 6.
+Last updated 2026-08-14, after phase 8.
 
 ---
 
@@ -178,11 +178,26 @@ If review surfaces a note you didn't actually read — the app was open on the t
 
 `ReviewView` builds the day's set once, on arrival, and holds it. That is deliberate and correct within a session (see `docs/planning.md` §phase 5), but an app left open across midnight keeps yesterday's set until the tab is revisited. Harmless; noted so nobody "fixes" the holding behavior to chase it.
 
-### 15. The recompute is O(N²) and nothing has measured it
+### 15. ~~The recompute is O(N²) and nothing has measured it~~ — measured, and it's fine
 
-`LinkWriter.relink` rescores every pair on every pass, off the main actor. At forty notes it's imperceptible; at five thousand it's 12.5 million pairs of 512-float dot products on each save, and the spec's incremental path — embed the new note, compare against every stored vector — exists for a reason.
+**It has now been measured, and the paragraph that stood here was wrong about which half of the problem mattered.** `AffinityBenchmarkTests` times `AffinityEngine.links` over synthetic 512-dimension libraries. At `-O`:
 
-**Deliberate, and the tradeoff is written into the code.** A delta gets the new note's edges right but can't notice that it displaced someone else's eighth-best neighbour or filled their sixth slot; a full pass is simply correct, and correctness was worth more at this size. What it needs before a real library gets big: the incremental path, a background `ModelActor` with its own context rather than `Task.detached` handing values back, and a measurement instead of this paragraph. Phase 8, alongside *rebuild connections* in settings.
+| notes | pairs | ms | µs/pair |
+|---:|---:|---:|---:|
+| 100 | 4,950 | 5 | 0.98 |
+| 250 | 31,125 | 23 | 0.73 |
+| 500 | 124,750 | 90 | 0.72 |
+| 1,000 | 499,500 | 356 | 0.71 |
+
+Extrapolating the flat per-pair cost: **~9 seconds at five thousand notes**, off the main actor, which is what the spec predicted and what the design was willing to pay. Under a couple of thousand notes it's under two seconds. **The incremental path is not needed**, and building a background `ModelActor` speculatively would have been work in service of a number nobody had taken.
+
+Two things came out of taking it:
+
+**Half the cost was work that didn't belong in the loop.** `AffinityEngine` was normalizing both notes' tags and re-deriving both vectors' magnitudes *inside* the pair loop — O(N) jobs done O(N²) times. Hoisting them per subject took the pass from **1.50 µs a pair to 0.71**, with the resulting graph unchanged edge for edge at every size (273 / 551 / 1,069 / 2,583 — identical before and after, which is the check that the optimization was only an optimization).
+
+**A Debug number is not a number.** The same pass measures **44 µs a pair** unoptimized — 62× slower, and 27 seconds for a thousand notes. Anyone re-running this must use Release with `SWIFT_ENABLE_TESTABILITY=YES`; the command is in `CLAUDE.md`.
+
+What's still true: a delta would be wrong at any size, because mutual k-NN and the degree cap are properties of the whole graph. That was never a performance decision and it doesn't change.
 
 ### 16. One enormous book never quite settles
 
@@ -198,6 +213,16 @@ If review surfaces a note you didn't actually read — the app was open on the t
 
 ---
 
+### 19. The reminder has never been received
+
+Phase 8's daily notification is written, scheduled and unobserved. `NotificationPlanTests` proves which note each of the next seven days carries and when it fires; nothing proves that iOS delivers it, that the alert reads well on a lock screen, or that tapping it lands on the right review card. `NotificationRouter` posts, `RootView` routes, and neither has run outside a compiler.
+
+Local notifications **do** work in the simulator, so this is cheap to check by hand: turn the reminder on, set it a minute ahead, background the app, wait. It wasn't done here because the permission prompt is a system alert and the simulator can't be tapped from the command line — see below.
+
+**A stuck permission alert survives an uninstall.** Launching with `-preference.notifications 1` raises the notification prompt, and because nothing can answer it, it stays on the SpringBoard across app launches *and* across an uninstall/reinstall, sitting over every screenshot taken afterwards. `xcrun simctl shutdown all && xcrun simctl boot "iPhone 17"` clears it. This is the same class as the `simctl openurl` alert already noted in `docs/planning.md`.
+
+**It did catch a real bug**, which is the argument for taking the screenshot: the scheduler was calling `authorize()` rather than `isAuthorized()`, so a reader with the reminder on got a permission prompt at launch — breaking the app's own rule that permission is asked at first use and never at launch. Invisible in code, obvious in an image, for the fourth time on this project.
+
 ## Open — coverage
 
 ### 12. Nothing in this app has ever been tapped
@@ -207,6 +232,8 @@ If review surfaces a note you didn't actually read — the app was open on the t
 This is the single biggest gap in what "verified" means here. **The cheapest fix is a small XCUITest target**: a launch, a tap on each tab, one capture, one star — and now a long press on a row and the map's two gestures, which is where the affordance-free interactions have collected.
 
 **Phase 7 made this worse rather than better**, and it should be said plainly: the map is the most gestural screen in the app and none of its gestures have been performed. See §17.
+
+**Phase 8 added five more untapped things**, though the newest ones are ordinary buttons rather than invisible gestures: `search` and `settings` in the stream header, a result row that opens its note, a book title inside a source line, `[◇] connections` in a row's long-press menu, and `→ link` choosing a note to connect to. Every one was screenshot by launch argument. The two worth doubting are the ones with no visible affordance: the tappable book title (deliberately not underlined — see the design system) and `connections` inside the long-press menu.
 
 **Not done here on purpose.** A UI test target is a new target, and a new target means hand-editing `project.pbxproj` — which `CLAUDE.md` says not to do, and which the synchronized file groups don't cover. It's an Xcode-GUI job (File ▸ New ▸ Target ▸ UI Testing Bundle), a few minutes, and then the tests themselves are ordinary code.
 
@@ -235,7 +262,8 @@ The hold is the one to worry about. It's assembled out of a `LongPressGesture` f
 | 7 | **Run once on Nathaniel's iPhone** | Unblocks voice, OCR, barcode, share — four features asserted and never observed, plus Release at `-O` | an evening |
 | 8 | **A minimal XCUITest target** | The only thing that can catch a dead button; delete-by-long-press and the map's hold-a-line have no visible affordance at all (§17) | half a day, and it needs the Xcode GUI |
 | 9 | Say something when the store falls back to memory | The quiet half of §7 — notes written into it vanish | an hour, plus a decision |
-| 10 | Measure and then narrow the recompute | §15 — O(N²) on every save, unmeasured | a day, and phase 8 wants it anyway |
+| 10 | ~~Measure and then narrow the recompute~~ | **Done.** §15 — measured at 0.71 µs a pair, and 2× faster than it was | done |
+| 11 | Receive one reminder | §19 — the whole feature is unobserved, and the simulator can deliver it | ten minutes and a rebooted simulator |
 
 **Item 7 has been promoted to first.** It was four features asserted and never observed; phase 6 added a fifth, and that one decides whether the app's defining feature works at all (§14). Item 6 is still the cheap one.
 

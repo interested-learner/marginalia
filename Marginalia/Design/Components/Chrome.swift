@@ -11,6 +11,11 @@ struct ScreenHeader<Detail: View>: View {
 
     let style: Style
     var trailing: String?
+    /// The two screens the app has that aren't tabs — `search` and `settings` —
+    /// hang off the stream's header, because the stream is home and there is no
+    /// fifth tab to give them. Link buttons, like every other action in the app
+    /// that isn't the one thing the screen is for.
+    var actions: [HeaderAction] = []
     /// A screen pushed over another one names where it came back to. `←` is in
     /// the vocabulary already; this is the only place it's used.
     var back: BackLink?
@@ -55,6 +60,10 @@ struct ScreenHeader<Detail: View>: View {
                             .font(Typography.meta)
                             .foregroundStyle(Theme.textAsh)
                     }
+
+                    ForEach(actions) { action in
+                        MarkerButton(title: action.label, kind: .link, action: action.action)
+                    }
                 }
 
                 detail
@@ -75,9 +84,23 @@ struct BackLink {
     let action: () -> Void
 }
 
+/// A word in a header that does something. `search` and `settings` are the only
+/// two, and they're both on the stream.
+struct HeaderAction: Identifiable {
+    let label: String
+    let action: () -> Void
+
+    var id: String { label }
+}
+
 extension ScreenHeader where Detail == EmptyView {
-    init(style: Style, trailing: String? = nil, back: BackLink? = nil) {
-        self.init(style: style, trailing: trailing, back: back) { EmptyView() }
+    init(
+        style: Style,
+        trailing: String? = nil,
+        actions: [HeaderAction] = [],
+        back: BackLink? = nil
+    ) {
+        self.init(style: style, trailing: trailing, actions: actions, back: back) { EmptyView() }
     }
 }
 

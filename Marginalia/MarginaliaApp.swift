@@ -43,6 +43,10 @@ struct MarginaliaApp: App {
         if let opened {
             try? Library.prepare(opened.mainContext, noteLimit: Self.seedLimit)
         }
+
+        // Before any notification can be tapped. Without a delegate a tap only
+        // foregrounds the app and the note the reminder was about is lost.
+        NotificationRouter.install()
     }
 
     var body: some Scene {
@@ -71,6 +75,15 @@ struct MarginaliaApp: App {
 }
 
 struct RootView: View {
+    /// Only for resolving a `marginalia://book/…` link — a book is addressed by
+    /// one of its notes and somebody has to look it up. Every other screen
+    /// reaches the store through its own `@Query`.
+    @Environment(\.modelContext) private var context
+
+    /// The one setting that reaches the whole app. Read here rather than in
+    /// `Theme`, which stays a table of colors and knows nothing about choices.
+    @AppStorage(Preferences.Key.appearance) private var appearance = Appearance.system.rawValue
+
     // `-startTab books` opens straight to a tab. Used for screenshot passes,
     // since the simulator can't be tapped from the command line.
     @State private var tab: Tab = Tab(argument: UserDefaults.standard.string(forKey: "startTab")) ?? .stream
@@ -89,34 +102,84 @@ struct RootView: View {
     /// Set by `→ open book` on a review card. The library picks it up when the
     /// tab switches and pushes that book's detail.
     ///
-    /// The first cross-tab route in the app. The map will want the same one, and
-    /// so will a source line's book title — see `docs/planning.md`.
+    /// The first cross-tab route in the app. The map wants the same one, and so
+    /// does a source line's book title.
     @State private var book: Book?
+
+    /// Set by `[◇] connections` on a stream row or a review card: the map opens
+    /// two hops out from that note rather than on the whole library.
+    @State private var web: Int?
+
+    /// Set by a tapped reminder: the card review should open on.
+    @State private var card: Int?
+
+    /// The two screens that aren't tabs. There is no fifth tab to give them, so
+    /// they hang off the stream's header and take the tab content's place while
+    /// they're open — the tab bar stays, because neither is a question and
+    /// neither should feel like a modal.
+    @State private var screen: Screen? = Screen.atLaunch
+
+    private enum Screen: Equatable {
+        case search, settings
+
+        /// `-search "attention"` and `-settings 1`. Neither screen is reachable
+        /// without a tap, and the simulator can't be tapped — same device as
+        /// `-startTab`.
+        static var atLaunch: Self? {
+            let defaults = UserDefaults.standard
+            if defaults.bool(forKey: "settings") { return .settings }
+            if defaults.string(forKey: "search") != nil { return .search }
+            return nil
+        }
+    }
 
     var body: some View {
         VStack(spacing: 0) {
             Group {
-                switch tab {
-                case .stream: StreamView(focus: $focus)
-                case .books: BooksView(open: $book)
-                case .map: MapView(onOpenNote: open, onOpenBook: open)
-                case .review: ReviewView(onOpenBook: open)
+                switch screen {
+                case .search:
+                    SearchView(close: { screen = nil }, onOpenNote: open)
+                case .settings:
+                    SettingsView(close: { screen = nil })
+                case .none:
+                    switch tab {
+                    case .stream:
+                        StreamView(focus: $focus, onOpenWeb: openWeb,
+                                   onSearch: { screen = .search },
+                                   onSettings: { screen = .settings })
+                    case .books: BooksView(open: $book)
+                    case .map: MapView(note: $web, onOpenNote: open, onOpenBook: open)
+                    case .review: ReviewView(card: $card, onOpenBook: open, onOpenWeb: openWeb)
+                    }
                 }
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
 
             TabBar(selection: $tab)
         }
+        // A tab is a way out of search and settings as much as `← stream` is.
+        .onChange(of: tab) { _, _ in screen = nil }
         .background(Theme.canvas)
         .ignoresSafeArea(.container, edges: [.top, .bottom])
         // Notes connect themselves. Nothing below this line knows it happens,
         // and nothing asks the reader to confirm a connection.
         .linking()
+        // And the next seven days' reminders stay current, whether or not
+        // anybody opens settings.
+        .reminders()
+        .preferredColorScheme(Appearance(rawValue: appearance)?.scheme)
+        // A tapped reminder opens the note it was about. `NotificationRouter`
+        // posts rather than navigating — this is the only thing in the app that
+        // knows how to open a note, and a second copy would drift.
+        .onReceive(NotificationCenter.default.publisher(for: NotificationRouter.tapped)) { note in
+            guard let shortID = note.userInfo?[NotificationScheduler.noteKey] as? Int else { return }
+            openReview(shortID)
+        }
         // Tapping a connection inside a source line, and arriving from outside
         // the app, are the same journey and take the same route.
         .environment(\.openURL, OpenURLAction { url in
-            guard let shortID = NoteLink.shortID(from: url) else { return .systemAction }
-            open(shortID)
+            guard let target = NoteLink.target(from: url) else { return .systemAction }
+            follow(target)
             return .handled
         })
         .onOpenURL { url in
@@ -125,31 +188,92 @@ struct RootView: View {
         }
     }
 
+    /// Where a link in a source line goes. Both kinds arrive here.
+    private func follow(_ target: NoteLink.Target) {
+        switch target {
+        case .note(let shortID):
+            open(shortID)
+        case .book(of: let shortID):
+            // A book has no id of its own, so the link names one of its notes.
+            // One fetch, on a tap, rather than a schema change to shorten a URL.
+            var wanted = FetchDescriptor<Note>(predicate: #Predicate { $0.shortID == shortID })
+            wanted.fetchLimit = 1
+            guard let book = try? context.fetch(wanted).first?.book else { return }
+            open(book)
+        }
+    }
+
     private func open(_ shortID: Int) {
+        screen = nil
         tab = .stream
         focus = shortID
     }
 
     private func open(_ book: Book) {
+        screen = nil
         self.book = book
         tab = .books
     }
+
+    /// Where a tapped reminder lands: review, on the card the reminder carried.
+    /// It's the first card of that day's set — that's how the reminder chose it
+    /// — but a notification tapped a day late shouldn't land on the wrong note,
+    /// so the card is asked for by id rather than assumed.
+    private func openReview(_ shortID: Int) {
+        screen = nil
+        card = shortID
+        tab = .review
+    }
+
+    /// A note's own corner of the graph, from wherever the note is being read.
+    /// The map has drawn this view since phase 7 and nothing outside the map
+    /// could ask for it.
+    private func openWeb(_ shortID: Int) {
+        screen = nil
+        web = shortID
+        tab = .map
+    }
 }
 
-/// `marginalia://note/11` — the scheme behind a `→ n.11` on a source line.
+/// `marginalia://note/11` — the scheme behind a `→ n.11` on a source line, and
+/// `marginalia://book/11` behind the book title on the same line.
 ///
-/// Connections have to stay inline in a wrapping paragraph, so they're rendered
-/// as links in an `AttributedString` rather than as buttons. This is the other
-/// half of that.
+/// Both have to stay inline in a wrapping paragraph, so they're rendered as
+/// links in an `AttributedString` rather than as buttons. This is the other half
+/// of that.
+///
+/// **A book is addressed by one of its notes, not by an id of its own.** Books
+/// have no `shortID` — only notes do — and giving them one to make a URL work
+/// would be a schema change in the service of a link. `n.11`'s book is a thing
+/// the store can already answer.
 nonisolated enum NoteLink {
     static let scheme = "marginalia"
+
+    enum Target: Equatable {
+        case note(Int)
+        /// The book that note was written from.
+        case book(of: Int)
+    }
 
     static func url(for shortID: Int) -> URL? {
         URL(string: "\(scheme)://note/\(shortID)")
     }
 
+    static func url(forBookOf shortID: Int) -> URL? {
+        URL(string: "\(scheme)://book/\(shortID)")
+    }
+
+    static func target(from url: URL) -> Target? {
+        guard url.scheme == scheme, let shortID = Int(url.lastPathComponent) else { return nil }
+        switch url.host {
+        case "note": return .note(shortID)
+        case "book": return .book(of: shortID)
+        default: return nil
+        }
+    }
+
     static func shortID(from url: URL) -> Int? {
-        guard url.scheme == scheme, url.host == "note" else { return nil }
-        return Int(url.lastPathComponent)
+        guard case .note(let shortID) = target(from: url) else { return nil }
+        return shortID
     }
 }

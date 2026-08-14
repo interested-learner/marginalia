@@ -115,6 +115,9 @@ struct InputField: View {
     @Binding var text: String
     var keyboard: UIKeyboardType = .default
     var autocapitalize: TextInputAutocapitalization = .never
+    /// A screen whose whole purpose is one field opens with the keyboard up —
+    /// search does, the book form doesn't. Same idiom as `CaptureBar`.
+    var focusAtLaunch = false
     var onSubmit: (() -> Void)?
 
     @FocusState private var focused: Bool
@@ -138,6 +141,7 @@ struct InputField: View {
                     .stroke(focused ? Theme.ink : Theme.hairline, lineWidth: 1)
             )
             .clipShape(.rect(cornerRadius: interactiveRadius))
+            .task { if focusAtLaunch { focused = true } }
     }
 }
 
