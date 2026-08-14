@@ -64,6 +64,17 @@ enum Library {
             guard let from = notes[seed.a], let to = notes[seed.b] else { continue }
             context.insert(NoteEdge(from: from, to: to, isPinned: true, createdAt: now))
         }
+
+        // A few notes arrive already answered, so a fresh install shows what
+        // `[+] add a thought` produces rather than only offering it.
+        for seed in SeedLibrary.followUps {
+            guard let note = notes[seed.note] else { continue }
+            context.insert(FollowUp(
+                text: seed.text,
+                createdAt: SeedLibrary.date(for: seed.age, now: now, calendar: calendar),
+                note: note
+            ))
+        }
     }
 }
 

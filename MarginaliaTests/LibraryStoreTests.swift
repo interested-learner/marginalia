@@ -167,6 +167,39 @@ struct LibraryStoreTests {
         #expect(try context.fetch(FetchDescriptor<NoteEdge>()).allSatisfy { !$0.isSuppressed })
     }
 
+    // MARK: Seeded follow-ups
+
+    /// A fresh install has to show what `[+] add a thought` produces, not just
+    /// offer it — the thread under a note is otherwise unjudgeable until the
+    /// reader has written one.
+    @Test func someSeededNotesArriveAlreadyAnswered() throws {
+        let (context, _) = try seeded()
+        let followUps = try context.fetch(FetchDescriptor<FollowUp>())
+        #expect(followUps.isEmpty == false)
+        #expect(followUps.allSatisfy { $0.note != nil })
+        #expect(followUps.allSatisfy { !$0.text.isEmpty })
+    }
+
+    /// Most notes have no thread. A library where every note had one would
+    /// misread as the normal state of things.
+    @Test func mostSeededNotesHaveNoThread() throws {
+        let (context, _) = try seeded()
+        let all = try notes(context)
+        let answered = all.filter { !($0.followUps ?? []).isEmpty }
+        #expect(answered.count < all.count / 4)
+    }
+
+    /// A thread reads forward, so an answer written before the note it answers
+    /// would render above nothing.
+    @Test func everyFollowUpIsYoungerThanTheNoteItAnswers() throws {
+        let (context, _) = try seeded()
+        let followUps = try context.fetch(FetchDescriptor<FollowUp>())
+        #expect(followUps.allSatisfy { followUp in
+            guard let parent = followUp.note else { return false }
+            return followUp.createdAt > parent.createdAt
+        })
+    }
+
     // MARK: Typed accessors
 
     /// `statusRaw` and `kindRaw` are strings so the store stays readable and

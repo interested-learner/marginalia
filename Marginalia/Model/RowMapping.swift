@@ -25,8 +25,29 @@ extension NoteRowData {
             text: note.text,
             isQuote: note.kind == .quote,
             source: Self.source(for: note, showingBook: showingBook),
-            links: connections
+            links: connections,
+            followUps: Self.thread(for: note, now: now, calendar: calendar),
+            isStarred: note.isStarred
         )
+    }
+
+    /// Oldest first. A thread reads forward — it's a conversation with yourself,
+    /// and the answer comes after the thing it answers.
+    private static func thread(
+        for note: Note,
+        now: Date,
+        calendar: Calendar
+    ) -> [FollowUpRowData] {
+        (note.followUps ?? [])
+            .sorted { $0.createdAt < $1.createdAt }
+            .enumerated()
+            .map { position, followUp in
+                FollowUpRowData(
+                    id: position,
+                    when: RelativeTime.label(for: followUp.createdAt, now: now, calendar: calendar),
+                    text: followUp.text
+                )
+            }
     }
 
     /// `Thinking, Fast and Slow · p.214 · #error #quality`

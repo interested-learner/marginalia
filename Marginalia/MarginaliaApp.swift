@@ -41,14 +41,21 @@ struct RootView: View {
         return requested > 0 ? requested : nil
     }()
 
+    /// Set by `→ open book` on a review card. The library picks it up when the
+    /// tab switches and pushes that book's detail.
+    ///
+    /// The first cross-tab route in the app. The map will want the same one, and
+    /// so will a source line's book title — see `docs/planning.md`.
+    @State private var book: Book?
+
     var body: some View {
         VStack(spacing: 0) {
             Group {
                 switch tab {
                 case .stream: StreamView(focus: $focus)
-                case .books: BooksView()
+                case .books: BooksView(open: $book)
                 case .map: MapView()
-                case .review: ReviewView()
+                case .review: ReviewView(onOpenBook: open)
                 }
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -73,6 +80,11 @@ struct RootView: View {
     private func open(_ shortID: Int) {
         tab = .stream
         focus = shortID
+    }
+
+    private func open(_ book: Book) {
+        self.book = book
+        tab = .books
     }
 }
 

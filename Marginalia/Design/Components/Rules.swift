@@ -49,6 +49,43 @@ struct MarginColumn<Content: View>: View {
     }
 }
 
+/// A thread of later thoughts, under the note they answer.
+///
+/// The same device as the quote rule and deliberately the quieter half of it: a
+/// `hairline` where a quote gets 2pt of `ink`. A follow-up is subordinate to the
+/// note it grew out of, and the weight of the rule is what says so.
+///
+/// Oldest first — a thread reads forward, because the answer comes after the
+/// thing it answers.
+struct ThreadRule: View {
+    let followUps: [FollowUpRowData]
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            ForEach(followUps) { followUp in
+                HStack(alignment: .top, spacing: 12) {
+                    Rectangle()
+                        .fill(Theme.hairline)
+                        .frame(width: 1)
+
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text(followUp.when)
+                            .font(Typography.meta)
+                            .foregroundStyle(Theme.textAsh)
+                        Text(followUp.text)
+                            .font(Typography.noteBody)
+                            .lineSpacing(Typography.bodyLeading)
+                            .foregroundStyle(Theme.textBody)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                    }
+                }
+                .fixedSize(horizontal: false, vertical: true)
+            }
+        }
+        .padding(.top, 8)
+    }
+}
+
 /// Quoted matter, marked the way a printer marks it: a rule on the leading edge.
 ///
 /// No fill, no radius, no block. The prototype used a filled `surfaceSoft` box

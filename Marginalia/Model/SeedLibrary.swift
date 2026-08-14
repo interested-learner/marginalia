@@ -54,6 +54,17 @@ nonisolated enum SeedLibrary {
         let b: String
     }
 
+    /// A note that has already been answered once, so a fresh install shows what
+    /// `[+] add a thought` produces rather than only offering it.
+    ///
+    /// Deliberately few — a library where every note has a thread would misread
+    /// as the normal state, and the point of the action is that it's occasional.
+    struct FollowUpSeed {
+        let note: String
+        let text: String
+        let age: Age
+    }
+
     // MARK: Books
 
     static let books: [BookSeed] = [
@@ -262,6 +273,25 @@ nonisolated enum SeedLibrary {
         EdgeSeed(a: "pir.quality", b: "pir.care"),
         EdgeSeed(a: "pir.stuck", b: "pir.peace"),
         EdgeSeed(a: "inb.filing", b: "inb.findable"),
+    ]
+
+    // MARK: Follow-ups
+
+    /// Three notes that have already been answered, out of forty. Written as
+    /// answers rather than restatements — the point of a thread is that the
+    /// second thought disagrees with, qualifies, or applies the first.
+    static let followUps: [FollowUpSeed] = [
+        FollowUpSeed(note: "nor.systemerror",
+                     text: "Held up for a month now, except where the design is fine and the person was tired. Norman doesn't have much to say about tired.",
+                     age: .daysAgo(9, hour: 20)),
+
+        FollowUpSeed(note: "mar.mind",
+                     text: "Read this again on a bad week and it landed as instruction rather than comfort, which I think is how it was meant.",
+                     age: .daysAgo(4, hour: 7)),
+
+        FollowUpSeed(note: "kah.anchoring",
+                     text: "Tried the silent-first-pass version twice. The spread of estimates roughly doubled, which I'm choosing to read as honesty.",
+                     age: .daysAgo(2, hour: 18)),
     ]
 
     // MARK: Dates

@@ -8,6 +8,11 @@ import SwiftData
 /// foot, in the same place the stream's capture bar does — each tab's create
 /// action lives at the bottom of the screen, one thumb away.
 struct BooksView: View {
+    /// A book handed over from another tab — `→ open book` on a review card.
+    /// Cleared once it's been pushed, so coming back to the library later opens
+    /// on the list rather than on wherever you were last sent.
+    @Binding var open: Book?
+
     @Query private var books: [Book]
 
     @State private var path = NavigationPath()
@@ -100,6 +105,14 @@ struct BooksView: View {
     /// form. `-captureSheet quote` still opens the capture sheet, now over the
     /// first book's detail rather than the list — that's where it lives.
     private func openAtLaunch() {
+        // Arriving from another tab. Switching tabs rebuilds this view, so the
+        // push happens here rather than in an `onChange` that would never fire.
+        if let book = open {
+            open = nil
+            path.append(book)
+            return
+        }
+
         let defaults = UserDefaults.standard
         if let status = defaults.string(forKey: "bookFilter").flatMap(BookStatus.init(rawValue:)),
            status != .inbox {

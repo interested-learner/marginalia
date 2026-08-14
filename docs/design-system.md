@@ -274,8 +274,6 @@ A knowledge graph in a system with no color and no images. The constraint is the
 - **Edges are `hairline`**, 1px, at the same 12% as every divider in the app.
 - **Selection inverts.** The node fills `ink` with its text in `onInk`, and its edges go to full-opacity `ink` while every other edge stays at hairline. That is the entire interaction vocabulary — no highlight color, no glow, no shadow.
 - **Connection count shows as weight** — 400 → 500 → 700 — never as node size. Varying node size would introduce a visual dimension the rest of the app doesn't have.
-Actions use the same vocabulary — `[+] add a thought`, `[ ] star`, `→ open book`. Never a dingbat like `★` or `✎`; those read as icons, and this system has none.
-
 - **A selected node previews its note** in a panel at the foot, above the tab bar, separated by a `hairline`. Tappable through to the note.
 
 Nodes need a 44pt minimum hit target even though the drawn text is smaller.
@@ -284,13 +282,43 @@ Layout is force-directed and cached; it only recomputes when the graph changes. 
 
 ### Review card
 
-Full screen, one note, vertical paging. Header shows `Daily review` at 18/700 with the position `3 of 8` at 13 `textAsh` on the right.
+Full screen, one note, **vertical** paging. Header shows `daily review` at 18/700 with the position `3 of 8` at 13 `textAsh` on the right, clamped so the closing card reads `8 of 8` rather than `9 of 8`.
 
-The note is vertically centered with 16pt gaps: metadata at 13 `textAsh`, the text at 18/1.7 `ink` (quotes wrapped in curly quotes), the source at 14 `textMute` behind an em dash, then linked notes if any.
+The note is vertically centered with 16pt gaps: metadata at 13 `textAsh`, the text at 18/1.7 `ink` (quotes wrapped in curly quotes), the source at 13 `textMute` behind an em dash, then linked notes, then the thread if the note has one. It scrolls only once a long note plus its thread outgrows the screen — centering inside a scroll view is a `minHeight` frame, not a pair of `Spacer`s, which collapse there.
 
-The action row sits below the note — `✎ add a thought`, `★ star`, `→ open book`, share — as link buttons, not filled ones. A starred note fills its star; there is no other state change.
+**The card does not use the margin.** It's centered and open by design; the margin belongs to screens where a row is one of many.
 
-The foot carries the progress bar and the hint `↑ swipe up for next`. The final card closes the set and offers `[↻] keep going` to continue past the day's eight.
+The action row sits below the note as link buttons, never filled ones:
+
+```
+[+] add a thought   [ ] star
+→ open book   share
+```
+
+**Two rows of two, not one row of four.** The four labels are ~320pt of 13pt mono before gaps, which overflows a phone at the default text size and is hopeless above it — the same arithmetic that gives the capture sheet three segments instead of four. A starred note reads `[*] starred`; there is no other state change. `share` is bare rather than glyphed: every marker here is bracket-plus-character, and no bracketed character means "share" without becoming a picture.
+
+The foot carries the progress bar and the hint `↑ swipe up for next`. The hint goes on the closing card, where there is nothing left to swipe to.
+
+**The closing card** ends the set — `that's the set` at 18/700 over a line of `textBody`, then `[↻] keep going` as a secondary button, which extends past the day's eight rather than starting the same set over. When there's nothing left to show it says so and drops the button.
+
+### Thread of follow-ups
+
+A note's later thoughts, under the note they answer. Shown **everywhere the note is shown** — stream, book detail, and the review card — or `[+] add a thought` would appear to do nothing.
+
+```
+n.04 │ [q] quote · jul 09
+     │ ┃ "Human error usually is a result of
+     │ ┃  poor design."
+     │ The Design of Everyday Things · p.68
+     │ ╷ aug 05
+     │ ╵ Held up for a month now, except where
+     │   the design is fine and the person was
+     │   tired.
+```
+
+The same device as the quote rule and deliberately the quieter half of it: a 1px `hairline` on the leading edge where a quote gets 2pt of `ink`. A follow-up is subordinate to the note it grew out of, and the weight of the rule is what says so.
+
+Indented 12pt from the rule, 8pt of clear space above, 12pt between two follow-ups. The timestamp sits at 13 `textAsh` over the text at 15/1.6 `textBody`. **Oldest first** — a thread reads forward, because the answer comes after the thing it answers.
 
 ---
 

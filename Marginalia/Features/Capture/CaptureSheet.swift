@@ -47,7 +47,8 @@ struct CaptureSheet: View {
                             VoicePanel(voice: voice, text: $draft.text)
                                 .frame(maxHeight: .infinity, alignment: .top)
                         } else {
-                            BodyField(text: $draft.text, kind: draft.kind)
+                            BodyField(placeholder: Self.placeholder(for: draft.kind),
+                                      text: $draft.text)
                         }
 
                         HStack(spacing: 8) {
@@ -162,6 +163,11 @@ struct CaptureSheet: View {
 
     private var shelf: [Book] { BookShelf.ordered(books) }
 
+    /// There are no field labels in this system — the placeholder carries it.
+    fileprivate static func placeholder(for kind: NoteKind) -> String {
+        kind == .quote ? "the passage, as written…" : "what you thought…"
+    }
+
     private func save() {
         guard (try? NoteWriter.save(draft, to: book, in: context)) != nil else { return }
         dismiss()
@@ -182,49 +188,6 @@ private struct TypeSelector: View {
 
     var body: some View {
         SegmentedRow(options: offered, selection: $kind) { "\($0.marker) \($0.label)" }
-    }
-}
-
-private struct BodyField: View {
-    @Binding var text: String
-    let kind: NoteKind
-    /// Grows into whatever the sheet has left over.
-    var minHeight: CGFloat = 150
-
-    @FocusState private var focused: Bool
-
-    var body: some View {
-        ZStack(alignment: .topLeading) {
-            if text.isEmpty {
-                Text(placeholder)
-                    .font(Typography.input)
-                    .foregroundStyle(Theme.textAsh)
-                    .padding(.horizontal, 18)
-                    .padding(.vertical, 20)
-                    .allowsHitTesting(false)
-            }
-
-            TextEditor(text: $text)
-                .font(Typography.input)
-                .lineSpacing(Typography.bodyLeading)
-                .foregroundStyle(Theme.ink)
-                .tint(Theme.ink)
-                .scrollContentBackground(.hidden)
-                .focused($focused)
-                .padding(.horizontal, 10)
-                .padding(.vertical, 12)
-        }
-        .frame(minHeight: minHeight, maxHeight: .infinity)
-        .background(focused ? Theme.canvas : Theme.surfaceSoft)
-        .overlay(
-            RoundedRectangle(cornerRadius: interactiveRadius)
-                .stroke(focused ? Theme.ink : Theme.hairline, lineWidth: 1)
-        )
-        .clipShape(.rect(cornerRadius: interactiveRadius))
-    }
-
-    private var placeholder: String {
-        kind == .quote ? "the passage, as written…" : "what you thought…"
     }
 }
 
@@ -295,7 +258,8 @@ private struct VoicePanel: View {
                 Text("\(Glyphs.voice) transcribed · edit before saving")
                     .font(Typography.meta)
                     .foregroundStyle(Theme.textAsh)
-                BodyField(text: $text, kind: .voice, minHeight: 120)
+                BodyField(placeholder: CaptureSheet.placeholder(for: .voice),
+                          text: $text, minHeight: 120)
             }
         }
     }

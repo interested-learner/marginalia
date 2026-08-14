@@ -112,6 +112,42 @@ struct RowMappingTests {
         #expect(row(note()).links.isEmpty)
     }
 
+    // MARK: Follow-ups
+
+    private func threaded(_ note: Note, _ ages: [Int]) -> Note {
+        note.followUps = ages.map {
+            FollowUp(text: "thought \($0)",
+                     createdAt: now.addingTimeInterval(-60 * Double($0)), note: note)
+        }
+        return note
+    }
+
+    /// A thread reads forward — it's a conversation with yourself, and the
+    /// answer comes after the thing it answers.
+    @Test func followUpsAreThreadedOldestFirst() {
+        let row = row(threaded(note(), [2, 30, 9]))
+        #expect(row.followUps.map(\.text) == ["thought 30", "thought 9", "thought 2"])
+    }
+
+    @Test func eachFollowUpCarriesItsOwnAge() {
+        #expect(row(threaded(note(), [2])).followUps.first?.when == "2 mins ago")
+    }
+
+    @Test func aNoteWithNoFollowUpsHasNone() {
+        #expect(row(note()).followUps.isEmpty)
+    }
+
+    // MARK: Stars
+
+    /// The review card draws `[ ] star` or `[*] starred` off this, so the view
+    /// still never sees the model.
+    @Test func theRowKnowsWhetherTheNoteIsStarred() {
+        #expect(row(note()).isStarred == false)
+        let starred = note()
+        starred.isStarred = true
+        #expect(row(starred).isStarred)
+    }
+
     // MARK: Books
 
     @Test func aBookRowCarriesItsStatusMarkerAndCount() {

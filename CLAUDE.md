@@ -4,7 +4,7 @@ Working context for Claude Code in this repository. Read this before touching an
 
 > **Starting a session?** Read [`docs/planning.md`](docs/planning.md) first — it says what's built, what's next, and what's temporary scaffolding waiting to be replaced.
 >
-> **Phase 4 is complete.** The app builds, runs in both appearances, and passes its tests. Every screen reads from SwiftData and the app writes notes *and* books: the stream bar files a thought into the Inbox, the full sheet files one against a book, and books arrive by Open Library search, by barcode, or typed in. Phase 5 is review — paged cards, `ReviewSetBuilder`, stars, follow-ups.
+> **Phase 5 is complete.** The app builds, runs in both appearances, and passes its tests. Every screen reads from SwiftData, and notes, books *and* follow-ups are written: the stream bar files a thought into the Inbox, the full sheet files one against a book, books arrive by Open Library search or barcode or by hand, and review pages through a day-stable set whose actions all work. Phase 6 is linking — `NoteEmbedding` and `AffinityEngine`, gated on a human reading real output.
 
 ## What this is
 
@@ -109,6 +109,8 @@ Marginalia/
     TypedPage                `"p. 214"` → `214`, for every page field. Pure
     NoteWriter               the one path a note takes to exist
     BookWriter               the one path a book takes to exist, and changes by
+    ReviewWriter             the one path a follow-up, a star and a surfacing
+                             take. Surfacing counts once per day, never at build
     BookShelf                the order the library reads in, and its filters. Pure
     RowMapping               models → NoteRowData / BookRowData. The only
                              file that knows about both sides
@@ -117,7 +119,9 @@ Marginalia/
   Features/
     Stream/                  StreamView, StreamGrouping, TagIndex
     Capture/                 CaptureBar, CaptureSheet, VoiceCapture, AudioLevels
-    Books/  Map/  Review/  Search/  Settings/
+    Review/                  ReviewView, ReviewCard + ShareCard, ReviewSetBuilder,
+                             FollowUpSheet
+    Books/  Map/  Search/  Settings/
   Services/
     NoteEmbedding            NLContextualEmbedding + fallback
     AffinityEngine           scoring, mutual k-NN, pinning, suppression
@@ -151,6 +155,9 @@ MarginaliaTests/
 | `-addBook 1` | opens the add-book form |
 | `-bookSearch "<query>"` | fills the form's search field and runs it |
 | `-bookFilter <reading\|queued\|finished>` | opens the library on that chip |
+| `-reviewCard <n>` | opens review on the nth card of the day's set |
+| `-reviewEnd 1` | opens review on the closing card |
+| `-followUp 1` | opens the follow-up composer over the current card |
 
 ## Commands
 
@@ -191,6 +198,9 @@ Tests use **Swift Testing** (`@Test`, `#expect`), not XCTest.
 - **The Inbox can't be edited.** It's found by status and it's where every unfiled capture falls back to, so `BookWriter.apply` refuses to change its status and book detail doesn't offer `edit` on it. An Inbox marked `reading` would quietly stop being one and the next quick capture would build a second.
 - **A lookup result fills the form; it never saves straight through.** Open Library gets authors and page counts wrong often enough that the last word has to belong to the reader — and it holds a separate work record per translation, so `BookLookup` collapses repeats of the same title and author.
 - **A transcript is never saved unseen.** On-device recognition is wrong often enough that it lands in an editable field, both in the bar and in the sheet. Editing it leaves the note `[v] voice`: how it was captured is a fact about the note, not about the keystrokes.
+- **The day's review set is built once and held in `@State`.** Rebuilding it every redraw would reshuffle the deck the moment the reader starred something, because a star is one of the things the set is scored on.
+- **Don't name a property `set`.** `private var counter: String { set.count … }` fails to parse — Swift reads `set` at the start of a property body as the setter keyword.
+- **`Spacer` collapses inside a `ScrollView`.** Content there sizes to itself, so vertical centering is a `.frame(minHeight:)` against a `GeometryReader`, which is how the review card does it.
 - **`Synchronization.Mutex` can't be captured in a closure** — it's non-copyable. Where an audio callback has to hand a value back, `OSAllocatedUnfairLock` is what works (see `VoiceCapture.peak`).
 
 ## Don't

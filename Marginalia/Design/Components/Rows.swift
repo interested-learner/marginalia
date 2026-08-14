@@ -12,6 +12,20 @@ struct NoteRowData: Identifiable {
     let source: String
     /// Connected notes, by short id. Rendered `→ n.09`.
     var links: [Int] = []
+    /// Threaded beneath the note, oldest first — shown everywhere the note is.
+    var followUps: [FollowUpRowData] = []
+    /// Only the review card acts on this, but the row is the only thing a view
+    /// gets to see, so it lives here.
+    var isStarred: Bool = false
+}
+
+/// A later thought, threaded under the note it answers.
+struct FollowUpRowData: Identifiable {
+    /// Position in the thread. Follow-ups carry no id of their own — they're
+    /// only ever read as a list under one parent.
+    let id: Int
+    let when: String
+    let text: String
 }
 
 /// A note in the stream: the margin, then metadata, body, and source.
@@ -44,6 +58,12 @@ struct NoteRow: View {
                         .foregroundStyle(Theme.textMute)
                         .tint(Theme.textMute)   // links stay in-palette, never iOS blue
                         .fixedSize(horizontal: false, vertical: true)
+
+                    // Under the source, because the source belongs to the note
+                    // rather than to the thread that grew out of it.
+                    if !note.followUps.isEmpty {
+                        ThreadRule(followUps: note.followUps)
+                    }
                 }
             }
             .padding(.horizontal, 20)

@@ -2,15 +2,15 @@
 
 Where the project stands and what happens next. **Read this first in a new session**, then `CLAUDE.md` for the rules.
 
-Last updated 2026-08-14, after phase 4.
+Last updated 2026-08-14, after phase 5.
 
 ---
 
 ## State
 
-The app **builds clean, runs on the simulator in both appearances, and passes 171 tests.** Every screen reads from SwiftData, and the app writes notes *and* books: `[+]` in the stream bar files a thought into the Inbox with a fresh id, the full sheet files one against a book, and books arrive by Open Library search, by barcode, or typed in by hand.
+The app **builds clean, runs on the simulator in both appearances, and passes 207 tests.** Every screen reads from SwiftData, and the app writes notes, books *and* follow-ups: `[+]` in the stream bar files a thought into the Inbox with a fresh id, the full sheet files one against a book, books arrive by Open Library search or barcode or by hand, and review pages through a day-stable set of eight whose actions all do something.
 
-**Still inert:** the review actions, and everything on the map except the preview panel.
+**Still inert:** everything on the map except the preview panel.
 
 History is one commit per phase on `main` — `git log --oneline` is the authority, not this file. Remote: `interested-learner/marginalia` (public). `gh` is **not** installed on this machine.
 
@@ -23,14 +23,43 @@ History is one commit per phase on `main` — `git log --oneline` is the authori
 | 2 | Model + Stream | **done** |
 | 3 | Capture — text, then voice | **done** (voice needs a device) |
 | 4 | Books — list, detail, add by search and ISBN | **done** (barcode needs a device) |
-| 5 | Review — paged cards, `ReviewSetBuilder`, stars, follow-ups | **next** |
-| 6 | Linking — embeddings + `AffinityEngine` | gates on a human reading output |
+| 5 | Review — paged cards, `ReviewSetBuilder`, stars, follow-ups | **done** |
+| 6 | Linking — embeddings + `AffinityEngine` | **next** · gates on a human reading output |
 | 7 | Map — `GraphLayout`, real graph | |
 | 8 | Search, export, settings, notifications | |
 | 9 | Camera OCR capture | |
 | 10 | Polish, app icon, device install | |
 
 Full detail for every phase is in `docs/specs/2026-08-13-marginalia-design.md`. The reasoning behind the choices is in `docs/decisions.md` — **don't re-litigate those.**
+
+---
+
+## What phase 5 built
+
+- **`ReviewSetBuilder`** — pure, `[Note]` + `Date` → the day's set. `daysUnseen + starBonus + jitter`, then the three caps: 8 total, 2 per book, and one card spent on a book currently being read even when nothing from it scored. A note never surfaced counts as a year unseen; a star is worth a week, which wins between two notes with the same history and loses to a month of neglect. The jitter is a hash of the day and the note id — `Double.random` would reshuffle on every redraw.
+- **The set is built once, on arrival, and held in `@State`.** This is not incidental: the set is scored partly on `isStarred`, so a set rebuilt every redraw would reshuffle under the thumb the moment the reader starred a card.
+- **`ReviewWriter`** — the one path a follow-up, a star, and a surfacing take. **Surfacing counts once per calendar day per note**, which the spec didn't say and which matters: swiping back and forth through the day's set is one reading of each card, not six, and an inflated `surfaceCount` would quietly bury a note for months.
+- **Paging is vertical**, which is what the hint has always asked for. `ScrollView` + `scrollTargetBehavior(.paging)` + `scrollPosition`, not a rotated `TabView`. A card is surfaced when the position moves off it — paged past, exactly as specified, never at build time.
+- **The card** — centered and open, no margin. Metadata, the note at 18/1.7, source, connections, thread, then the actions. Centering inside a scroll view is a `minHeight` frame against a `GeometryReader`; `Spacer` collapses there.
+- **The action row is two rows of two.** `[+] add a thought` · `[ ] star` over `→ open book` · `share`. Four link buttons at 13pt mono are ~320pt of text before gaps and overflow a phone at the default text size — the same arithmetic that gave the capture sheet three segments instead of four.
+- **The closing card** — `that's the set`, and `[↻] keep going`, which extends past the day's eight rather than restarting it. When nothing is left it says so and drops the button.
+- **Follow-ups render everywhere the note does** — stream, book detail, and the card — behind a new `ThreadRule`: the quote rule's quieter half, a 1px hairline where a quote gets 2pt of ink. Oldest first, because a thread reads forward.
+- **The share card** — `ImageRenderer` at 3× over a fixed 420pt width, delivered by `ShareLink`, rendered **in the appearance the reader is looking at** so a dark-mode user doesn't share a white card.
+- **The first cross-tab route.** `→ open book` hands the book up to `RootView`, which switches tabs; `BooksView` pushes it on appear. Phase 4 deferred this to phase 7 — it turned out to be about fifteen lines, and phase 7's map and a tappable source-line title both want the same route.
+- **Three seeded follow-ups**, out of forty notes. A fresh install has to *show* what `[+] add a thought` produces rather than only offering it, and a library where every note had a thread would misread as the normal state.
+- **`BodyField` moved into `Design/Components/Controls.swift`**, shared by the capture sheet and the follow-up composer rather than copied into both.
+
+### Unverified, and honestly so
+
+- **Nothing was tapped.** `simctl` can't tap or swipe, so every screen was reached by launch argument. Starring, saving a follow-up, `→ open book`, `[↻] keep going`, and the share sheet are proven by `ReviewWriterTests` and `ReviewSetBuilderTests` against a real in-memory store and by the screens rendering — not by a finger.
+- **Paging itself was never swiped.** `-reviewCard 3` sets the scroll position rather than dragging to it, so the paging *feel*, and the surfacing that fires on a real page-past, need a device or a tap.
+- **The share sheet was never opened.** `ShareCard.rendered` returning an image is what gates the link appearing, and it appears — but what iOS actually puts on the share sheet is unseen.
+
+### Standing until later
+
+- **The empty state was not seen.** It needs a library under three notes, and the seed has forty. The threshold is `ReviewSetBuilder.minimum`.
+- **`keep going` on an exhausted library was not seen** for the same reason — forty notes always have more.
+- **Nothing deletes a follow-up.** Same gap as notes and books, and the same answer: it wants a real confirmation, and `danger` exists for it.
 
 ---
 
@@ -55,7 +84,7 @@ Full detail for every phase is in `docs/specs/2026-08-13-marginalia-design.md`. 
 
 ### Standing until later
 
-- **A source line's book title isn't tappable yet.** `docs/design-system.md` says it should open the book; doing it means routing from the stream into the books tab and pushing detail, which is cross-tab navigation the app doesn't have. Worth doing alongside phase 7's map, which will want the same route.
+- **A source line's book title isn't tappable yet.** `docs/design-system.md` says it should open the book. Phase 5 built the cross-tab route it was waiting on — `RootView.open(_ book:)` — so this is now a small job rather than a missing capability.
 - **Nothing deletes a book or a note.** It isn't in any phase's brief and nothing in phase 4 needs it, but a book added by mistake is now correctable and not removable. Deleting a book cascades to its notes, so it wants a real confirmation — `danger` exists for exactly that.
 - **Adding a book you already have makes a second one.** No duplicate check on save; the two rows sort next to each other, which at least makes it obvious.
 
@@ -105,20 +134,22 @@ Full detail for every phase is in `docs/specs/2026-08-13-marginalia-design.md`. 
 
 ---
 
-## Next: phase 5 — review
+## Next: phase 6 — linking
 
-1. **`ReviewSetBuilder`** — pure, `[Note]` + `Date` → the day's set: day-stable, ≤8, ≤2 per book, starred weighted, at least one from a book currently being read. Building a set must not change future sets, so `lastSurfacedAt` is written only when a card is actually paged past.
-2. **The card** — full screen, one note, vertical paging. It does **not** use the margin; it's centered and open by design. Progress bar and `↑ swipe up for next` at the foot, `[↻] keep going` on the last card.
-3. **The actions become real** — `[+] add a thought` writes a `FollowUp`, `[ ] star` toggles `isStarred`, `→ open book` goes to book detail, which now exists.
-4. **The share card** — `ImageRenderer` at 3×, delivered by `ShareLink`.
+1. **`NoteEmbedding`** — `NLContextualEmbedding`, mean-pooled to one vector per note, stored as packed `Float32` in `Note.embedding`. Falls back to `NLEmbedding.sentenceEmbedding` until Apple's assets download. **The app must work on first launch either way.**
+2. **`AffinityEngine`** — pure. `0.8 · cosine + 0.2 · tagOverlap`, floor `0.55`, mutual k-NN at 8, degree cap 6. Same-book deliberately not boosted.
+3. **Embed on save, and backfill** what's already there. `embeddedAt == nil` is the queue.
+4. **Backlinks in the UI.** The plumbing exists — `ConnectionIndex` already reads edges both ways and the stream, book detail and the review card all draw them. The 16 seeded edges are `isPinned` so the first recompute won't prune them.
 
-`ReviewView` currently shows the newest eight with dead actions; all of it is replaced.
+**This phase ends by reading real output, not by passing tests.** Dump each seed note's top 5 connections and judge them. If they don't hold up, the weights or the floor get tuned *before* phase 7 builds the map on top.
 
 ---
 
 ## Open questions for Nathaniel
 
-None of these block phase 5.
+None of these block phase 6.
+
+-1. **Is once-per-day the right surfacing rule?** Phase 5 decided a card seen twice in one sitting counts once, so swiping back and forth doesn't bury a note for months. The spec only said "when a card is actually paged past" — say so if you meant every pass.
 
 0. **Is `▼` allowed?** The capture sheet's book picker uses it, and the prototype does too. It's terminal furniture by the same argument that permits `■` and `→`, but it's the closest thing to a dingbat in the app — say so now if it reads as one, while there's exactly one of them.
 

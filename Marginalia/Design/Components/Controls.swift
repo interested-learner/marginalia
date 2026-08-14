@@ -127,6 +127,51 @@ struct InputField: View {
     }
 }
 
+/// A multi-line text input. The same treatment as `InputField` in a taller box:
+/// `surfaceSoft` at rest, `canvas` and an `ink` border on focus.
+///
+/// Shared by the capture sheet and the review card's follow-up composer, so the
+/// two can't drift into two different editors. `TextEditor` has no placeholder
+/// of its own, hence the label behind it.
+struct BodyField: View {
+    let placeholder: String
+    @Binding var text: String
+    /// Grows into whatever room the sheet has left over.
+    var minHeight: CGFloat = 150
+
+    @FocusState private var focused: Bool
+
+    var body: some View {
+        ZStack(alignment: .topLeading) {
+            if text.isEmpty {
+                Text(placeholder)
+                    .font(Typography.input)
+                    .foregroundStyle(Theme.textAsh)
+                    .padding(.horizontal, 18)
+                    .padding(.vertical, 20)
+                    .allowsHitTesting(false)
+            }
+
+            TextEditor(text: $text)
+                .font(Typography.input)
+                .lineSpacing(Typography.bodyLeading)
+                .foregroundStyle(Theme.ink)
+                .tint(Theme.ink)
+                .scrollContentBackground(.hidden)
+                .focused($focused)
+                .padding(.horizontal, 10)
+                .padding(.vertical, 12)
+        }
+        .frame(minHeight: minHeight, maxHeight: .infinity)
+        .background(focused ? Theme.canvas : Theme.surfaceSoft)
+        .overlay(
+            RoundedRectangle(cornerRadius: interactiveRadius)
+                .stroke(focused ? Theme.ink : Theme.hairline, lineWidth: 1)
+        )
+        .clipShape(.rect(cornerRadius: interactiveRadius))
+    }
+}
+
 /// A tag filter chip. Selected inverts to filled ink — the same move the map
 /// uses for a selected node.
 struct TagChip: View {
