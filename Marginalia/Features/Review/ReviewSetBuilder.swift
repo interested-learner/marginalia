@@ -110,7 +110,11 @@ nonisolated enum ReviewSetBuilder {
 
     /// The calendar day, as a number. Same day in, same set out — leaving review
     /// and coming back must not reshuffle it.
-    private static func daySeed(_ day: Date, _ calendar: Calendar) -> UInt64 {
+    ///
+    /// **Internal rather than private**, because `CrossingFinder` rotates the
+    /// day's crossing on the same number. Two definitions of "a day" in one
+    /// screen would drift the way two write paths would.
+    static func daySeed(_ day: Date, _ calendar: Calendar) -> UInt64 {
         let start = calendar.startOfDay(for: day).timeIntervalSince1970
         return UInt64(bitPattern: Int64((start / 86_400).rounded(.down)))
     }
