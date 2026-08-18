@@ -104,7 +104,7 @@ xcodebuild -scheme Marginalia -destination 'platform=iOS Simulator,name=iPhone 1
   -derivedDataPath .build-ios18 build test
 ```
 
-386 tests in 34 suites must pass on both — it was 402 when this file was written, and phase 12 took 93 `@Test` cases out with the map. Screenshot both appearances **and** `accessibility-extra-extra-extra-large`
+389 tests in 35 suites must pass on both — it was 402 when this file was written, and phase 12 took 90 `@Test` cases out with the map. Screenshot both appearances **and** `accessibility-extra-extra-extra-large`
 after every UI stage and look at the whole image — five real defects on this project were invisible in code
 and obvious in a picture.
 

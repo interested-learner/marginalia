@@ -62,9 +62,9 @@ nonisolated enum Theme { ... }
 
 `Glyphs`, `BookStatus`, `NoteKind`, `Inbox`, `AudioLevels`, `BookShelf`, `SeedLibrary` and `ReviewSetBuilder` were all already marked. `Theme` was the one that wasn't, and the only one handing a closure to a system framework.
 
-**Guard.** `MarginaliaTests/ThemeIsolationTests.swift` resolved colors from a detached task on purpose. Before the fix it reproduced the crash exactly — the runner died with *"Restarting after unexpected exit, crash, or test timeout"*. After it, 210 tests passed. If `Theme` ever lost `nonisolated`, that file stopped compiling.
+**Guard.** `MarginaliaTests/ThemeIsolationTests.swift` resolves colors from a detached task on purpose. Before the fix it reproduced the crash exactly — the runner died with *"Restarting after unexpected exit, crash, or test timeout"*. After it, 210 tests passed. If `Theme` ever loses `nonisolated`, that file stops compiling.
 
-**And the guard is gone.** Phase 12's sweep deleted `ThemeIsolationTests.swift` along with `ThemeEngineTests`, `ThemeNameTests` and `ThemeDumpTests` — four files whose names begin with `Theme`, three of which tested the deleted `ThemeEngine` and one of which tested `Theme`, the color enum, which is very much still here. Nothing broke: the suite is green because the file that fails when `Theme` loses `nonisolated` is the file that was removed. **It should be restored**, and the lesson is the one this document keeps re-learning — a name is not an argument. `git show 8321340^:MarginaliaTests/ThemeIsolationTests.swift` has it.
+**It was deleted for half a day and put back.** Phase 12's sweep took it out along with `ThemeEngineTests`, `ThemeNameTests` and `ThemeDumpTests` — four files whose names begin with `Theme`, three of which tested the deleted `ThemeEngine` and one of which tests `Theme`, the color enum, which is very much still here. It was caught in the documentation pass and restored verbatim on the same branch, before any of it merged, so the guard has never actually been absent from `main`. Recorded because the failure was silent: nothing went red, since the file that fails when `Theme` loses `nonisolated` was the file that had gone. **A name is not an argument** — that is the lesson, and it is the third time this document has had to write it.
 
 **Reading a crash report yourself**, next time:
 
@@ -338,7 +338,6 @@ The hold is the one to worry about. It's assembled out of a `LongPressGesture` f
 | 11 | Receive one reminder | §19 — the whole feature is unobserved, and the simulator can deliver it. **Not from a shell**: phase 9 established that neither `simctl privacy` nor `simctl push` can get past authorization | ten minutes of somebody's hands |
 | 12 | Confirm §22 and §23 against a crash log | Both are fixed on four and three separate arguments; which one it actually was is still unknown | a file off the phone |
 | 13 | ~~Hit-test the map by nearest node~~ | **Gone.** §24 closed by deletion — phase 12 removed the canvas rather than the overlap (`docs/decisions.md` §21) | done |
-| 14 | **Restore `ThemeIsolationTests`** | §1 — phase 12's sweep deleted it with three `ThemeEngine` test files. The guard on the app's worst crash class is currently absent and the suite is green anyway, which is the whole problem | ten minutes, and it is a copy out of git |
 
 **Item 7 is now the only expensive thing left, and it is first.** It was four features asserted and never observed; phase 6 added a fifth, and that one decides whether the app's defining feature works at all (§14). Item 6 is done, and doing it is what produced §21.
 

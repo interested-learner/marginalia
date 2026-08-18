@@ -12,7 +12,7 @@ Last updated 2026-08-18, after phase 12 — the map came out and a crossing beca
 
 The ratio is the finding, and it is worth writing down rather than getting past: **one session with a finger found more real defects than the whole of phase 10's screenshot pass.** Two of them had been shipped since phase 3 and phase 5.
 
-The app **builds clean, runs on the simulator in both appearances — Debug and Release — and passes 386 tests in 34 suites (one of them a recorded known issue — see phase 6 below).** Every screen reads from SwiftData, and the app writes notes, books *and* follow-ups: `[+]` in the stream bar files a thought into the Inbox with a fresh id, the full sheet files one against a book, books arrive by Open Library search or barcode or by hand, and review pages through a day-stable set of eight whose actions all do something.
+The app **builds clean, runs on the simulator in both appearances — Debug and Release — and passes 389 tests in 35 suites (one of them a recorded known issue — see phase 6 below).** Every screen reads from SwiftData, and the app writes notes, books *and* follow-ups: `[+]` in the stream bar files a thought into the Inbox with a fresh id, the full sheet files one against a book, books arrive by Open Library search or barcode or by hand, and review pages through a day-stable set of eight whose actions all do something.
 
 **And now removes them.** Notes, books and follow-ups all delete, through `Eraser` and the app's own confirmation — see the issues pass below.
 
@@ -71,7 +71,7 @@ Full detail for every phase is in `docs/specs/2026-08-13-marginalia-design.md`. 
 
 ### What came out, measured
 
-**24 files changed, 12 insertions, 4,082 deletions.** Sixteen files removed: six under `Features/Map/` (`MapView`, `MapRows`, `ThemeDetailView`, `GraphView`, `GraphCanvas`, `MapGraph`), then `ThemeEngine`, `ThemeName`, `NounPhrases`, `GraphLayout`, and six test files. **The suite went from 479 tests in 42 suites to 386 in 34** — 93 `@Test` cases, verified on iPhone 17 *and* on iPhone 16 / iOS 18.5.
+**24 files changed, 12 insertions, 4,082 deletions.** Sixteen files removed: six under `Features/Map/` (`MapView`, `MapRows`, `ThemeDetailView`, `GraphView`, `GraphCanvas`, `MapGraph`), then `ThemeEngine`, `ThemeName`, `NounPhrases`, `GraphLayout`, and six test files. **The suite went from 479 tests in 42 suites to 389 in 35** — 90 `@Test` cases, verified on iPhone 17 *and* on iPhone 16 / iOS 18.5.
 
 Also gone: the `map` tab, `Glyphs.tabMap` (recycled as `Glyphs.crossing`, same `[◇]`), the `web` / `openWeb` cross-tab route, `[◇] connections` in both places it was offered, and eight launch arguments.
 
@@ -84,7 +84,7 @@ Also gone: the `map` tab, `Glyphs.tabMap` (recycled as `Glyphs.crossing`, same `
 - **The accessibility-size pass has not been done.** Both appearances are checked and read correctly — head `n.08 · n.40 · [◇] crossing`, two notes with a hairline between them, foot `29 days apart · [x] not related`. **Two full notes on one screen is the first card in this app designed to hold two**, and AX5 is where it will break if it breaks.
 - **Nothing was tapped, again.** `[x] not related` has never been pressed and the `erased` haptic has still never been felt.
 - **Whether any crossing is *true* is unchanged and unknown.** It rides on the same scores everything else does, and `docs/issues.md` §14 means every one anybody has read came out of the fallback embedder. That is still 12b, and it is now an ordinary quality question rather than the fate of a tab.
-- **`ThemeIsolationTests` was deleted by mistake** in the sweep — four files beginning with `Theme`, three of which tested `ThemeEngine` and one of which tested `Theme`, the color enum, which is still here. It is the guard on the app's worst crash class and the suite is green without it. `docs/issues.md` §1 and item 14.
+- **`ThemeIsolationTests` was deleted by mistake and restored the same day.** Four files begin with `Theme`; three tested `ThemeEngine` and one tests `Theme`, the color enum, which is still here — the guard on the app's worst crash class (`docs/issues.md` §1). Nothing went red when it went, which is the part worth remembering. Back on the branch before it merged.
 
 ---
 
@@ -381,7 +381,7 @@ Between phase 5 and phase 6, six of the thirteen entries in `docs/issues.md` wer
 - **The margin folds at the accessibility sizes.** It's a `@ScaledMetric` 48, so at AX5 it was 110pt of a 393pt screen and the note it annotates got about five characters a line. The margin is the app's identity at every size somebody reads at by choice; at the sizes somebody reads at by necessity it cost nearly half the width of the thing it exists to annotate. The id doesn't disappear, it moves — to exactly where the review card has always put it. This is the one place the design system's margin rule is conditional, and `docs/design-system.md` says so now.
 - **A book row stacks its author and status** at those sizes rather than wrapping `Kahnem/an` through `readi/ng`.
 - **Haptics — one vocabulary, five events.** `Design/Haptics.swift`, named for what happened rather than how it feels: `saved` `starred` `erased` `paged` `captured`. Six call sites, and `erased` is fired from `ConfirmSheet`'s own button, which is the single door every delete in the app goes through — the same one-path-in rule `Eraser` follows. Navigation is silent on purpose: a haptic marks something that happened to the *library*.
-- **iOS 18.5, at last.** `docs/issues.md` §4 is closed. All 402 tests of the day passed on 18.5 and on 26.5, the app was installed and walked across all four tabs there, and the map drew **the same graph node for node and edge for edge** on both. (The count is 386 now and the map is gone; both runtimes are still checked on every phase.) Phase 5's paging scroll view — the specific reason anyone was worried — behaves identically.
+- **iOS 18.5, at last.** `docs/issues.md` §4 is closed. All 402 tests of the day passed on 18.5 and on 26.5, the app was installed and walked across all four tabs there, and the map drew **the same graph node for node and edge for edge** on both. (The count is 389 now and the map is gone; both runtimes are still checked on every phase.) Phase 5's paging scroll view — the specific reason anyone was worried — behaves identically.
 - **The curly quotes that weren't supposed to exist did.** See below.
 
 ### The two things a screenshot said that the code review hadn't

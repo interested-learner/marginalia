@@ -4,7 +4,7 @@ Working context for Claude Code in this repository. Read this before touching an
 
 > **Starting a session?** Read [`docs/planning.md`](docs/planning.md) first — it says what's built, what's next, and what's temporary scaffolding waiting to be replaced. If a build hangs or the app crashes, read [`docs/issues.md`](docs/issues.md) before debugging — it is probably already in there.
 >
-> **Phase 12 removed a whole tab.** Read `docs/phase-12.md` and `docs/decisions.md` §21. The map was read on a device and the verdict was not that it was wrong but that there was **no reason to open it** — so the summary, the graph and everything under them came out, and the one thing worth keeping moved into review as the **crossing card**. 4,082 lines and 93 tests went with it. If you are about to propose a screen that draws the library, read §21 first.
+> **Phase 12 removed a whole tab.** Read `docs/phase-12.md` and `docs/decisions.md` §21. The map was read on a device and the verdict was not that it was wrong but that there was **no reason to open it** — so the summary, the graph and everything under them came out, and the one thing worth keeping moved into review as the **crossing card**. 4,082 lines and 90 tests went with it. If you are about to propose a screen that draws the library, read §21 first.
 >
 > **Phase 11 was the first pass with a real finger on the app.** Read `docs/phase-11.md`. Every phase before it was verified by unit tests, launch arguments and screenshots, and `docs/issues.md` §12 said plainly that nothing here had ever been tapped. It has now been, and it came back with six reports and two crashes — **neither of them visible in code review, in a full passing suite, or in any screenshot taken in ten phases.** Both were in code a simulator cannot reach.
 >
@@ -227,6 +227,7 @@ Tools/
 | `-reviewEnd 1` | opens review on the closing card |
 | `-followUp 1` | opens the follow-up composer over the current card |
 | `-confirmDelete <book\|note>` | opens the delete confirmation over book detail |
+| `-confirmDelete connection` | with `-reviewCrossing 1`, the disconnect confirmation over the crossing card — `[x] not related` is a button on the ninth card, and the simulator can neither swipe to one nor tap the other |
 | `-search "<query>"` | opens the search screen with that query already run |
 | `-settings 1` | opens settings |
 | `-preference.notifications 1` | settings with the reminder on — **and the permission prompt, which sticks to the simulator until it's answered by hand.** Reboot the simulator to clear it |

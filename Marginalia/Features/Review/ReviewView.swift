@@ -300,7 +300,8 @@ struct ReviewView: View {
     // as `-startTab` and `-openBook`.
 
     /// `-reviewCard 3` opens on the third card, `-reviewEnd 1` on the closing
-    /// card, `-followUp 1` with the composer already open over it.
+    /// card, `-followUp 1` with the composer already open over it, and
+    /// `-confirmDelete connection` the disconnect confirmation over the crossing.
     private func openAtLaunch() {
         let defaults = UserDefaults.standard
 
@@ -309,6 +310,14 @@ struct ReviewView: View {
         // `-reviewCrossing 1` opens on the crossing, which is otherwise reachable
         // only by swiping past all eight — and the simulator can't be swiped.
         if defaults.bool(forKey: "reviewCrossing"), crossing != nil { position = today.count }
+        // `-confirmDelete connection`, reading the same key `BookDetailView`
+        // does. The sheet is raised by `[x] not related`, which is a button on
+        // the ninth card — two things the simulator can neither swipe to nor
+        // tap — so this is the only way it is ever screenshot.
+        if defaults.string(forKey: "confirmDelete") == "connection", let crossing {
+            position = today.count
+            erasing = .connection(crossing.edge)
+        }
         if defaults.bool(forKey: "reviewEnd") { position = lastIndex }
         if defaults.bool(forKey: "followUp") { composing = today[safe: index] }
         if defaults.bool(forKey: "link") { linking = today[safe: index] }

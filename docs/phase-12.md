@@ -87,15 +87,17 @@ every measure §20 named. It was answering the wrong question. **Legibility was 
 | `Services/` | `ThemeEngine` · `ThemeName` · `NounPhrases` · `GraphLayout` |
 | `MarginaliaTests/` | six files |
 
-**The suite went from 479 tests in 42 suites to 386 in 34** — 93 `@Test` cases. Both figures verified on
+**The suite went from 479 tests in 42 suites to 389 in 35** — 90 `@Test` cases. Both figures verified on
 iPhone 17 **and** on iPhone 16 / iOS 18.5, own derived data each (`docs/issues.md` §2).
 
 Also gone: the `map` tab, the `web` / `openWeb` cross-tab route (the app's first, now with nothing at the far
 end), `[◇] connections` in **both** places it was offered — the stream row's long-press menu and the review
 card's action row, which drops from three rows of two to two rows and a single — and eight launch arguments:
 `-startTab map`, `-mapSelect`, `-mapNote`, `-mapBook`, `-mapTheme`, `-mapThemeGraph`, `-mapCrossings`,
-`-mapLines`. `-confirmDelete connection` went with them rather than being repurposed; the disconnect
-confirmation is now reached with `-reviewCrossing 1`, where the button that raises it lives.
+`-mapLines`. **`-confirmDelete connection` was repurposed rather than deleted** — it read out of
+`GraphView` and now reads out of `ReviewView.openAtLaunch`, opening the disconnect confirmation over the
+crossing card. It survives because `[x] not related` is a button on the ninth card, and the simulator can
+neither swipe to that card nor tap that button; without the argument the sheet could never be screenshot.
 
 **`GraphLayoutTests` is the loss worth naming**: nineteen tests over genuinely hard geometry — convergence
 measured as residual force rather than step size, gravity derived rather than tuned, a budget that grows with
@@ -124,14 +126,15 @@ the linking engine changed in this phase.** What changed is where its output is 
 
 ## What went wrong in the sweep
 
-**`ThemeIsolationTests.swift` was deleted by mistake.** Four test files began with `Theme`; three of them
-tested `ThemeEngine` and `ThemeName` and were right to go. The fourth tested `Theme` — the color enum, which
-is very much still here — by resolving colors from a detached task, and it is the guard on the worst crash
-class in this project's history (`docs/issues.md` §1, five identical `EXC_BREAKPOINT`s).
+**`ThemeIsolationTests.swift` was deleted by mistake, and restored the same day.** Four test files began with
+`Theme`; three of them tested `ThemeEngine` and `ThemeName` and were right to go. The fourth tests `Theme` —
+the color enum, which is very much still here — by resolving colors from a detached task, and it is the guard
+on the worst crash class in this project's history (`docs/issues.md` §1, five identical `EXC_BREAKPOINT`s).
 
-**The suite is green without it**, which is the whole problem: the file that fails when `Theme` loses
-`nonisolated` is the file that was removed, so nothing reports its absence. It should be restored —
-`git show 8321340^:MarginaliaTests/ThemeIsolationTests.swift` — and it is item 14 in `docs/issues.md`.
+**The suite was green without it**, which is the whole problem: the file that fails when `Theme` loses
+`nonisolated` was the file that had been removed, so nothing reported its absence. It was caught in the
+documentation pass and restored verbatim from `8321340^` before the branch merged, which is why the counts
+above are 389 in 35 rather than 386 in 34. §1 records it as a caught over-deletion rather than an open bug.
 
 A name is not an argument. That is the third time this document family has had to write that sentence.
 
@@ -148,12 +151,15 @@ xcodebuild -scheme Marginalia -destination 'platform=iOS Simulator,name=iPhone 1
   -derivedDataPath .build-ios18 build test
 ```
 
-**386 tests in 34 suites**, one of them a recorded known issue (`NoteEmbeddingTests`, see phase 6).
+**389 tests in 35 suites**, one of them a recorded known issue (`NoteEmbeddingTests`, see phase 6). Verified on both.
 
 ### Checked
 
 - **The crossing card renders in both appearances.** Head `n.08 · n.40 · [◇] crossing`, two notes separated by
   a hairline, foot `29 days apart · [x] not related`. Reached with `-reviewCrossing 1`.
+- **The disconnect confirmation renders over it.** `-startTab review -confirmDelete connection -reviewCrossing 1`
+  puts `disconnect n.08 and n.40?` on screen over the card, with `[x] disconnect` filled `danger` and `cancel`
+  beneath it — the app's own `ConfirmSheet`, not a system dialog. The header still clamps to `8 of 8`.
 
 ### Not checked, and to be said plainly rather than implied
 
