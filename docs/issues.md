@@ -62,7 +62,9 @@ nonisolated enum Theme { ... }
 
 `Glyphs`, `BookStatus`, `NoteKind`, `Inbox`, `AudioLevels`, `BookShelf`, `SeedLibrary` and `ReviewSetBuilder` were all already marked. `Theme` was the one that wasn't, and the only one handing a closure to a system framework.
 
-**Guard.** `MarginaliaTests/ThemeIsolationTests.swift` resolves colors from a detached task on purpose. Before the fix it reproduced the crash exactly — the runner died with *"Restarting after unexpected exit, crash, or test timeout"*. After it, 210 tests pass. If `Theme` ever loses `nonisolated`, that file stops compiling.
+**Guard.** `MarginaliaTests/ThemeIsolationTests.swift` resolved colors from a detached task on purpose. Before the fix it reproduced the crash exactly — the runner died with *"Restarting after unexpected exit, crash, or test timeout"*. After it, 210 tests passed. If `Theme` ever lost `nonisolated`, that file stopped compiling.
+
+**And the guard is gone.** Phase 12's sweep deleted `ThemeIsolationTests.swift` along with `ThemeEngineTests`, `ThemeNameTests` and `ThemeDumpTests` — four files whose names begin with `Theme`, three of which tested the deleted `ThemeEngine` and one of which tested `Theme`, the color enum, which is very much still here. Nothing broke: the suite is green because the file that fails when `Theme` loses `nonisolated` is the file that was removed. **It should be restored**, and the lesson is the one this document keeps re-learning — a name is not an argument. `git show 8321340^:MarginaliaTests/ThemeIsolationTests.swift` has it.
 
 **Reading a crash report yourself**, next time:
 
@@ -180,6 +182,8 @@ Embedding model 'mul_Latn' is not compiled (error: … Code=7 "Compilation faile
 
 **What it costs is the judgement.** Every connection anyone has looked at came from the fallback, and the fallback measurably doesn't measure meaning at note length: two paraphrases about attention score 0.267 against each other and 0.274 against a note about a kitchen tap (`NoteEmbeddingTests`, recorded as a known issue). `docs/planning.md` §phase 6 has the full read of the seed library — roughly half the found edges are defensible and one near-restatement scores below the floor.
 
+**This is still open, and it is no longer a gate on a whole tab.** Phase 12 deleted the map rather than waiting on this measurement — `docs/decisions.md` §21 has why, and the short version is that a verified embedder would have produced better themes on a screen nobody opened. **The device read still matters**: backlinks are drawn under every note on stream, book detail and the review card, and the crossing card is two notes chosen by the same scores. What changes is the size of what it decides — an ordinary quality question about lines of text under a note, rather than the fate of a screen.
+
 **What to do.** Run it on a device (§6) and read `AffinityDumpTests` again. **Do not tune the floor, the weights or `k` against the fallback** — that fits the numbers to a model the app abandons the moment the assets compile. There is no simulator workaround: the directory belongs to the host, not to the app.
 
 ---
@@ -188,7 +192,9 @@ Embedding model 'mul_Latn' is not compiled (error: … Code=7 "Compilation faile
 
 Ranked by how likely they are to bite.
 
-### 24. The map's tap targets overlap above ~100 nodes — **open**
+### 24. ~~The map's tap targets overlap above ~100 nodes~~ — **closed by deletion**
+
+**Phase 12 deleted the map** (`docs/decisions.md` §21), so the canvas this describes no longer exists. The bug was never fixed and the arithmetic below is still correct — it is kept because it is the reason the obvious fix was not available, and any future screen that lays out tappable nodes inherits it.
 
 Found while fixing §5's jolt, and **not fixed**, because the obvious fix doesn't work.
 
@@ -291,9 +297,9 @@ The original entry, still true of everything nobody happened to touch:
 
 `simctl` can't tap or swipe. Every screen is reached by launch argument, and every interaction — saving, starring, filtering, going back, paging, sharing — is proven by unit tests and by the screen rendering, never by a finger.
 
-This is the single biggest gap in what "verified" means here. **The cheapest fix is a small XCUITest target**: a launch, a tap on each tab, one capture, one star — and now a long press on a row and the map's two gestures, which is where the affordance-free interactions have collected.
+This is the single biggest gap in what "verified" means here. **The cheapest fix is a small XCUITest target**: a launch, a tap on each tab, one capture, one star — and a long press on a row, which is now the only affordance-free interaction left in the app (phase 12 deleted the map, and with it the hold-a-line disconnect).
 
-**Phase 7 made this worse rather than better**, and it should be said plainly: the map is the most gestural screen in the app and none of its gestures have been performed. See §17.
+**Phase 7 made this worse rather than better**, and phase 12 fixed it by subtraction rather than by testing: the map was the most gestural screen in the app and not one of its gestures was ever performed. See §17.
 
 **Phase 8 added five more untapped things**, though the newest ones are ordinary buttons rather than invisible gestures: `search` and `settings` in the stream header, a result row that opens its note, a book title inside a source line, `[◇] connections` in a row's long-press menu, and `→ link` choosing a note to connect to. Every one was screenshot by launch argument. The two worth doubting are the ones with no visible affordance: the tappable book title (deliberately not underlined — see the design system) and `connections` inside the long-press menu.
 
@@ -305,7 +311,9 @@ This is the single biggest gap in what "verified" means here. **The cheapest fix
 
 `-tinyLibrary <n>`, and both states have now been seen. See §0. The trap worth remembering: the first cut took the first `n` seed notes, which are all from one book, and `ReviewSetBuilder`'s two-per-book cap meant *every* `n` produced the empty state. It spreads across books now.
 
-### 17. The map's gestures have never been made
+### 17. ~~The map's gestures have never been made~~ — **closed by deletion**
+
+**Phase 12 deleted the map**, so all four of these gestures are gone rather than verified — including the app's only destructive gesture with no visible affordance. `[x] not related` on the crossing card replaces the hold-a-line disconnect, and it is a labelled button in a card, not a hidden hold. The argument for §12's XCUITest target survives this entry.
 
 Four interactions were built and none has been performed: selecting a node, tapping a selected hub to expand it, **holding a line to disconnect it**, and tapping empty space to deselect. Every one of them was reached by launch argument instead — `-mapSelect`, `-mapBook`, `-confirmDelete connection` — which proves the state renders and proves nothing about the gesture that should get you there.
 
@@ -324,14 +332,17 @@ The hold is the one to worry about. It's assembled out of a `LongPressGesture` f
 | 5 | ~~Duplicate book check~~, ~~`-tinyLibrary`~~, ~~run Release~~ | **Done.** §0 | done |
 | 6 | ~~Install an iOS 18 runtime, run the suite on it~~ | **Done.** §4 — 402 pass on 18.5, same graph as 26.5, and §21 came out of it | done |
 | 7 | **Run once on Nathaniel's iPhone** | Unblocks voice, OCR, barcode, share — four features asserted and never observed, plus Release at `-O`, plus the dark app icon (§20) | an evening |
-| 8 | **A minimal XCUITest target** | The only thing that can catch a dead button; delete-by-long-press and the map's hold-a-line have no visible affordance at all (§17) | half a day, and it needs the Xcode GUI |
+| 8 | **A minimal XCUITest target** | The only thing that can catch a dead button; delete-by-long-press has no visible affordance at all, and `[x] not related` has never been pressed | half a day, and it needs the Xcode GUI |
 | 9 | Say something when the store falls back to memory | The quiet half of §7 — notes written into it vanish | an hour, plus a decision |
 | 10 | ~~Measure and then narrow the recompute~~ | **Done.** §15 — measured at 0.71 µs a pair, and 2× faster than it was | done |
 | 11 | Receive one reminder | §19 — the whole feature is unobserved, and the simulator can deliver it. **Not from a shell**: phase 9 established that neither `simctl privacy` nor `simctl push` can get past authorization | ten minutes of somebody's hands |
 | 12 | Confirm §22 and §23 against a crash log | Both are fixed on four and three separate arguments; which one it actually was is still unknown | a file off the phone |
-| 13 | Hit-test the map by nearest node | §24 — above ~100 notes a tap can select the neighbour, and raising the spacing floor is not physically available | half a day, and a finger |
+| 13 | ~~Hit-test the map by nearest node~~ | **Gone.** §24 closed by deletion — phase 12 removed the canvas rather than the overlap (`docs/decisions.md` §21) | done |
+| 14 | **Restore `ThemeIsolationTests`** | §1 — phase 12's sweep deleted it with three `ThemeEngine` test files. The guard on the app's worst crash class is currently absent and the suite is green anyway, which is the whole problem | ten minutes, and it is a copy out of git |
 
 **Item 7 is now the only expensive thing left, and it is first.** It was four features asserted and never observed; phase 6 added a fifth, and that one decides whether the app's defining feature works at all (§14). Item 6 is done, and doing it is what produced §21.
+
+**Phase 12 is what the second evening said**, and it was not a defect list: the map had no reason to be opened. `docs/decisions.md` §21.
 
 **Phase 11 is what one evening of item 7 looks like when it finally happens**, and it is worth reading the ratio: six reports, two crashes, one of them in the file this document had explicitly declared clear.
 

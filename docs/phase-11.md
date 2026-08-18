@@ -3,7 +3,8 @@
 **Read `CLAUDE.md` first, then this.** `docs/planning.md` says what was built; this file says what the first
 finger found and how far through fixing it we are.
 
-Started 2026-08-18. Every phase before this one was verified by unit tests, launch arguments and screenshots —
+Started 2026-08-18, and **closed the same day** — the pass that followed it deleted a whole tab (`docs/phase-12.md`).
+Every phase before this one was verified by unit tests, launch arguments and screenshots —
 `docs/issues.md` §12 has said since phase 5 that **nothing in this app had ever been tapped.** Nathaniel has
 now run it on a device. Six reports came back, two of them crashes, and both crashes sit in code the simulator
 physically cannot reach.
@@ -70,8 +71,8 @@ Two more came out of the AX5 screenshot, which is the sixth time an image has sa
 - [x] The foot keeps a constant height, so selecting a node never re-lays out the graph
 - [x] `withAnimation` on the `placed` assignment, keeping the `Task.isCancelled` guard
 - [x] A second tap on a selected note opens it, like a hub expands
-- [ ] Node separation floor matched to the 44pt hit area — **not done, and it can't be done that way.** A hundred and twenty nodes at 44pt each need essentially the whole canvas, so raising the floor makes the graph worse than the overlap does. Written up as `docs/issues.md` §24 with the arithmetic; the real answer is a nearest-node hit test on the canvas, the same thing `nearestEdge` already does for lines
-- [ ] `web` hoisted out of the body pass — **left alone deliberately.** It is O(N+E) per redraw with a tiny constant, and now that selecting a node no longer resizes the canvas the map barely redraws at all. Removing it means threading `web` through `header`, `canvas`, `panel`, `nearestEdge` and `openAtLaunch` in the least-verified file in the app, on the same pass that is already changing that file. Not worth the risk against a cost nobody can see
+- [x] Node separation floor matched to the 44pt hit area — **closed by deletion.** Phase 12 removed the map (`docs/decisions.md` §21), so there is no canvas to space. The arithmetic below stood and still stands; what changed is that nothing needs it. Originally: **not done, and it can't be done that way.** A hundred and twenty nodes at 44pt each need essentially the whole canvas, so raising the floor makes the graph worse than the overlap does. Written up as `docs/issues.md` §24 with the arithmetic; the real answer is a nearest-node hit test on the canvas, the same thing `nearestEdge` already does for lines
+- [x] `web` hoisted out of the body pass — **closed by deletion.** `web` and the file it lived in are gone. The reasoning for leaving it alone was right at the time and is worth keeping for the next time somebody proposes a refactor of the least-verified file in the app on the same pass that is already changing it. Originally: **left alone deliberately.** It is O(N+E) per redraw with a tiny constant, and now that selecting a node no longer resizes the canvas the map barely redraws at all. Removing it means threading `web` through `header`, `canvas`, `panel`, `nearestEdge` and `openAtLaunch` in the least-verified file in the app, on the same pass that is already changing that file. Not worth the risk against a cost nobody can see
 
 ### Stage 4 — reading progress comes out
 Decided 2026-08-18. `Book.currentPage` had one entry point and one display and was never going to move on
@@ -103,9 +104,11 @@ xcodebuild -scheme Marginalia -destination 'platform=iOS Simulator,name=iPhone 1
   -derivedDataPath .build-ios18 build test
 ```
 
-402 tests must still pass on both. Screenshot both appearances **and** `accessibility-extra-extra-extra-large`
+386 tests in 34 suites must pass on both — it was 402 when this file was written, and phase 12 took 93 `@Test` cases out with the map. Screenshot both appearances **and** `accessibility-extra-extra-extra-large`
 after every UI stage and look at the whole image — five real defects on this project were invisible in code
 and obvious in a picture.
 
 **Stages 1–3 have a device as their only real verdict**: press `[●]` twice quickly, swipe the full review set
-to the closing card and back, tap `keep going`, and tap around the map watching whether the graph holds still.
+to the closing card and back, and tap `keep going`. Stage 3's other half — tapping around the map watching
+whether the graph holds still — was answered instead by the device read that started phase 12: the graph held
+still and nobody wanted to look at it. `docs/phase-12.md`.

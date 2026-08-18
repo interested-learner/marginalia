@@ -106,9 +106,11 @@ records that four labels already overflow a phone at 13pt mono.
   always showing the strongest (which shows one pair every day until it is suppressed). `daySeed` is private
   to `ReviewSetBuilder` today and becomes `internal` so both can use one definition of what a day is.
 - **It avoids the day's own notes where it can.** `CrossingFinder` is told which ids are already cards, and
-  skips candidates that overlap them; if every candidate overlaps, it shows the best one anyway rather than
-  showing nothing. Seeing `n.03` as card 2 and again as half of card 9 is a small oddity; suppressing the
-  feature on a small library is a bigger one.
+  skips candidates that overlap them; if every candidate overlaps, it **rotates over the full ranked list**
+  rather than showing nothing. Not the strongest — pinning the strongest there would show one pair every day
+  on a small library, which is the exact failure the rotation exists to prevent, and a small library is
+  precisely where every candidate overlaps. Seeing `n.03` as card 2 and again as half of card 9 is a small
+  oddity; suppressing the feature on a small library is a bigger one.
 - **Paging past a crossing surfaces nothing.** `ReviewWriter` is not called for it. The crossing is extra, and
   marking both notes surfaced would quietly reshape tomorrow's eight — `ReviewSetBuilder` scores on exactly
   that field.
@@ -187,7 +189,7 @@ tab and becomes an ordinary quality question about a line of text under a note.
 **New tests.** `CrossingFinderTests`, mirroring `ReviewSetBuilderTests` in shape: cross-book only · the Inbox
 excluded · suppressed edges excluded · one appearance per note · strongest first with the tie-break · stable
 within a day · **rotating across consecutive days, and cycling rather than exhausting** · avoiding the day's
-own note ids where a candidate allows and falling back to the strongest where none does · `nil` on a library
+own note ids where a candidate allows and rotating over the whole ranked list where none does · `nil` on a library
 with no cross-book edge, leaving review exactly as it is today. `RelativeTimeTests` grows `gap`: same day, days, months, negative interval.
 
 **Regression.** ~310 tests on iPhone 17 and on iPhone 16 / iOS 18.5, own derived data each

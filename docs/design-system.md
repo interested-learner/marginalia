@@ -22,7 +22,7 @@ Light and dark are the same palette inverted. The light values are the prototype
 | `textBody` | `#424245` | `#d8d6d6` | Note body text |
 | `textMute` | `#646262` | `#9a9898` | Source lines, secondary labels, inactive tabs |
 | `textAsh` | `#9a9898` | `#787676` | Note ids, timestamps, metadata, counts |
-| `hairline` | `rgba(15,0,0,0.12)` | `rgba(253,252,252,0.14)` | Every divider, unfilled border, margin rule, and graph edge |
+| `hairline` | `rgba(15,0,0,0.12)` | `rgba(253,252,252,0.14)` | Every divider, unfilled border, margin rule, and the line between a crossing's two halves |
 | `disabled` | `#9a9898` | `#646262` | Filled button with nothing to do |
 | `danger` | `#ff3b30` | `#ff453a` | Recording dot, destructive confirmation |
 
@@ -51,12 +51,10 @@ Sizes are **one step up from the prototype**, which was drawn for a browser wind
 
 **Every size scales with Dynamic Type.** Define the scale once in `Typography` against a text style and let it move with the reader's setting — never `.system(size:)` with a fixed number. Layouts must survive the accessibility sizes without clipping, and note bodies wrap rather than truncate.
 
-**Chrome stops growing at `xLarge`; content never stops.** `Typography.chromeCeiling` and the `chromeTypeSize()` modifier. It goes on the tab bar, `ScreenHeader`, review's foot, **the map's nodes and its foot, and the capture bar's two marker buttons** — and on nothing else. Everything that is the reading — every note body, quote, source line, thread, book title and field — is uncapped.
+**Chrome stops growing at `xLarge`; content never stops.** `Typography.chromeCeiling` and the `chromeTypeSize()` modifier. It goes on the tab bar, `ScreenHeader`, review's foot **and the capture bar's two marker buttons** — and on nothing else. Everything that is the reading — every note body, quote, source line, thread, book title and field — is uncapped.
 
 The last three were added in phase 11, all three found by looking at one screenshot at the largest accessibility size, and all three are the same argument the first three were:
 
-- **A map node is a marker, not prose.** `GraphLayout` is told how much room each label needs in *characters* — mono makes that an exact ratio — so type that keeps growing inside a box that doesn't turns the whole library into a pile of overlapping words. At AX5 it was illegible.
-- **The map's foot previews what you tapped**, and uncapped it took roughly three quarters of the screen, leaving the graph a strip. A panel that previews a thing cannot be bigger than the thing. The note itself is read by tapping `→ open note`, on a surface with no ceiling.
 - **`[+]` and `[●]` are 48pt boxes** carrying one marker each. At AX5 the save button rendered as `…` and the record button burst its own brackets. **A marker truncated to an ellipsis has stopped being a marker.** The field between them is uncapped, which is the half that matters.
 
 The rule is about what the text is *for*. A note is what the reader came to read and gets every point it asks for. A signpost that fills the room it points out of is worse at its job, not better: at `accessibility-extra-extra-extra-large` the four tab labels wrapped through each other, the stream's header came apart into eleven lines, and the ten-cell `[████░░░░░░]` progress bar wrapped onto two — a bar that has stopped being a bar. **This is the only ceiling in the app.** Anywhere else, `relativeTo:` is the whole story.
@@ -82,7 +80,7 @@ ASCII markers replace icons entirely. Defined as named cases in `Design/Glyphs.s
 | `[-]` | Book queued |
 | `[~]` | Stream tab |
 | `[=]` | Books tab |
-| `[◇]` | Map tab |
+| `[◇]` | Crossing — the review card that is two notes |
 | `[↻]` | Review tab · transcribing · shuffle |
 | `[q]` | Quote note |
 | `[t]` | Thought note |
@@ -114,11 +112,11 @@ All chrome is lowercase — tab labels, the wordmark, screen titles, placeholder
 
 A `hairline` beneath, always.
 
-**The stream's header is the only one that carries actions**, and it carries exactly two. Search and settings are screens with no tab — there is no fifth tab to give them and there will not be one — so they hang off the screen that is the app's home. Link buttons, like every other action in the app that isn't the one thing the screen is for. Both push a screen with `← stream` and both keep the tab bar: a screen, not a question.
+**The stream's header is the only one that carries actions**, and it carries exactly two. Search and settings are screens with no tab — there is no tab spare for them and there is not going to be another one — so they hang off the screen that is the app's home. Link buttons, like every other action in the app that isn't the one thing the screen is for. Both push a screen with `← stream` and both keep the tab bar: a screen, not a question.
 
 ### Tab bar
 
-**Four** items — `[~] stream` · `[=] books` · `[◇] map` · `[↻] review` — each `flex: 1`, minimum height 52. The container has a `hairline` on top and 26pt bottom padding.
+**Three** items — `[~] stream` · `[=] books` · `[↻] review` — each `flex: 1`, minimum height 52. There were four; `docs/decisions.md` §21 is why `map` is not one of them. The container has a `hairline` on top and 26pt bottom padding.
 
 The active tab is marked by a **2pt `ink` border on its top edge, offset up 1pt** so it overlaps the container's hairline — the indicator sits above the tab, not below it. Active label is 700 `ink`; inactive is 400 `textMute`.
 
@@ -298,111 +296,6 @@ Primary is minimum height 48 at 16/500. Secondary is 10pt vertical at 14/500. Di
 
 Padding `24 × 20`, 15pt `textAsh`, prefixed with `[x]`: `[x] no notes yet — capture the first one`.
 
-### Map — the overview
-
-**The tab's top level is a summary, not a drawing.** `docs/decisions.md` §20 has the reasoning: a node labelled `n.07` is an opaque handle, so a canvas of forty-six of them is a picture nobody can read. The overview says what the reader has been thinking about, in words, in a list — which is also the only form of this screen that Dynamic Type and VoiceOver work on.
-
-Three sections, in this order, down one scroll.
-
-```
- map                                          [46]
- 46 notes · 7 books · 12 themes
-──────────────────────────────────────────────────
-  #attention                    11 notes · 3 books
-  ▇▇▇▇▇▇▇▇▇▇▇▇
-  ▌the cost of a distraction is not the
-  ▌minute it takes                           n.18
-
-  error · systems · blame        7 notes · 2 books
-  ▇▇▇▇▇▇▇
-  ▌human error is system error               n.04
-
-  quality · noticing             5 notes · 2 books
-  ▇▇▇▇▇
-   a thought — no rule, textBody             n.30
-──────────────────────────────────────────────────
- crossings                                     [6]
-  n.18  the cost of a distraction is not the
-        minute it takes
-        — Thinking, Fast and Slow
-   │
-  n.02  an affordance is a relationship,
-        not a property
-        — The Design of Everyday Things
-──────────────────────────────────────────────────
- loose                                         [8]
-  n.11  the map is not the territory
-  n.24  a deadline is a kind of attention
-                                    and 6 more
-```
-
-- **One header, and it always says `map`.** The bracketed count on the right is notes in the library. Under it, one orientation line at 13 `textMute` in the header's caption slot: `46 notes · 7 books · 12 themes`. That line is the whole of the "library at a glance" idea — a quotes-versus-thoughts bar and a most-thought-with ranking were both cut, because a counter is not a takeaway (§20).
-- **Section heads reuse the stream's date-group header**, and the counts reuse `Glyphs.count`. Nothing new is introduced for this screen.
-
-#### Theme row
-
-- **A section shows at most eight rows**, then a plain line: `and 12 more`. It states a fact rather than offering a door — a summary that ran to four hundred rows would have stopped being one, and there is nowhere for a link to lead that search and the stream don't serve better.
-- **A theme has no marker.** `[~]` is already both the Inbox status and the stream tab, and a theme has no status to report. Adding a fifteenth bracket-glyph for it would be inventing vocabulary to say nothing.
-- **A theme may have no name, and then it has no heading** — the counts stay right and the exemplar leads. This is common and it is not a failure state: on the seed library three of seven themes are unnamed, and they read better than the weakly-named ones, because `Care and Quality are internal and external aspects of the same thing` says more than `mechanism` does. `ThemeName` returns nothing where the theme's notes share no word, because naming an incoherent group is the app asserting something it does not know. The first run of `ThemeDumpTests` named one `aspects · attention · automatically`: three words beginning with `a`, which is not a coincidence but the signature of the failure — with no word shared every candidate ties on weight and the alphabetical tie-break returns the first three words in the group.
-- **The name is extracted from the notes and never comes from a tag** — `error · system`, `human error · system design`. Set at 15/500 `ink`, the same as a book title. Tags named themes for one afternoon and the rule was pulled: the grouping never needed them, but six of seven seed themes came out tag-named and the screen read as though tagging were the mechanism. Nothing here depends on anything the reader typed. `docs/decisions.md` §20.
-- **Noun phrases, not keywords.** Single words gave `error · systems · blame`, which reads as machine output. `NounPhrases` offers phrases and bare nouns; a phrase wins ties. No two parts of a name may share a word, or it comes out `human error · system error · error messages`.
-- **There is no weight bar.** One was drawn — first as ragged `▇`, then as `ASCIIProgressBar` — and both came out. It encoded theme size against the largest theme, which the sort order and the note count each already carry; and a progress bar means *how far through something you are*, which a theme is not. The largest theme always filled every cell, reading as 100% of nothing.
-- **The counts sit right: `11 notes · 3 books`** at 13 `textAsh`. Books-spanned is the fact worth carrying here, because an idea that appears in three books is the thing this app exists to notice.
-- **The exemplar wears the rule and no quote marks.** The note at the centre of the theme, two lines — **five at the accessibility sizes**, because the exemplar is the evidence and at two lines it truncated to `Slips and mistakes are…`, which is no evidence at all. The name, the counts and the bar are chrome and stop growing; this is content and does not. Its id trails at 13 `textAsh`. A passage exemplar — `.quote` or `.scan`, per `NoteKind.isPassage` — gets the 2pt `ink` rule and `ink` text; a thought exemplar gets neither and `textBody`. Identical to how bodies render everywhere else in the app, and **never with `“ ”`**.
-- **The exemplar is evidence, not decoration.** It is what lets a reader judge a grouping the app got wrong, which matters more here than anywhere because the themes ride on an embedder nobody has verified.
-- Tapping a theme opens its notes as ordinary `NoteRow`s, with `[◇] graph` one tap further.
-
-#### Crossing
-
-A **crossing** is one connection that spans two books — the most concrete form of what this app is for, and what the reader in §19 assumed the map was showing all along.
-
-- Two note fragments, each `n.18` at 13 `textAsh` in the margin position, two lines of the note, then the book behind an em dash at 13 `textMute`.
-- **Joined by `│`**, box-drawing, one character, in `hairline`. Not a drawn edge and not a second line weight — the same subtraction logic §19 settled: this screen adds no vocabulary.
-- Strongest first, and **no note appears twice**. This is a display rule, not a claim about the data: the first run of this screen put `n.18` in three consecutive rows with its full text repeated each time, which is the hub behaviour phase 6 recorded arriving in the UI. Every one of those connections still exists, on the graph and on the note; the list shows the strongest crossing each note has, so eight rows are eight ideas.
-- Tapping either half opens that note.
-- **A long press offers `disconnect`.** This is the row that retires the app's only hidden destructive gesture — holding a line on the canvas — and puts deletion in the long-press menu every other listed row in the app already uses. It goes through `Eraser.suppress`, the app's own `ConfirmSheet`, and a `LinkWriter.relink` after, exactly as the canvas did.
-
-#### Loose
-
-Notes in no theme, connected to nothing. `n.11` and one line of the note, capped, with `and 6 more` at 13 `textAsh` when there are more than fit.
-
-**It is not a scolding and not a to-do list.** It is there because a summary that showed only the connections the app *found*, while hiding the notes it couldn't place, would be dishonest in an app whose docs are this careful about their own failures — eight of the forty seed notes are isolated. A note whose vector was made by a model that isn't the one loaded today is loose too, and says so rather than being silently dropped.
-
-### Map — the graph
-
-**The canvas survives at the two sizes where a graph is legible**: one theme's notes, and two hops from one note. One book on its own still opens from a hub. **The whole-library view and the book-hub collapse are gone** — §20 — and with them `collapseAbove` and `-mapCollapse`. A knowledge graph in a system with no color and no images; the constraint is the point, and this should read as a terminal drew it, not as a data-viz library did.
-
-```
-     n.01
-        ╲          n.09
-         ╲        ╱
-          ██n.07██
-         ╱        ╲
-        ╱          ╲
-     n.03          n.11
-
-   [Meditations]
-```
-
-- **Nodes are the note id itself**, set in mono at 13 — `n.07`, not a dot with a label beside it. There are no circles in this graph.
-- **Books are hub nodes**, bracketed and bolder: `[Meditations]` at 13/700. That's the only difference between the two node types — no color, no shape change.
-- **A hub is the book's first word, not its title.** `[Meditations]` is the whole of one title and none of `Zen and the Art of Motorcycle Maintenance`; forty characters of bold mono lie across half the graph and cover the notes the hub is meant to be gathering. A leading article is dropped, because `[The]` names nothing. So: `[Thinking]`, `[Zen]`, `[Design]`, `[Beginning]`, `[Inbox]`. The panel at the foot carries the whole title when a hub is selected, and that's where the disambiguation lives if two books ever start with the same word.
-- **A note's line to its own book is drawn like any other line.** There is one line weight in this system. It isn't a connection anybody suggested, though, so it can't be held down on and deleted, and it doesn't count toward the weight of either end.
-- **Edges are `hairline`**, 1px, at the same 12% as every divider in the app.
-- **The reader can subtract the book lines.** A chip row under the header — `all lines` / `connections only`, the same `TagChip` the library and the stream use — stops the attachments being drawn. **It still earns its place in a theme's graph**, because a theme spans books and so still carries attachments. **It is a filter and not a second line style**, which is why the rule above survives it intact: nothing is dashed, nothing is lightened, nothing gains a weight. Lines are drawn or they are not.
-- **The filtering happens at the stroke, not in the graph.** `GraphLayout` is told about every edge either way, so **not one node moves when the filter changes** — verified by pixel-comparing the two states. Removing edges from the graph would re-key the layout task and reshuffle the screen, and it would also stop the hubs gathering their clusters, since the attachment is the force that does the gathering.
-- **Selection inverts.** The node fills `ink` with its text in `onInk`, and its edges go to full-opacity `ink` while every other edge stays at hairline. That is the entire interaction vocabulary — no highlight color, no glow, no shadow.
-- **Connection count shows as weight** — 400 → 500 → 700 — never as node size. Varying node size would introduce a visual dimension the rest of the app doesn't have.
-- **The foot is always there, and it is always the same height.** A selected node previews its note in it — metadata, three lines of the note, the source, then two link buttons: `→ open note` and `[◇] connections`, which narrows the map to two hops around it. A hub previews the book — `[+] Meditations`, then `author · status · 12 notes` — and offers `→ open book` and `[◇] only this book`. Link buttons, never filled ones, like every other action row in the app.
-- **With nothing selected it says what the screen does**: `tap a note to preview it, again to open it` over `hold a line to disconnect two notes`. This is the most gestural screen in the app and it was the only one that never said so.
-- **The constant height is not cosmetic.** The panel used to appear and disappear, which changed the canvas's height, which changed the aspect ratio `GraphLayout` is told, which re-ran the entire force-directed layout — so **tapping a node reshuffled the whole graph**, and two notes with different-length previews reshuffled it differently. Reserve the room and none of that happens. `docs/issues.md` §5 in the phase 11 list.
-
-Nodes need a 44pt minimum hit target even though the drawn text is smaller.
-
-Layout is force-directed and cached; it only recomputes when the graph changes.
-
-**The header always says `map`.** A narrowed view says what it is on a line under the title — `two hops from n.18`, `#attention`, `Meditations` — and carries `← map` back. The count on the right is nodes on screen, not notes in the library.
-
 ### Review card
 
 Full screen, one note, **vertical** paging. Header shows `daily review` at 18/700 with the position `3 of 8` at 13 `textAsh` on the right, clamped so the closing card reads `8 of 8` rather than `9 of 8`.
@@ -416,12 +309,46 @@ The action row sits below the note as link buttons, never filled ones:
 ```
 [+] add a thought   [ ] star
 → open book   share
-[◇] connections   → link
+→ link
 ```
 
-**Rows of two, never a row of four.** Four labels are ~320pt of 13pt mono before gaps, which overflows a phone at the default text size and is hopeless above it — the same arithmetic that gives the capture sheet three segments instead of four. Six actions is three rows by the same arithmetic. A starred note reads `[*] starred`; there is no other state change. `share` is bare rather than glyphed: every marker here is bracket-plus-character, and no bracketed character means "share" without becoming a picture.
+**Rows of two, never a row of four.** Four labels are ~320pt of 13pt mono before gaps, which overflows a phone at the default text size and is hopeless above it — the same arithmetic that gives the capture sheet three segments instead of four. Five actions is still three rows: `→ link` takes one of its own rather than crowding a third label beside `→ open book` and `share`. A starred note reads `[*] starred`; there is no other state change. `share` is bare rather than glyphed: every marker here is bracket-plus-character, and no bracketed character means "share" without becoming a picture.
 
-`[◇] connections` opens the map two hops out from this note — the same view the map's own panel offers, from the screen where you're actually reading the note. `→ link` opens the note picker below.
+There was a third row, `[◇] connections`, opening this note's corner of the map. It went with the map — `docs/decisions.md` §21. `→ link` opens the note picker below.
+
+### Crossing card
+
+The ninth card of the daily review, when the library has one to show: **two notes from two different books that the app connected by meaning**, and the gap in time between them. `docs/decisions.md` §21.
+
+```
+n.08 · n.40 · [◇] crossing
+
+good error messages assume the
+system is at fault, not the person
+using it
+
+— Norman · p. 62 · aug 2025
+
+──────────────────────────────────
+
+you are already part of the machine
+you think you are repairing
+
+— Pirsig · p. 210 · mar 2026
+
+29 days apart   [x] not related
+```
+
+- **Centred and open like the review card**, and for the same reason: **no margin**. The margin belongs to screens where a row is one of many.
+- **The head is one line of metadata** at 13 `textAsh`: both ids and the marker — `n.08 · n.40 · [◇] crossing`.
+- **Both halves are `noteBody`, not `reviewBody`.** Every other review card is one note filling the screen at 18pt; two at 18pt puts the second below the fold before the reader has a reason to look for it, and the gap between them is the point of the card. Body `ink`, source `textMute` behind an em dash — identical to everywhere else, and **a passage half wears the quote rule and no quote marks**, by `NoteKind.isPassage`.
+- **A `Hairline` between them, and never an arrow.** `NoteEdge` stores a direction and the app has displayed both ways since phase 6; a `→` here would be the first place it contradicted that. It is the same 12% hairline as every divider — this card adds no vocabulary.
+- **The foot is the gap and the one action**: `29 days apart` at 13 `textMute`, then `[x] not related` as a link button. Once pressed it becomes the past tense — `disconnected` at 13 `textAsh` — and the card stays where it is rather than vanishing under the thumb.
+- **`[x] not related` goes through `ConfirmSheet` and `Eraser.suppress`**, like every other delete in the app. It is an affordance, never a question: it does not gate paging and skipping it costs nothing.
+- **Tapping either half opens that note.** Everything a note can do — `star`, `add a thought` — is where the note is; the card does not carry six actions for two notes.
+- **It scrolls only when it overflows**, the same guard `ReviewCard` carries: a vertical scroll view nested inside the vertical *paging* scroll view swallows the page gesture otherwise.
+
+**Two full notes on one screen is the first card in this app designed to hold two**, and the accessibility sizes are where that will be decided. As of phase 12 it has been read in both appearances and **not** at `accessibility-extra-extra-extra-large`.
 
 ### Note picker
 
@@ -510,8 +437,6 @@ be undone.
 ### Deleting a row
 
 A note or a follow-up is deleted by **long-pressing the row**, which opens the confirmation above. There is no permanent `delete` on a stream row — there is nowhere on a row that dense to put one without it competing with the note itself.
-
-The same long press carries `[◇] connections`, which opens the map two hops out from that note. It is there for the same reason `delete` is: a row this dense has no room for a second permanent word, and the gesture is already learned.
 
 **A row can be deleted where it is listed, not where it is being read.** Stream rows and book-detail rows carry the gesture; the review card does not, because review is a reading surface and destroying the card under your thumb is not worth being able to do by accident.
 

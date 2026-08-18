@@ -109,7 +109,7 @@ Considered and rejected: **naive keyword overlap** (cheap and explainable, but "
 
 ## 11. A map, as a fourth tab
 
-**2026-08-13 · settled**
+**2026-08-13 · superseded by §21** — the tab is gone; the escape clause at the foot of this section is what §21 invoked
 
 An Obsidian-style graph of the library. Both a **global** view — everything as one shape — and a **local** one reachable from any note, two hops out. Both exist because a global graph is only legible in a narrow band: sparse and sad at twelve notes, an unreadable hairball at five thousand. A local graph reads clearly at any size and answers the question you actually have while reading a note.
 
@@ -227,7 +227,7 @@ Escalating is never destructive. The bar keeps its draft until `CaptureSheet` re
 
 ## 19. The map lets the book lines be subtracted, and stays at one line weight
 
-**2026-08-18 · settled** · answers a question §15 didn't ask; overturns nothing in §11 or §15
+**2026-08-18 · superseded by §21** · answered a question §15 didn't ask; overturned nothing in §11 or §15. The screen it describes is deleted
 
 A reader looking at the map asked whether it was "just linking the book to the notes connected to it," and said they had thought the point was to connect ideas *across* books. Both halves of that are worth taking seriously, because the first is wrong and the second is exactly what the app does.
 
@@ -243,7 +243,7 @@ A reader looking at the map asked whether it was "just linking the book to the n
 
 ## 20. The map becomes a summary; the graph is demoted to bounded views
 
-**2026-08-18 · settled** · invokes §11's own escape clause; amends §15 and §19 by reference, overturns neither
+**2026-08-18 · superseded by §21, one day later** · invoked §11's own escape clause; amended §15 and §19 by reference. Its diagnosis of the *drawing* was right and is worth reading; its diagnosis of why nobody opened the tab was not
 
 §19 made the idea graph legible and said plainly that legible is not the same as good. Read once more with a finger on it, the tab still had no takeaway — and the reason turned out to sit underneath every drawing question either §15 or §19 asked.
 
@@ -302,3 +302,31 @@ What that buys:
 ### What this does not fix, again
 
 **Rank-invariance fixes scale, not signal.** If the embedder cannot measure meaning at note length — and the fallback demonstrably cannot — then the rankings are noise too and the themes are well-formed nonsense. This change makes the summary well-*formed*; the device run makes it *true*. `ThemeDumpTests` prints every theme and its notes so the judgement can be made by reading, the same device `AffinityDumpTests` was built as in phase 6, and it should be read the same evening 12b happens. **A confidently wrong theme name is a louder mistake than a wrong line on a graph** — the exemplar quote and the tag-naming are the two hedges against that, and they are why this was worth building before the verdict rather than after.
+
+## 21. The map comes out; a crossing becomes a card
+
+**2026-08-18 · settled** · supersedes §11, §19 and §20 · full reasoning in `docs/specs/2026-08-18-crossings-design.md`
+
+The map was read on a device for the first time. The complaint that came back was **not** that the themes were wrong.
+
+It was that there was **no reason to open it**, and that it **read as a feature rather than a use**.
+
+That is a different failure from the one this repo had been braced for, and it outranks it for a reason worth being exact about: **a perfect embedder does not fix it.** Verified `NLContextualEmbedding` output would have produced better themes on a screen nobody visits. Since phase 6 every decision about the map has waited on a measurement — `docs/issues.md` §14 proves the simulator cannot run the model at all, §6 ranks a device run as the most valuable open item in the project — and that measurement could not have changed this verdict.
+
+**§20 answered the same complaint one level shallower and rebuilt the room.** It recorded *"the tab still had no takeaway"*, diagnosed it as illegibility — every node an opaque handle — and replaced the canvas with a summary that a reader could actually read. That diagnosis was right about the drawing and it produced a better screen. It was answering the wrong question. Legibility was never the thing keeping anyone out; **the tab had no moment in a day that wanted it.**
+
+**The map and review want the same thing, and only one of them has a reason to be opened.** §4 says review exists for *running into your own thinking again*, and gives it the two properties that make somebody come back: it is a **ritual**, and it **ends**. The map has been a second surface competing for that same instinct with neither property — unbounded, always available, never different, therefore never urgent.
+
+A **crossing** — the same idea reached from two different books, months apart — *is* running into your own thinking again. It sat in `MapView.crossingRows` as a computed property on a screen nobody opened, and it is the best thing the linking engine computes. So it moves to where the reader already is.
+
+**The crossing card.** One card in the daily review that is two notes rather than one, read-only, appended after the eight and before the closing card. At most one a day, and only when an unshown crossing exists — punctuation in the set, not half of it. Three things carry it and **none of them is a claim the model makes**: two books (a fact about where), the gap in time (a fact about when, and the one that lands — *you thought this in August and again in March and never noticed*), and a hairline between the halves rather than an arrow, because `NoteEdge` stores a direction and the app has displayed both ways since phase 6. `Glyphs.tabMap` is free once the tab dies, so `[◇]` becomes `Glyphs.crossing` and the vocabulary does not grow.
+
+**Day-stable and rotating.** `CrossingFinder` ranks every cross-book connection once, and the day picks `crossings[daySeed % count]`. Rejected: a `lastShownAt` on `NoteEdge` — a schema change bought for a rotation — and always showing the strongest, which shows one pair every day until it is suppressed. The same rotation is the fallback when every candidate overlaps the day's own eight notes: **not the strongest**, for exactly that reason, and a small library is precisely where the overlap happens.
+
+**`[x] not related` is the first feedback loop in the linking system.** Since phase 6 the app has guessed at meaning and the reader has had no way, anywhere, to say it guessed wrong. It calls `Eraser.suppress` through `ConfirmSheet` — every delete goes through one door — and suppression is what makes the answer stick, because every recompute is a full one (§15). Given §14, no human has ever seen output from the model this design is built on; a reader's own "no" is worth more than any amount of tuning the floor, which §10's own reasoning forbids anyway. It is an affordance, never a question: it does not gate paging, it is not asked for, and skipping it costs nothing. **Zero-work stays zero-work.**
+
+**Three tabs: stream · books · review.** What comes out is `Features/Map/` entire, `ThemeEngine`, `ThemeName`, `NounPhrases`, `GraphLayout`, the `map` tab, the cross-tab `web` route, `[◇] connections` in both places it was offered, and eight launch arguments — 4,082 lines and 93 tests. `GraphLayoutTests` is the loss worth naming: nineteen tests over genuinely hard geometry, all correct, none with a consumer any more. **What survives gets more load-bearing**, not less: `NoteEmbedding`, `AffinityEngine`, `LinkWriter`, `ConnectionIndex`, `NoteEdge`, `Eraser.suppress`, `AffinityDumpTests`, and the backlinks drawn under every note on stream, book detail and the review card. `NotePicker` and `→ link` stay — the manual override outlives the screen it was built beside.
+
+**The argument against, recorded rather than answered: §20 is one day old.** Deleting it the next morning is either good judgment or thrash, and the difference is whether *no reason to open it* is a durable read or a first impression. It was taken as durable, because it is the same complaint §20 recorded about *its* predecessor, answered one level deeper. §11 wrote the escape clause — *"if the map doesn't earn its place in use, it moves back inside Books"* — §20 invoked it by rebuilding, and this invokes it as written.
+
+**And the honest failure mode, which is not a screen problem.** If the crossing card is opened for a month and skipped every time, the conclusion is not that it needs a better card. It is that automatic linking is interesting to build and not interesting to read — which is §10's own flagged risk coming true: *because nobody types a link, nobody learns the habit; if automatic linking underdelivers there is no fallback behavior to lean on.* That would be worth knowing, and there is now one screen where it can be observed instead of three where it could not.
