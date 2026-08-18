@@ -91,8 +91,8 @@ nonisolated enum CrossingFinder {
         return pool[Int(seed % UInt64(pool.count))]
     }
 
-    /// Ties break on the pair, low id first — the same rule `AffinityEngine`,
-    /// `MapGraph` and `ReviewSetBuilder` all use, so a recompute over unchanged
+    /// Ties break on the pair, low id first — the same rule `AffinityEngine`
+    /// and `ReviewSetBuilder` both use, so a recompute over unchanged
     /// notes returns the same order.
     private static func strongestFirst(_ x: Crossing, _ y: Crossing) -> Bool {
         guard x.score == y.score else { return x.score > y.score }

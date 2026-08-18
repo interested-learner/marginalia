@@ -223,11 +223,11 @@ Tools/
 | `-bookSearch "<query>"` | fills the form's search field and runs it |
 | `-bookFilter <reading\|queued\|finished>` | opens the library on that chip |
 | `-reviewCard <n>` | opens review on the nth card of the day's set |
-| `-reviewCrossing 1` | opens review on the crossing card — the ninth, which is otherwise reachable only by swiping past all eight |
+| `-reviewCrossing 1` | with `-startTab review`, opens review on the crossing card — the ninth, which is otherwise reachable only by swiping past all eight |
 | `-reviewEnd 1` | opens review on the closing card |
 | `-followUp 1` | opens the follow-up composer over the current card |
 | `-confirmDelete <book\|note>` | opens the delete confirmation over book detail |
-| `-confirmDelete connection` | with `-reviewCrossing 1`, the disconnect confirmation over the crossing card — `[x] not related` is a button on the ninth card, and the simulator can neither swipe to one nor tap the other |
+| `-confirmDelete connection` | with `-startTab review`, the disconnect confirmation over the crossing card — `[x] not related` is a button on the ninth card, and the simulator can neither swipe to one nor tap the other. Stands alone: `ReviewView.openAtLaunch` positions itself on the crossing, so `-reviewCrossing 1` isn't needed alongside it |
 | `-search "<query>"` | opens the search screen with that query already run |
 | `-settings 1` | opens settings |
 | `-preference.notifications 1` | settings with the reminder on — **and the permission prompt, which sticks to the simulator until it's answered by hand.** Reboot the simulator to clear it |

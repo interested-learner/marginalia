@@ -93,7 +93,8 @@ Shipping toward a first App Store release. Current state and what's next in [`do
 - [x] Crossings — the same idea from two books, in the daily review
 - [x] Full-text search, Markdown export, daily notification
 - [x] Camera OCR capture
-- [x] App icon, empty states, device polish
+- [x] App icon, empty states
+- [ ] Device polish — nothing in this app has run on a physical device yet (`docs/issues.md` §6), and the crossing card's AX5 fold is an open defect (`docs/issues.md` §25)
 
 Later: iCloud sync, Lock Screen widget, Share extension, iPad.
 

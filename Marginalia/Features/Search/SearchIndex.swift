@@ -2,7 +2,7 @@ import Foundation
 
 /// Which notes a query finds, and which book they sit under.
 ///
-/// **Pure**, like `ReviewSetBuilder` and `MapGraph`: plain records in, plain
+/// **Pure**, like `ReviewSetBuilder` and `CrossingFinder`: plain records in, plain
 /// results out, no `ModelContext` anywhere near it. `SearchView` is the half
 /// that reads the store.
 ///

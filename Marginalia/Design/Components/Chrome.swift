@@ -109,7 +109,7 @@ extension ScreenHeader where Detail == EmptyView {
     }
 }
 
-/// Four tabs. The active one is marked by a 2pt ink border on its *top* edge,
+/// Three tabs. The active one is marked by a 2pt ink border on its *top* edge,
 /// offset up 1pt so it overlaps the container hairline — the indicator sits
 /// above the tab, not below it.
 struct TabBar: View {

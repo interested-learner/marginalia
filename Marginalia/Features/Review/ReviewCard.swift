@@ -120,12 +120,12 @@ struct ReviewActions {
 
 /// `[+] add a thought` · `[ ] star` · `→ open book` · `share` · `→ link`.
 ///
-/// **Rows of two, never a row of three.** At 13pt mono three labels are about
+/// **Rows of two, never a row of four.** At 13pt mono four labels are about
 /// 320pt of text before gaps, which overflows a phone at the default text size
 /// and is hopeless above it — the same reason the capture sheet's type selector
-/// offers three segments rather than four. Five actions is two rows, by the
-/// same arithmetic — `→ link` gets a row of its own rather than crowding a
-/// third label beside `→ open book` and `share`.
+/// offers three segments rather than four. Five actions is still three rows —
+/// `→ link` gets a row of its own rather than crowding a third label beside
+/// `→ open book` and `share`.
 private struct ActionRow: View {
     let note: NoteRowData
     let actions: ReviewActions

@@ -327,14 +327,14 @@ good error messages assume the
 system is at fault, not the person
 using it
 
-— Norman · p. 62 · aug 2025
+— The Design of Everyday Things · p.62 · #systems
 
 ──────────────────────────────────
 
 you are already part of the machine
 you think you are repairing
 
-— Pirsig · p. 210 · mar 2026
+— Zen and the Art of Motorcycle Maintenance · p.210 · #systems
 
 29 days apart   [x] not related
 ```
@@ -348,7 +348,7 @@ you think you are repairing
 - **Tapping either half opens that note.** Everything a note can do — `star`, `add a thought` — is where the note is; the card does not carry six actions for two notes.
 - **It scrolls only when it overflows**, the same guard `ReviewCard` carries: a vertical scroll view nested inside the vertical *paging* scroll view swallows the page gesture otherwise.
 
-**Two full notes on one screen is the first card in this app designed to hold two**, and the accessibility sizes are where that will be decided. As of phase 12 it has been read in both appearances and **not** at `accessibility-extra-extra-extra-large`.
+**Two full notes on one screen is the first card in this app designed to hold two**, and the accessibility sizes are where that will be decided. As of phase 12 it has been read in both appearances **and** at `accessibility-extra-extra-extra-large` — and at AX5 it broke: the second note is cut off after its first line and the card's only action, `[x] not related`, falls below the fold. Whether the inner scroll actually reaches it is unconfirmed. `docs/issues.md` §25 has the images and the detail.
 
 ### Note picker
 

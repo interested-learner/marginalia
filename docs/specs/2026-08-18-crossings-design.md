@@ -54,17 +54,23 @@ good error messages assume the
 system is at fault, not the person
 using it
 
-— Norman · p. 62 · aug 2025
+— The Design of Everyday Things · p.62 · #systems
 
 ────────────────────────────────────
 
 you are already part of the machine
 you think you are repairing
 
-— Pirsig · p. 210 · mar 2026
+— Zen and the Art of Motorcycle Maintenance · p.210 · #systems
 
 7 months apart · [x] not related
 ```
+
+**Not implemented: the per-note date in the source line.** This mockup originally sketched `— Norman · p. 62 ·
+aug 2025` on each half, but `RowMapping.source` only ever emits book title · page · tags — it has never carried
+a date, on this card or anywhere else the same formatter is used. Only the aggregate `7 months apart` /
+`29 days apart` line survives; the two source lines above are what the shipped card actually prints. Recorded
+here rather than silently dropped.
 
 Three things carry the card, and **none of them is a claim the model makes**:
 
@@ -125,7 +131,7 @@ same shape as `ReviewSetBuilder`, which likewise takes `[Note]` and a `Date`.
 It is where `MapView.crossingRows` goes, with its rules intact:
 
 - **Cross-book only.** Both notes must have a book, and the books must differ.
-- **The Inbox is not a book.** A crossing prints `— Norman · p. 62`; an unfiled capture has nothing to put
+- **The Inbox is not a book.** A crossing prints `— The Design of Everyday Things · p.62`; an unfiled capture has nothing to put
   there. `BookWriter` and `Eraser` already treat the Inbox as a special case found by status, and this is the
   third.
 - **Suppressed edges are excluded**, which is what makes `[x] not related` stick. `docs/decisions.md` §15:

@@ -126,6 +126,15 @@ struct CrossingFinderTests {
         #expect(CrossingFinder.pick(from: [], on: day(0), calendar: calendar) == nil)
     }
 
+    /// The empty case above only proves `pick` handles no edges at all. This
+    /// proves the narrower thing: edges can exist and still yield no card, when
+    /// none of them crosses books.
+    @Test func edgesWithNoCrossingMeansNoCard() {
+        let one = book("Norman")
+        let edges = [edge(note(1, in: one), note(2, in: one), 0.9)]
+        #expect(CrossingFinder.pick(from: edges, on: day(0), calendar: calendar) == nil)
+    }
+
     @Test func theSameDayPicksTheSameCrossing() {
         let edges = threeCrossings()
         let first = CrossingFinder.pick(from: edges, on: day(3), calendar: calendar)

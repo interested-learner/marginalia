@@ -212,8 +212,7 @@ struct BodyField: View {
     }
 }
 
-/// A tag filter chip. Selected inverts to filled ink — the same move the map
-/// uses for a selected node.
+/// A tag filter chip. Selected inverts to filled ink.
 struct TagChip: View {
     let label: String
     let selected: Bool

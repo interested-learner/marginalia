@@ -125,8 +125,7 @@ struct NotePicker: View {
 }
 
 /// A note as something to choose rather than something to read: no margin, no
-/// thread, and the body clipped to three lines. The same shape the map's panel
-/// uses for the same job.
+/// thread, and the body clipped to three lines.
 private struct PickerRow: View {
     let note: NoteRowData
 

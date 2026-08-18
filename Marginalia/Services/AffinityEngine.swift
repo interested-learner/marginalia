@@ -47,8 +47,10 @@ nonisolated enum AffinityEngine {
     // MARK: The constants
 
     /// `0.8 · cosine + 0.2 · tagOverlap`. Same-book is deliberately **not**
-    /// boosted — books are already hub nodes on the map, and rewarding it again
-    /// would clump each book into a ball.
+    /// boosted — notes from the same book already share vocabulary and tags,
+    /// and rewarding that again would crowd a book's own notes into each
+    /// other's degree budget at the expense of the crossings that connect
+    /// two different books, which is the whole point of the graph.
     static let vectorWeight = 0.8
     static let tagWeight = 0.2
 
@@ -72,8 +74,8 @@ nonisolated enum AffinityEngine {
     /// `pinned` and `suppressed` are the two overrides, and neither appears in
     /// the result — a pinned edge already exists and is never pruned, a
     /// suppressed one was deleted by hand and is never suggested again. Pinned
-    /// pairs **do** spend degree budget, because the cap is about how many lines
-    /// meet at a node on the map, and a hand-made line is still a line.
+    /// pairs **do** spend degree budget, because the cap is about how many
+    /// connections a note carries, and a hand-made one is still a connection.
     static func links(
         among subjects: [Subject],
         pinned: Set<Pair> = [],

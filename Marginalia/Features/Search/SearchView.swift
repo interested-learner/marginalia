@@ -9,7 +9,7 @@ import SwiftData
 /// not a question, so it doesn't arrive as a sheet.
 ///
 /// `SearchIndex` decides what matches and this reads the store, the same split
-/// `MapGraph` and `MapView` have.
+/// `CrossingFinder` and `ReviewView` have.
 struct SearchView: View {
     /// `← stream`.
     let close: () -> Void

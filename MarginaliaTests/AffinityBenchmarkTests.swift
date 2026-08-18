@@ -65,7 +65,8 @@ struct AffinityBenchmarkTests {
 
     /// Deterministic, and deliberately not random: the same run twice should
     /// produce the same number, or a comparison between two of them means
-    /// nothing. The same reason `GraphLayout` starts on a phyllotaxis spiral.
+    /// nothing — the same reason any of this app's pure engines seed from
+    /// fixed input rather than `Double.random`.
     ///
     /// Vectors are spread over a handful of directions with noise on top, so the
     /// scores land in a plausible spread rather than all at zero — an engine

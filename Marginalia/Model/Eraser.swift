@@ -59,7 +59,7 @@ enum Eraser {
     /// pair, find it just as strong as it was a minute ago, and draw the line
     /// again. So the edge is kept and marked: `AffinityEngine` reads
     /// `isSuppressed` as never-suggest-this-pair, and `ConnectionIndex` and
-    /// `MapGraph` both stop drawing it the moment the flag is set.
+    /// `CrossingFinder` both stop drawing it the moment the flag is set.
     ///
     /// Suppression beats pinning where a pair is somehow both — the same
     /// resolution `LinkWriter` makes, and for the same reason: it's the more

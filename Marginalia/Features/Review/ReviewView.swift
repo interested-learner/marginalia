@@ -15,7 +15,7 @@ struct ReviewView: View {
     @Binding var card: Int?
 
     /// Cross-tab: `→ open book` hands the book up to `RootView`, which switches
-    /// to the library and pushes its detail. The map will want the same route.
+    /// to the library and pushes its detail.
     let onOpenBook: (Book) -> Void
     /// Opening one half of a crossing. Everything a note can do lives where the
     /// note is, so the card routes there rather than growing six more actions.
@@ -204,20 +204,29 @@ struct ReviewView: View {
     /// `[↻] keep going` extends past the day's eight rather than starting the
     /// same set over — for anyone who wants more, on a day they have the time.
     ///
-    /// **There is deliberately no scroll here.** The closing card is the last
-    /// element and carries the id `today.count`, so appending puts the first new
-    /// note at exactly the slot the reader is already looking at: the geometry
-    /// doesn't move and the card's content becomes the next note under the
-    /// thumb. Scrolling would mean animating *backwards* past the eight cards
-    /// that were just inserted above the closing card, which is a long fling to
-    /// arrive where you already were. The haptic is fired by hand because
-    /// `position` genuinely doesn't change and `onChange` will not see this.
+    /// **There is deliberately no animated scroll here**, and why depends on
+    /// whether a crossing is on screen. Without one, the closing card is the
+    /// last element and carries the id `today.count`; appending grows that
+    /// number, but `landing` was captured before the append and still equals
+    /// the reader's position, so setting `position = landing` is a no-op and
+    /// the geometry doesn't move at all — the card's content just becomes the
+    /// next note under the thumb. Scrolling would mean animating *backwards*
+    /// past the eight cards that were just inserted above the closing card,
+    /// which is a long fling to arrive where you already were. **With a
+    /// crossing**, the reader was standing one page past `landing` — on the
+    /// closing card, which the append pushes one slot further out — so
+    /// `position = landing` moves them back exactly one page, onto the first
+    /// new note, rather than leaving them stranded past it. The haptic is
+    /// fired by hand because `position` may not change and `onChange` will
+    /// not see this.
     private func keepGoing() {
         let next = ReviewSetBuilder.set(from: notes, on: .now, excluding: Set(today.map(\.shortID)))
         guard !next.isEmpty else { return }
 
+        let landing = today.count
         today += next
         more = hasMore
+        position = landing
         Haptics.paged()
     }
 
