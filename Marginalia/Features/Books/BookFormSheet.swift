@@ -53,11 +53,9 @@ struct BookFormSheet: View {
                         InputField(placeholder: "title", text: $draft.title, autocapitalize: .words)
                         InputField(placeholder: "author", text: $draft.author, autocapitalize: .words)
 
-                        HStack(spacing: 8) {
-                            InputField(placeholder: "pages", text: $draft.pages, keyboard: .numberPad)
-                                .frame(width: 110)
-                            InputField(placeholder: "on p.", text: $draft.current, keyboard: .numberPad)
-                        }
+                        // One page field, and it is how long the book is rather
+                        // than how far in you are. `docs/decisions.md` §17.
+                        InputField(placeholder: "pages", text: $draft.pages, keyboard: .numberPad)
 
                         SegmentedRow(options: offered, selection: $draft.status) {
                             "\($0.marker) \($0.label)"

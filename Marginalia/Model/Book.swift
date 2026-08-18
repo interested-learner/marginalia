@@ -40,8 +40,10 @@ final class Book {
     var title: String = ""
     var author: String = ""
     var statusRaw: String = BookStatus.queued.rawValue
+    /// How long the book is, when anybody knows. 0 is unknown, which manual
+    /// entry leaves it as often. **Not how far in the reader is** — see
+    /// `docs/decisions.md` §17.
     var pageCount: Int = 0
-    var currentPage: Int = 0
     var isbn: String?
     var createdAt: Date = Date.now
 
@@ -53,7 +55,6 @@ final class Book {
         author: String = "",
         status: BookStatus = .queued,
         pageCount: Int = 0,
-        currentPage: Int = 0,
         isbn: String? = nil,
         createdAt: Date = .now
     ) {
@@ -61,7 +62,6 @@ final class Book {
         self.author = author
         self.statusRaw = status.rawValue
         self.pageCount = pageCount
-        self.currentPage = currentPage
         self.isbn = isbn
         self.createdAt = createdAt
     }
@@ -74,12 +74,4 @@ final class Book {
     }
 
     var noteCount: Int { notes?.count ?? 0 }
-
-    /// `0.4` — how far through the book the reader is, or nil when the page
-    /// count is unknown. Manual entry leaves it unknown often enough that this
-    /// can't be a plain `Double`.
-    var progress: Double? {
-        guard pageCount > 0 else { return nil }
-        return min(1, max(0, Double(currentPage) / Double(pageCount)))
-    }
 }

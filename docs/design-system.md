@@ -51,7 +51,13 @@ Sizes are **one step up from the prototype**, which was drawn for a browser wind
 
 **Every size scales with Dynamic Type.** Define the scale once in `Typography` against a text style and let it move with the reader's setting — never `.system(size:)` with a fixed number. Layouts must survive the accessibility sizes without clipping, and note bodies wrap rather than truncate.
 
-**Chrome stops growing at `xLarge`; content never stops.** `Typography.chromeCeiling` and the `chromeTypeSize()` modifier, and they go on exactly three things: the tab bar, `ScreenHeader`, and review's foot. Everything else — every note body, quote, source line, thread, book title, field and button — is uncapped.
+**Chrome stops growing at `xLarge`; content never stops.** `Typography.chromeCeiling` and the `chromeTypeSize()` modifier. It goes on the tab bar, `ScreenHeader`, review's foot, **the map's nodes and its foot, and the capture bar's two marker buttons** — and on nothing else. Everything that is the reading — every note body, quote, source line, thread, book title and field — is uncapped.
+
+The last three were added in phase 11, all three found by looking at one screenshot at the largest accessibility size, and all three are the same argument the first three were:
+
+- **A map node is a marker, not prose.** `GraphLayout` is told how much room each label needs in *characters* — mono makes that an exact ratio — so type that keeps growing inside a box that doesn't turns the whole library into a pile of overlapping words. At AX5 it was illegible.
+- **The map's foot previews what you tapped**, and uncapped it took roughly three quarters of the screen, leaving the graph a strip. A panel that previews a thing cannot be bigger than the thing. The note itself is read by tapping `→ open note`, on a surface with no ceiling.
+- **`[+]` and `[●]` are 48pt boxes** carrying one marker each. At AX5 the save button rendered as `…` and the record button burst its own brackets. **A marker truncated to an ellipsis has stopped being a marker.** The field between them is uncapped, which is the half that matters.
 
 The rule is about what the text is *for*. A note is what the reader came to read and gets every point it asks for. A signpost that fills the room it points out of is worse at its job, not better: at `accessibility-extra-extra-extra-large` the four tab labels wrapped through each other, the stream's header came apart into eleven lines, and the ten-cell `[████░░░░░░]` progress bar wrapped onto two — a bar that has stopped being a bar. **This is the only ceiling in the app.** Anywhere else, `relativeTo:` is the whole story.
 
@@ -63,7 +69,7 @@ Long-form text (note bodies, review cards) sets `text-wrap: pretty` — in Swift
 - **No shadows at any elevation.** Separation is a 1px `hairline` or a shift to `surfaceSoft`. Nothing else.
 - **8pt spacing base**, with 4 / 12 / 16 / 24 / 32 steps.
 - **20pt horizontal screen padding** throughout. Rows are 12–16pt vertical.
-- **26pt bottom padding** on the tab bar, clearing the home indicator.
+- **The bottom safe area, from the system**, not a number. The root ignores the container safe area at the *top* only; the tab bar used to carry a hardcoded 26pt to put back what ignoring the bottom took away, which is wrong on any device with a different indicator and on every device without one. It is also what lets the capture bar clear the indicator by itself on the one screen that hides the tab bar.
 
 ## Glyphs
 
@@ -197,7 +203,7 @@ Daniel Kahneman · reading
 - `← books` at 13 `textMute`, above the title, minimum 30pt tall. The only `←` in the app.
 - Title 18/700 `ink`, wrapping rather than truncating; note count right-aligned at 13 `textAsh`.
 - `author · status` at 13 `textMute`, closing up when the author is unknown.
-- Progress bar at 15 `textMute` with `p.214 / 499` at 13 `textAsh`, both omitted when the page count is unknown. `edit` and `delete` are link buttons, right-aligned, and **both absent on the Inbox** — editing it is one way to end up with two Inboxes and deleting it is the other.
+- **No progress bar.** `author · status · 499pp` is the whole byline — the length of the book, not how far in the reader is. `docs/decisions.md` §17 says why the second one went. The `pp` closes up when the count is unknown, like the author does. `edit` and `delete` are link buttons, right-aligned, and **both absent on the Inbox** — editing it is one way to end up with two Inboxes and deleting it is the other.
 - **`delete` is a link like any other, not a red button.** `danger` belongs to the confirmation it opens; a colored word in the header would be the app colour-coding, which this system doesn't do.
 
 Rows beneath use the margin, minus the book title on the source line — it's already at the top of the screen.
@@ -212,11 +218,21 @@ The parallel is the point — the thing you came to the tab to do is always in t
 
 Fixed at the foot of the stream. Padding `12 × 20`, `hairline` on top, 8pt gaps.
 
+**Focused, it grows one line and the tab bar goes.** The line is `→ full note`, a link under the input, and tapping it opens the capture sheet with whatever has been typed already in it — the book, the page and the tags are that sheet's job, on a screen with room for them. Unfocused the bar is exactly what it always was, one line and two buttons: **the fast path is not allowed to get slower.**
+
+A `book · Inbox ▼` picker lived here for a day and came out. It was 40pt rows in a 240pt box above the keyboard, and its closed state answered a question the reader had never been asked. `docs/decisions.md` §18.
+
+**Everything above the bar is the way out of the field.** While the input has focus a transparent scrim covers the header, the chips and the feed, and takes the first tap — the row underneath doesn't fire. Dragging the feed dismisses too, interactively, so a half-drag comes back. The scrim is `.accessibilityHidden`, because VoiceOver moves through the tree rather than by hit test and would otherwise be stranded on it.
+
+**The tab bar is removed while the field has focus.** Content, capture bar and tab bar are one stack, so the keyboard lifts all three and the tab bar ends up stranded between the capture bar and the keys. Nothing on a tab bar is reachable with a keyboard up, so the signpost goes rather than the tool.
+
+**There is always a way out of the field.** Tapping the feed clears focus and drags dismiss the keyboard interactively. Neither throws the draft away — this is "get out", not "give up".
+
 - **Input** — flexible, padding `12 × 14`, fill `surfaceSoft`, `hairline` border, radius 4, 15pt, with a block cursor `▊`. On focus the fill goes to `canvas` and the border to `ink`.
 - **Save `[+]`** — 48pt wide, fill `ink`, radius 4, text `onInk`. Fill becomes `disabled` when the field is empty.
 - **Record `[●]`** — 48pt wide, fill `canvas`, `hairline` border, the dot in `danger`.
 
-**Recording** replaces the whole row: a live waveform (18 bars, 15pt, 2pt letter spacing) fills the width, then the elapsed timer at 13 `textMute` behind a `danger` dot, then a `■ stop` button — padding `10 × 16`, fill `ink`, radius 4, 13/500.
+**Recording** replaces the whole row: a live waveform (18 bars, 15pt, 2pt letter spacing) fills the width, then the elapsed timer at 13 `textMute` behind a `danger` dot, then `cancel` as a plain `textMute` link, then a `■ stop` button — padding `10 × 16`, fill `ink`, radius 4, 13/500. **`cancel` is not optional furniture**: without it the only way out of a recording begun by accident was to finish it and delete the note.
 
 **Transcribing** replaces it again: `[↻] transcribing…` centered, padding `22 × 20`, 15pt `textMute`.
 
@@ -244,7 +260,7 @@ Header (`add book` or `edit book`, `[x]` to close) over one form. **The form is 
 
 - Find a title, then `search` and `[s] scan isbn` as two secondary buttons splitting the row.
 - Results expand inline beneath, drawn with the app's own rows: title 15/700 `ink`, then `author · 499pp` at 13 `textMute`. A `hairline` between, a `hairline` border around, radius 4.
-- A `hairline` separates finding a book from typing one in: `title`, `author`, then `pages` (110pt) and `on p.` side by side, then the status segments.
+- A `hairline` separates finding a book from typing one in: `title`, `author`, `pages`, then the status segments. **`pages` spans the row** — there is no `on p.` beside it any more, and `docs/decisions.md` §17 says why.
 - The form fills the sheet so the save button sits where `save note` does.
 
 A result **fills the fields** rather than saving straight through, and a failed lookup is a sentence under the buttons — never an alert.
@@ -255,7 +271,8 @@ Header (`new note`, `[x]` to close) over a form: type selector, book picker, bod
 
 - **The body field takes whatever height is left**, so the sheet reads as full rather than half empty. It scrolls instead once Dynamic Type needs the room. The prototype's fixed 150px was drawn for a browser window.
 - **The recording box stays 150** in all three of its states, so the sheet doesn't resize under the thumb between them, and `save note` sits in the same place whichever type is selected.
-- **The book picker opens inline** — the library, drawn with the app's own rows, expanding beneath the field. A wheel or a menu would be the one piece of iOS chrome in the app.
+- **The book picker opens inline** — the library, drawn with the app's own rows, expanding beneath the field. A wheel or a menu would be the one piece of iOS chrome in the app. Rows are 44pt minimum, like every other target in the app.
+- **The Inbox is `— no book —`, the first row, and not a book in the list.** It is a real `Book` on the books screen — that's what keeps unfiled captures visible — but here it is the absence of an answer, so the closed field reads `book · none`. Offering it both ways gave a note two indistinguishable routes into the same drawer.
 - The sheet itself is square (`presentationCornerRadius(0)`) with no grabber. Rule 4 applies to the sheet as much as to a card.
 
 ### Buttons
@@ -275,13 +292,85 @@ Primary is minimum height 48 at 16/500. Secondary is 10pt vertical at 14/500. Di
 
 `[███░░░░░░░]` — ten cells, `█` filled and `░` empty, wrapped in literal brackets. 15pt `textMute`, 1pt letter spacing.
 
+**Review's position in the day's set is the only thing that draws it.** Book detail used to, against `Book.currentPage`; §17 in `docs/decisions.md` records why that went. The difference is that the app knows which card you are on and never knew which page you were on.
+
 ### Empty state
 
 Padding `24 × 20`, 15pt `textAsh`, prefixed with `[x]`: `[x] no notes yet — capture the first one`.
 
-### Map
+### Map — the overview
 
-A knowledge graph in a system with no color and no images. The constraint is the point — this should read as a terminal drew it, not as a data-viz library did.
+**The tab's top level is a summary, not a drawing.** `docs/decisions.md` §20 has the reasoning: a node labelled `n.07` is an opaque handle, so a canvas of forty-six of them is a picture nobody can read. The overview says what the reader has been thinking about, in words, in a list — which is also the only form of this screen that Dynamic Type and VoiceOver work on.
+
+Three sections, in this order, down one scroll.
+
+```
+ map                                          [46]
+ 46 notes · 7 books · 12 themes
+──────────────────────────────────────────────────
+  #attention                    11 notes · 3 books
+  ▇▇▇▇▇▇▇▇▇▇▇▇
+  ▌the cost of a distraction is not the
+  ▌minute it takes                           n.18
+
+  error · systems · blame        7 notes · 2 books
+  ▇▇▇▇▇▇▇
+  ▌human error is system error               n.04
+
+  quality · noticing             5 notes · 2 books
+  ▇▇▇▇▇
+   a thought — no rule, textBody             n.30
+──────────────────────────────────────────────────
+ crossings                                     [6]
+  n.18  the cost of a distraction is not the
+        minute it takes
+        — Thinking, Fast and Slow
+   │
+  n.02  an affordance is a relationship,
+        not a property
+        — The Design of Everyday Things
+──────────────────────────────────────────────────
+ loose                                         [8]
+  n.11  the map is not the territory
+  n.24  a deadline is a kind of attention
+                                    and 6 more
+```
+
+- **One header, and it always says `map`.** The bracketed count on the right is notes in the library. Under it, one orientation line at 13 `textMute` in the header's caption slot: `46 notes · 7 books · 12 themes`. That line is the whole of the "library at a glance" idea — a quotes-versus-thoughts bar and a most-thought-with ranking were both cut, because a counter is not a takeaway (§20).
+- **Section heads reuse the stream's date-group header**, and the counts reuse `Glyphs.count`. Nothing new is introduced for this screen.
+
+#### Theme row
+
+- **A section shows at most eight rows**, then a plain line: `and 12 more`. It states a fact rather than offering a door — a summary that ran to four hundred rows would have stopped being one, and there is nowhere for a link to lead that search and the stream don't serve better.
+- **A theme has no marker.** `[~]` is already both the Inbox status and the stream tab, and a theme has no status to report. Adding a fifteenth bracket-glyph for it would be inventing vocabulary to say nothing.
+- **A theme may have no name, and then it has no heading** — the counts stay right and the exemplar leads. This is common and it is not a failure state: on the seed library three of seven themes are unnamed, and they read better than the weakly-named ones, because `Care and Quality are internal and external aspects of the same thing` says more than `mechanism` does. `ThemeName` returns nothing where the theme's notes share no word, because naming an incoherent group is the app asserting something it does not know. The first run of `ThemeDumpTests` named one `aspects · attention · automatically`: three words beginning with `a`, which is not a coincidence but the signature of the failure — with no word shared every candidate ties on weight and the alphabetical tie-break returns the first three words in the group.
+- **The name is extracted from the notes and never comes from a tag** — `error · system`, `human error · system design`. Set at 15/500 `ink`, the same as a book title. Tags named themes for one afternoon and the rule was pulled: the grouping never needed them, but six of seven seed themes came out tag-named and the screen read as though tagging were the mechanism. Nothing here depends on anything the reader typed. `docs/decisions.md` §20.
+- **Noun phrases, not keywords.** Single words gave `error · systems · blame`, which reads as machine output. `NounPhrases` offers phrases and bare nouns; a phrase wins ties. No two parts of a name may share a word, or it comes out `human error · system error · error messages`.
+- **There is no weight bar.** One was drawn — first as ragged `▇`, then as `ASCIIProgressBar` — and both came out. It encoded theme size against the largest theme, which the sort order and the note count each already carry; and a progress bar means *how far through something you are*, which a theme is not. The largest theme always filled every cell, reading as 100% of nothing.
+- **The counts sit right: `11 notes · 3 books`** at 13 `textAsh`. Books-spanned is the fact worth carrying here, because an idea that appears in three books is the thing this app exists to notice.
+- **The exemplar wears the rule and no quote marks.** The note at the centre of the theme, two lines — **five at the accessibility sizes**, because the exemplar is the evidence and at two lines it truncated to `Slips and mistakes are…`, which is no evidence at all. The name, the counts and the bar are chrome and stop growing; this is content and does not. Its id trails at 13 `textAsh`. A passage exemplar — `.quote` or `.scan`, per `NoteKind.isPassage` — gets the 2pt `ink` rule and `ink` text; a thought exemplar gets neither and `textBody`. Identical to how bodies render everywhere else in the app, and **never with `“ ”`**.
+- **The exemplar is evidence, not decoration.** It is what lets a reader judge a grouping the app got wrong, which matters more here than anywhere because the themes ride on an embedder nobody has verified.
+- Tapping a theme opens its notes as ordinary `NoteRow`s, with `[◇] graph` one tap further.
+
+#### Crossing
+
+A **crossing** is one connection that spans two books — the most concrete form of what this app is for, and what the reader in §19 assumed the map was showing all along.
+
+- Two note fragments, each `n.18` at 13 `textAsh` in the margin position, two lines of the note, then the book behind an em dash at 13 `textMute`.
+- **Joined by `│`**, box-drawing, one character, in `hairline`. Not a drawn edge and not a second line weight — the same subtraction logic §19 settled: this screen adds no vocabulary.
+- Strongest first, and **no note appears twice**. This is a display rule, not a claim about the data: the first run of this screen put `n.18` in three consecutive rows with its full text repeated each time, which is the hub behaviour phase 6 recorded arriving in the UI. Every one of those connections still exists, on the graph and on the note; the list shows the strongest crossing each note has, so eight rows are eight ideas.
+- Tapping either half opens that note.
+- **A long press offers `disconnect`.** This is the row that retires the app's only hidden destructive gesture — holding a line on the canvas — and puts deletion in the long-press menu every other listed row in the app already uses. It goes through `Eraser.suppress`, the app's own `ConfirmSheet`, and a `LinkWriter.relink` after, exactly as the canvas did.
+
+#### Loose
+
+Notes in no theme, connected to nothing. `n.11` and one line of the note, capped, with `and 6 more` at 13 `textAsh` when there are more than fit.
+
+**It is not a scolding and not a to-do list.** It is there because a summary that showed only the connections the app *found*, while hiding the notes it couldn't place, would be dishonest in an app whose docs are this careful about their own failures — eight of the forty seed notes are isolated. A note whose vector was made by a model that isn't the one loaded today is loose too, and says so rather than being silently dropped.
+
+### Map — the graph
+
+**The canvas survives at the two sizes where a graph is legible**: one theme's notes, and two hops from one note. One book on its own still opens from a hub. **The whole-library view and the book-hub collapse are gone** — §20 — and with them `collapseAbove` and `-mapCollapse`. A knowledge graph in a system with no color and no images; the constraint is the point, and this should read as a terminal drew it, not as a data-viz library did.
 
 ```
      n.01
@@ -300,15 +389,19 @@ A knowledge graph in a system with no color and no images. The constraint is the
 - **A hub is the book's first word, not its title.** `[Meditations]` is the whole of one title and none of `Zen and the Art of Motorcycle Maintenance`; forty characters of bold mono lie across half the graph and cover the notes the hub is meant to be gathering. A leading article is dropped, because `[The]` names nothing. So: `[Thinking]`, `[Zen]`, `[Design]`, `[Beginning]`, `[Inbox]`. The panel at the foot carries the whole title when a hub is selected, and that's where the disambiguation lives if two books ever start with the same word.
 - **A note's line to its own book is drawn like any other line.** There is one line weight in this system. It isn't a connection anybody suggested, though, so it can't be held down on and deleted, and it doesn't count toward the weight of either end.
 - **Edges are `hairline`**, 1px, at the same 12% as every divider in the app.
+- **The reader can subtract the book lines.** A chip row under the header — `all lines` / `connections only`, the same `TagChip` the library and the stream use — stops the attachments being drawn. **It still earns its place in a theme's graph**, because a theme spans books and so still carries attachments. **It is a filter and not a second line style**, which is why the rule above survives it intact: nothing is dashed, nothing is lightened, nothing gains a weight. Lines are drawn or they are not.
+- **The filtering happens at the stroke, not in the graph.** `GraphLayout` is told about every edge either way, so **not one node moves when the filter changes** — verified by pixel-comparing the two states. Removing edges from the graph would re-key the layout task and reshuffle the screen, and it would also stop the hubs gathering their clusters, since the attachment is the force that does the gathering.
 - **Selection inverts.** The node fills `ink` with its text in `onInk`, and its edges go to full-opacity `ink` while every other edge stays at hairline. That is the entire interaction vocabulary — no highlight color, no glow, no shadow.
 - **Connection count shows as weight** — 400 → 500 → 700 — never as node size. Varying node size would introduce a visual dimension the rest of the app doesn't have.
-- **A selected node previews its note** in a panel at the foot, above the tab bar, separated by a `hairline`. Metadata, three lines of the note, the source, then two link buttons: `→ open note` and `[◇] connections`, which narrows the map to two hops around it. A hub previews the book — `[+] Meditations`, then `author · status · 12 notes` — and offers `→ open book` and `[◇] only this book`. Link buttons, never filled ones, like every other action row in the app.
+- **The foot is always there, and it is always the same height.** A selected node previews its note in it — metadata, three lines of the note, the source, then two link buttons: `→ open note` and `[◇] connections`, which narrows the map to two hops around it. A hub previews the book — `[+] Meditations`, then `author · status · 12 notes` — and offers `→ open book` and `[◇] only this book`. Link buttons, never filled ones, like every other action row in the app.
+- **With nothing selected it says what the screen does**: `tap a note to preview it, again to open it` over `hold a line to disconnect two notes`. This is the most gestural screen in the app and it was the only one that never said so.
+- **The constant height is not cosmetic.** The panel used to appear and disappear, which changed the canvas's height, which changed the aspect ratio `GraphLayout` is told, which re-ran the entire force-directed layout — so **tapping a node reshuffled the whole graph**, and two notes with different-length previews reshuffled it differently. Reserve the room and none of that happens. `docs/issues.md` §5 in the phase 11 list.
 
 Nodes need a 44pt minimum hit target even though the drawn text is smaller.
 
-Layout is force-directed and cached; it only recomputes when the graph changes. Above ~150 nodes the global view collapses to book hubs and expands one on tap.
+Layout is force-directed and cached; it only recomputes when the graph changes.
 
-**One header, and it always says `map`.** A narrowed view says what it is on a line under the title — `two hops from n.18`, `Meditations`, `books only — tap one to open it` — and carries `← map` back to the whole library. The count on the right is nodes on screen, not notes in the library.
+**The header always says `map`.** A narrowed view says what it is on a line under the title — `two hops from n.18`, `#attention`, `Meditations` — and carries `← map` back. The count on the right is nodes on screen, not notes in the library.
 
 ### Review card
 

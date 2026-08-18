@@ -2,7 +2,7 @@
 
 What's currently wrong, fragile, or worth changing — and for each one, whether it's **proven** or **suspected**. `docs/planning.md` says what's built and what's next; this file says what's broken and what it will cost to fix.
 
-Last updated 2026-08-14, after phase 10.
+Last updated 2026-08-18, after phase 11 — the first pass with a real finger on it.
 
 ---
 
@@ -73,6 +73,29 @@ ls -t ~/Library/Logs/DiagnosticReports/Marginalia-*.ips | head -1
 They're JSON with a one-line header. `faultingThread` indexes into `threads`; any frame whose image is `Marginalia` is ours.
 
 ---
+
+### 22. The record button crashed, and it had never been pressed
+
+**Reported from a device in phase 11 — the first time anybody tapped it.** `SpeechTranscription` had shipped since phase 3 and had never executed anywhere: the simulator has no usable microphone and no on-device recognizer, so every claim about it rested on reading the code.
+
+Four things in it could take the app down and all four are fixed. Two of them are Objective-C exceptions, which is worth saying plainly because **a Swift `do/catch` cannot see them** — the `catch` around the audio setup looked like it covered this file and covered about half of it.
+
+1. **A second tap during the permission prompts.** `VoiceCapture.record()` guarded on `phase == .idle` and set `.recording` only *after* awaiting the microphone prompt and the speech prompt. Through that whole window — the one launch where both alerts appear, which is also the launch where somebody is most likely to tap twice — `phase` was still `.idle`, so a second tap walked past the guard and called `installTap(onBus: 0,…)` again. AVAudioEngine answers a second tap on one bus with `NSInternalInconsistencyException`. There is now a `starting` flag set before the awaits, and `SpeechTranscription.start` refuses re-entry on its own account as well: the caller's guard protects the caller, and this one protects the object that would actually be damaged.
+2. **`requestAuthorization`'s handler was `@MainActor`.** This is §1 exactly — see the note at the foot of this file, which used to claim the opposite.
+3. **A degenerate input format.** `inputNode.outputFormat(forBus: 0)` reports 0 Hz when the route isn't ready, and `installTap` raises rather than returning. Checked before the call now, and thrown as a sentence the reader can act on.
+4. **`cancel()` reached for `engine.inputNode` unconditionally**, from `CaptureSheet.onDisappear` — every time the sheet closed, including the ordinary case where nobody had recorded anything.
+
+**Still unverified**: which of the four it actually was. A crash log names it; the fixes stand on their own either way, and none of them can be exercised here.
+
+### 23. Review stuck at the closing card and then died
+
+**Also reported from a device in phase 11.** Three separate defects compounding, and the middle one is the interesting one.
+
+**The stick.** `foot` and the paging `ScrollView` are siblings in one `VStack`, and the `↑ swipe up for next` hint was *removed* from the layout on the last card. Taking it out gave the scroll view 27 more points, which changed every `containerRelativeFrame(.vertical)` page height — mid-flight, while `.scrollTargetBehavior(.paging)` (container-based) and `.scrollPosition(id:)` (identity-based) were already disagreeing about the target. It could settle back a page, un-hide the hint, shrink, and snap forward again. **Only reachable at the end of the set**, which is exactly where it was reported. The hint is hidden now rather than removed.
+
+**The crash.** `ShareCardLink.body` called `ShareCard.rendered`, which ran an `ImageRenderer` over a 420pt card at 3× — several megabytes of bitmap — **synchronously, inside `body`, for every card the paging scroll had realized, on every redraw.** A nested SwiftUI render pass inside a render pass, at an allocation rate a phone answers by killing the app. It is now a `Transferable` that `ShareLink` asks for bytes only when the share sheet actually opens; nothing renders until somebody shares.
+
+**The amplifier.** `.onChange(of: position)` called `ReviewWriter.surface` → `context.save()` → both `@Query`s invalidated → the whole body re-evaluated, mid-scroll. Surfacing now happens on the next turn of the run loop. Two other things on that hot path went with it: `remaining` was running a full `ReviewSetBuilder` pass over the library on every body evaluation to decide whether to draw one button, and `ConnectionIndex.build` was being rebuilt per card per redraw.
 
 ## Open — environment
 
@@ -165,6 +188,14 @@ Embedding model 'mul_Latn' is not compiled (error: … Code=7 "Compilation faile
 
 Ranked by how likely they are to bite.
 
+### 24. The map's tap targets overlap above ~100 nodes — **open**
+
+Found while fixing §5's jolt, and **not fixed**, because the obvious fix doesn't work.
+
+Node labels get a 44×44 hit rectangle (`docs/design-system.md`: drawn at 13pt, tapped at 44). What `GraphLayout` guarantees is a *unit-space* separation of `minimumSpacing · ideal · size`, and `ideal` falls as `1/√count`. At 46 nodes in a phone-width box that works out around 57pt and the rule holds. At 120 it is about 35pt, and two 44pt rectangles overlap — in the overlap the last-drawn node wins, which is whichever has the higher id. So a tap can select a neighbour.
+
+**Raising the floor to 44pt is not available.** A hundred and twenty nodes at 44pt each need essentially the whole area of the canvas; the separation pass would fight the box clamp and produce a worse graph than the overlap does. The real answer is probably to hit-test the canvas for the *nearest* node — the same thing `nearestEdge` already does for lines — and let one winner emerge rather than letting rectangles fight. That is a change to the gesture layer of the least-verified screen in the app, and phase 11 was already changing that screen; it wants its own pass and a finger on it.
+
 ### 7. ~~`fatalError` on a store that won't open~~ — fixed
 
 Replaced by `StoreFailureView`. See §0.
@@ -250,7 +281,13 @@ Local notifications **do** work in the simulator, so this is cheap to check by h
 
 ## Open — coverage
 
-### 12. Nothing in this app has ever been tapped
+### 12. ~~Nothing in this app has ever been tapped~~ — it has now, once
+
+**Phase 11 closed the premise and left the gap.** Nathaniel ran the app on a device and used it. Six things came back, two of them crashes (§22, §23), and **not one of them was visible in code review, in 402 passing tests, or in any screenshot taken in ten phases.** That is the strongest possible argument for everything below.
+
+What it does *not* do is make this repeatable. One session by one person is not a regression test, and the two crashes it found were both in code paths a simulator cannot reach — which means the same class of defect can land again tomorrow with the suite still green.
+
+The original entry, still true of everything nobody happened to touch:
 
 `simctl` can't tap or swipe. Every screen is reached by launch argument, and every interaction — saving, starring, filtering, going back, paging, sharing — is proven by unit tests and by the screen rendering, never by a finger.
 
@@ -291,8 +328,12 @@ The hold is the one to worry about. It's assembled out of a `LongPressGesture` f
 | 9 | Say something when the store falls back to memory | The quiet half of §7 — notes written into it vanish | an hour, plus a decision |
 | 10 | ~~Measure and then narrow the recompute~~ | **Done.** §15 — measured at 0.71 µs a pair, and 2× faster than it was | done |
 | 11 | Receive one reminder | §19 — the whole feature is unobserved, and the simulator can deliver it. **Not from a shell**: phase 9 established that neither `simctl privacy` nor `simctl push` can get past authorization | ten minutes of somebody's hands |
+| 12 | Confirm §22 and §23 against a crash log | Both are fixed on four and three separate arguments; which one it actually was is still unknown | a file off the phone |
+| 13 | Hit-test the map by nearest node | §24 — above ~100 notes a tap can select the neighbour, and raising the spacing floor is not physically available | half a day, and a finger |
 
 **Item 7 is now the only expensive thing left, and it is first.** It was four features asserted and never observed; phase 6 added a fifth, and that one decides whether the app's defining feature works at all (§14). Item 6 is done, and doing it is what produced §21.
+
+**Phase 11 is what one evening of item 7 looks like when it finally happens**, and it is worth reading the ratio: six reports, two crashes, one of them in the file this document had explicitly declared clear.
 
 ---
 
@@ -300,4 +341,6 @@ The hold is the one to worry about. It's assembled out of a `LongPressGesture` f
 
 The crash is worth remembering as a class, not an incident. **`SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor` means every closure handed to a system framework is `@MainActor` unless you say otherwise** — and system frameworks call those closures on their own threads whenever they like.
 
-`Theme` was the one that escaped. The audit surface is small: search for closures stored by UIKit, AVFoundation, Vision or `URLSession`. `SpeechTranscription`'s audio tap is the other one and it is already handled (`nonisolated(unsafe) let sink`, `nonisolated private static func power`). Anything added later that hands a callback to the system needs the same treatment, and the failure mode is a `SIGTRAP` a long way from the change.
+`Theme` was the one that escaped — **and so was `SFSpeechRecognizer.requestAuthorization`, which this paragraph used to declare clear.** It said "`SpeechTranscription`'s audio tap is the other one and it is already handled", named the tap, and stopped there. `speechAuthorized()` was three lines further down the same file, handing an unannotated closure to a framework whose own header says *"The system does not guarantee the execution of this block on your app's main dispatch queue."* Nobody had read past the tap. That is the second entry in this file to assert something about code it had never opened — §18 was the first — and both were caught by somebody actually running the app.
+
+The audit surface is small and it is worth doing properly: search for closures stored by UIKit, AVFoundation, Speech, Vision or `URLSession`. As of phase 11 the tap, the recognition handler and `requestAuthorization` are all explicitly `@Sendable`, which costs nothing where the compiler had already inferred it and removes a crash where it hadn't. Anything added later that hands a callback to the system needs the same treatment, and the failure mode is a `SIGTRAP` a long way from the change.

@@ -113,6 +113,20 @@ struct RootView: View {
     /// Set by a tapped reminder: the card review should open on.
     @State private var card: Int?
 
+    /// True while the stream's capture field has focus.
+    ///
+    /// **The tab bar comes off the screen while it does.** Content, capture bar
+    /// and tab bar are one `VStack`, and `.ignoresSafeArea(.container,…)` below
+    /// does not cover the `.keyboard` region — so the keyboard lifts the whole
+    /// stack and the tab bar rides up to sit between the capture bar and the
+    /// keys, with its 26pt of home-indicator clearance stranded above them.
+    ///
+    /// Ignoring the keyboard region instead would fix the tab bar by breaking
+    /// the capture bar, which is the one thing on the screen that *must* stay
+    /// above the keys. So the signpost goes rather than the tool: nothing on a
+    /// tab bar is reachable with a keyboard up anyway.
+    @State private var capturing = false
+
     /// The two screens that aren't tabs. There is no fifth tab to give them, so
     /// they hang off the stream's header and take the tab content's place while
     /// they're open — the tab bar stays, because neither is a question and
@@ -144,7 +158,7 @@ struct RootView: View {
                 case .none:
                     switch tab {
                     case .stream:
-                        StreamView(focus: $focus, onOpenWeb: openWeb,
+                        StreamView(focus: $focus, capturing: $capturing, onOpenWeb: openWeb,
                                    onSearch: { screen = .search },
                                    onSettings: { screen = .settings })
                     case .books: BooksView(open: $book)
@@ -155,12 +169,27 @@ struct RootView: View {
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
 
-            TabBar(selection: $tab)
+            if !capturing {
+                TabBar(selection: $tab)
+            }
         }
-        // A tab is a way out of search and settings as much as `← stream` is.
-        .onChange(of: tab) { _, _ in screen = nil }
+        // A tab is a way out of search and settings as much as `← stream` is —
+        // and leaving the stream by any route puts the tab bar back, or it
+        // would stay hidden on a screen with no capture field to hide it for.
+        .onChange(of: tab) { _, _ in
+            screen = nil
+            capturing = false
+        }
+        .onChange(of: screen) { _, _ in capturing = false }
         .background(Theme.canvas)
-        .ignoresSafeArea(.container, edges: [.top, .bottom])
+        // **Top only.** The header draws under the status bar deliberately; the
+        // bottom does not, any more. Ignoring it meant the foot of every screen
+        // sat over the home indicator and `TabBar` carried a hardcoded 26pt to
+        // put itself back — a number that is wrong on any device with a
+        // different indicator and on every device with none. Letting the system
+        // say how much room it needs also means the capture bar clears the
+        // indicator by itself on the one screen that hides the tab bar.
+        .ignoresSafeArea(.container, edges: .top)
         // Notes connect themselves. Nothing below this line knows it happens,
         // and nothing asks the reader to confirm a connection.
         .linking()

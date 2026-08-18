@@ -48,6 +48,9 @@ struct NoteRow: View {
     /// `delete` rather than on the row: there is nowhere on a row this dense to
     /// put a second permanent word without it competing with the note.
     var onConnections: (() -> Void)?
+    /// Files the note under a different book. `nil` hides the action — book
+    /// detail doesn't offer it, because the answer there is already on screen.
+    var onMove: (() -> Void)?
 
     var body: some View {
         VStack(spacing: 0) {
@@ -91,6 +94,9 @@ struct NoteRow: View {
             .contextMenu {
                 if let onConnections {
                     Button("\(Glyphs.tabMap) connections", action: onConnections)
+                }
+                if let onMove {
+                    Button("\(Glyphs.forward) move to book…", action: onMove)
                 }
                 if let onDelete {
                     Button("delete \(note.idLabel)", role: .destructive, action: onDelete)

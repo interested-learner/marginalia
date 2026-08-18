@@ -22,7 +22,6 @@ enum BookWriter {
             author: draft.bookAuthor,
             status: draft.status,
             pageCount: draft.pageCount,
-            currentPage: draft.currentPage,
             isbn: draft.isbn,
             createdAt: now
         )
@@ -49,7 +48,6 @@ enum BookWriter {
         book.title = draft.bookTitle
         book.author = draft.bookAuthor
         book.pageCount = draft.pageCount
-        book.currentPage = draft.currentPage
         if book.status != .inbox { book.status = draft.status }
         if let isbn = draft.isbn, !isbn.isEmpty { book.isbn = isbn }
 

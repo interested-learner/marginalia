@@ -5,13 +5,16 @@ import SwiftData
 ///
 /// The stream bar is the fast path and takes none of this — a thought filed in
 /// two taps. This is the other one, reached from a book, where the note already
-/// has a home and a page number worth keeping.
+/// has a home and a page number worth keeping — and reached from the bar's
+/// `→ full note`, which arrives with `text` already typed and nothing else
+/// answered. Escalating is never destructive: the bar keeps its draft until
+/// this sheet actually writes a note, so cancelling puts the reader back where
+/// they were with what they wrote still there.
 struct CaptureSheet: View {
     /// Pre-filled from wherever the sheet was opened. Still changeable here,
     /// because the wrong book is the most common thing to notice mid-note.
     @State private var book: Book?
     @State private var draft: CaptureDraft
-    @State private var pickingBook = false
     @State private var voice = VoiceCapture(width: 22)
     @State private var scanning = false
 
@@ -19,9 +22,15 @@ struct CaptureSheet: View {
     @Environment(\.modelContext) private var context
     @Environment(\.dismiss) private var dismiss
 
-    init(book: Book? = nil, kind: NoteKind = .thought) {
+    /// Told when a note was written, so the surface that opened this one can
+    /// clear itself. A cancelled sheet never calls it.
+    private let onSaved: () -> Void
+
+    init(book: Book? = nil, kind: NoteKind = .thought, text: String = "",
+         onSaved: @escaping () -> Void = {}) {
         self._book = State(initialValue: book)
-        self._draft = State(initialValue: CaptureDraft(kind: kind))
+        self._draft = State(initialValue: CaptureDraft(kind: kind, text: text))
+        self.onSaved = onSaved
     }
 
     var body: some View {
@@ -36,7 +45,7 @@ struct CaptureSheet: View {
                     VStack(spacing: 16) {
                         TypeSelector(kind: $draft.kind)
 
-                        bookField
+                        BookPickerField(book: $book, books: shelf)
 
                         if let problem = voice.problem {
                             CaptureProblem(message: problem, inset: 0)
@@ -127,71 +136,6 @@ struct CaptureSheet: View {
         }
     }
 
-    /// Tapping opens the library inline rather than in a system picker — a
-    /// wheel or a menu would be the one piece of iOS chrome in the app.
-    private var bookField: some View {
-        VStack(spacing: 0) {
-            Button {
-                withAnimation(.snappy(duration: 0.15)) { pickingBook.toggle() }
-            } label: {
-                HStack(spacing: 8) {
-                    Text("book · \(book?.title ?? Inbox.title)")
-                        .foregroundStyle(Theme.ink)
-                        .lineLimit(1)
-                    Spacer(minLength: 8)
-                    Text(Glyphs.disclosure)
-                        .foregroundStyle(Theme.textMute)
-                }
-                .font(Typography.input)
-                .padding(.horizontal, 14)
-                .padding(.vertical, 12)
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .background(Theme.canvas)
-                .overlay(
-                    RoundedRectangle(cornerRadius: interactiveRadius)
-                        .stroke(pickingBook ? Theme.ink : Theme.hairline, lineWidth: 1)
-                )
-                .clipShape(.rect(cornerRadius: interactiveRadius))
-            }
-            .buttonStyle(.plain)
-
-            if pickingBook {
-                VStack(spacing: 0) {
-                    ForEach(shelf) { choice in
-                        Button {
-                            book = choice
-                            withAnimation(.snappy(duration: 0.15)) { pickingBook = false }
-                        } label: {
-                            HStack(spacing: 10) {
-                                Text(choice.status.marker)
-                                    .foregroundStyle(Theme.textMute)
-                                Text(choice.title)
-                                    .foregroundStyle(choice == book ? Theme.ink : Theme.textBody)
-                                    .lineLimit(1)
-                                Spacer(minLength: 8)
-                            }
-                            .font(Typography.source)
-                            .padding(.horizontal, 14)
-                            .padding(.vertical, 12)
-                            .frame(maxWidth: .infinity, alignment: .leading)
-                            .background(choice == book ? Theme.surfaceSoft : Theme.canvas)
-                            .contentShape(Rectangle())
-                        }
-                        .buttonStyle(.plain)
-
-                        Hairline()
-                    }
-                }
-                .overlay(
-                    RoundedRectangle(cornerRadius: interactiveRadius)
-                        .stroke(Theme.hairline, lineWidth: 1)
-                )
-                .clipShape(.rect(cornerRadius: interactiveRadius))
-                .padding(.top, 8)
-            }
-        }
-    }
-
     private var shelf: [Book] { BookShelf.ordered(books) }
 
     /// There are no field labels in this system — the placeholder carries it.
@@ -202,6 +146,7 @@ struct CaptureSheet: View {
     private func save() {
         guard (try? NoteWriter.save(draft, to: book, in: context)) != nil else { return }
         Haptics.saved()
+        onSaved()
         dismiss()
     }
 }

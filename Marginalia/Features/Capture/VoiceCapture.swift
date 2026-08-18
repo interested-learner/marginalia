@@ -28,6 +28,18 @@ final class VoiceCapture {
     @ObservationIgnored private var clock: Task<Void, Never>?
     @ObservationIgnored private var startedAt: Date?
 
+    /// Guards the window between the first tap and `phase` becoming
+    /// `.recording`, which is two permission prompts long on the one launch
+    /// where both appear.
+    ///
+    /// **`phase` cannot do this job.** It is still `.idle` for the whole of
+    /// that window, so a second tap on the record button walks past its guard,
+    /// reaches `SpeechTranscription.start` again, and installs a second tap on
+    /// the same audio bus — which AVAudioEngine answers with an Objective-C
+    /// exception rather than a Swift error, so nothing in this file can catch
+    /// it. See `docs/issues.md` §22.
+    @ObservationIgnored private var starting = false
+
     /// Written from the audio thread, read by the clock. The waveform redraws
     /// every 200ms while buffers arrive four times as often, so this holds the
     /// loudest sample in between — a peak reads truer than whichever sample
@@ -42,7 +54,10 @@ final class VoiceCapture {
     func clearProblem() { problem = nil }
 
     func record() async {
-        guard phase == .idle else { return }
+        guard phase == .idle, !starting else { return }
+        starting = true
+        defer { starting = false }
+
         problem = nil
         levels = AudioLevels.silence(width: width)
         elapsed = 0

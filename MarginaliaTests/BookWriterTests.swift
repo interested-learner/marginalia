@@ -14,14 +14,13 @@ struct BookWriterTests {
     @Test func addingABookWritesTheTypedValues() throws {
         let context = try store()
         let draft = BookDraft(title: "  Meditations ", author: " Marcus Aurelius ",
-                              pages: "254", current: "p.47", status: .reading)
+                              pages: "254", status: .reading)
 
         let book = try #require(try BookWriter.add(draft, in: context))
 
         #expect(book.title == "Meditations")
         #expect(book.author == "Marcus Aurelius")
         #expect(book.pageCount == 254)
-        #expect(book.currentPage == 47)
         #expect(book.status == .reading)
         #expect(try context.fetchCount(FetchDescriptor<Book>()) == 1)
     }
@@ -43,13 +42,12 @@ struct BookWriterTests {
         draft.title = "Meditations"
         draft.author = "Marcus Aurelius"
         draft.pages = "254"
-        draft.current = "47"
         draft.status = .reading
 
         #expect(try BookWriter.apply(draft, to: book, in: context))
         #expect(book.title == "Meditations")
         #expect(book.status == .reading)
-        #expect(book.progress == 47.0 / 254.0)
+        #expect(book.pageCount == 254)
         #expect(try context.fetchCount(FetchDescriptor<Book>()) == 1)
     }
 

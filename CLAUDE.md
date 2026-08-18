@@ -4,22 +4,22 @@ Working context for Claude Code in this repository. Read this before touching an
 
 > **Starting a session?** Read [`docs/planning.md`](docs/planning.md) first — it says what's built, what's next, and what's temporary scaffolding waiting to be replaced. If a build hangs or the app crashes, read [`docs/issues.md`](docs/issues.md) before debugging — it is probably already in there.
 >
-> **Phase 10 is complete, and with it every phase.** The app builds, runs in both appearances, and passes **402 tests on iOS 18.5 and on 26.5** — the map draws the same graph on both. It has an icon (`[m]`, rendered by `Tools/MakeAppIcon.swift`), it survives the largest accessibility size, and it has haptics.
+> **Phase 11 is in progress — the first pass with a real finger on the app.** Read `docs/phase-11.md`. Every phase before it was verified by unit tests, launch arguments and screenshots, and `docs/issues.md` §12 said plainly that nothing here had ever been tapped. It has now been, once, and it came back with six reports and two crashes — **neither of them visible in code review, in 402 passing tests, or in any screenshot taken in ten phases.** Both were in code a simulator cannot reach.
 >
-> **What's left is one evening on a device, and it's the only thing of its kind.** Voice, transcription, camera OCR, the barcode, the share sheet, `NLContextualEmbedding`, the dark app icon and every haptic are eight things asserted and never observed. The simulator can't compile `NLContextualEmbedding`'s assets, so every connection anyone has looked at came out of the `NLEmbedding` fallback, and about half of them are defensible — read `docs/planning.md` §phase 6 before tuning the floor or the weights, which were deliberately left at the spec's values.
+> **The simulator still can't compile `NLContextualEmbedding`'s assets**, so every connection anyone has looked at came out of the `NLEmbedding` fallback, and about half of them are defensible — read `docs/planning.md` §phase 6 before tuning the floor or the weights, which were deliberately left at the spec's values.
 
 ## What this is
 
 **marginalia** — a native iOS app for notes taken from books. Four tabs:
 
-- **stream** — every note across every book, newest first, filterable by tag. A persistent capture bar sits at the bottom for text or voice.
+- **stream** — every note across every book, newest first, filterable by tag. A persistent capture bar sits at the bottom for text or voice. Focused, it grows `→ full note` — which carries the draft into the capture sheet — and the tab bar goes; unfocused it is one line and two buttons, and **the fast path is not allowed to get slower**. It does not name a book: `docs/decisions.md` §18.
 - **books** — the library, and each book's notes.
-- **map** — the whole library as a graph. Notes are nodes, books are hubs, edges are connections the app found on its own.
+- **map** — a summary of the ideas in the library: **themes**, ranked and named, each quoting the note at its centre; **crossings**, the connections that span two books; and **loose**, the notes joined to nothing. The force-directed graph survives one level down, where it is bounded and legible. `docs/decisions.md` §20 — and read it before proposing a whole-library canvas again, because there was one and it was a picture of opaque handles.
 - **review** — a daily set of ~8 older notes, one per screen, swiped through. Resurfacing what you already thought.
 
 Two screens have no tab and hang off the **stream's header**, which is the only header in the app that carries actions: **search** (one field over every note, thread, book, author and tag, with `#tag` filtering) and **settings** (the daily reminder, appearance, export, rebuild connections, about). Both keep the tab bar and both carry `← stream` — they're screens, not questions, so neither arrives as a sheet.
 
-Notes are zettel-style: they carry ids (`n.11`), connect to each other, and accumulate threaded follow-ups. Quick captures with no book land in an **Inbox**.
+Notes are zettel-style: they carry ids (`n.11`), connect to each other, and accumulate threaded follow-ups. Quick captures with no book land in an **Inbox**, and `move to book…` on a row's long press is how they leave it — the spec has said "to be filed later" since phase 3 and until phase 11 there was no later.
 
 **Nobody creates links by hand.** The app connects notes by meaning as they're written — see *Linking* below. Manual linking exists only as override, on the review card's `→ link` and nowhere else.
 
@@ -41,7 +41,7 @@ The look comes from the **OpenCode design system**. It is severe on purpose, and
 6. **No cover art, no images, no color-coding.** Books are title + author + status marker + note count. The absence of imagery is the identity; a row of cover thumbnails would make this a different app.
 7. **Lowercase chrome.** Tab labels, the wordmark, screen titles, and placeholder text are all lowercase (`stream`, `books`, `map`, `add a thought…`).
 8. **One header per screen.** The wordmark appears on **stream only**. Every other screen gets a single header with its own name — never a wordmark row stacked above a title row.
-9. **Support Dynamic Type.** Every size in `Typography` scales with the reader's setting. Never a hardcoded `.system(size:)`. **Chrome stops growing at `xLarge` and content never stops** — `chromeTypeSize()`, on the tab bar, `ScreenHeader` and review's foot, and on nothing else. A note gets every point it asks for; a signpost that fills the room it points out of is worse at its job. **The margin folds** past `isAccessibilitySize` and the id moves above the note — the one conditional in the margin rule, and `docs/design-system.md` says why.
+9. **Support Dynamic Type.** Every size in `Typography` scales with the reader's setting. Never a hardcoded `.system(size:)`. **Chrome stops growing at `xLarge` and content never stops** — `chromeTypeSize()`, on the tab bar, `ScreenHeader`, review's foot, the map's nodes and foot, and the capture bar's `[+]` and `[●]`, and on nothing else. A note gets every point it asks for; a signpost that fills the room it points out of is worse at its job. **The margin folds** past `isAccessibilitySize` and the id moves above the note — the one conditional in the margin rule, and `docs/design-system.md` says why.
 10. **A quote wears the rule and no quote marks.** `“ ”` is a rule *and* quote marks, which is not a convention, and it would be the closest thing to a dingbat in the app. The 2pt `ink` rule is the mark. `docs/issues.md` §18 — which asserted for three phases that the app didn't draw them while two files did.
 
 Colors, condensed — but `Theme.swift` is authoritative:
@@ -79,13 +79,23 @@ Notes connect themselves. The user is never asked to link anything and there is 
 - **`LinkWriter.pin` is the only writer of `isPinned`**, reached from `→ link` on a review card and from nowhere else. Pinning a pair the reader once disconnected un-suppresses it: both flags record a deliberate act and this is the newer one.
 - **The recompute has been measured**, so nobody has to guess again: **0.71 µs a pair at `-O`** — 350 ms at a thousand notes, ~9 seconds at five thousand, off the main actor throughout. `AffinityBenchmarkTests` is the measurement and it must be run in **Release**; the same pass is 60× slower unoptimized, so a Debug number says nothing about the app anybody installs.
 
-## The map — three views, one renderer
+## The map — a summary first, a graph second
 
-- **`MapGraph` decides what's in a view; `GraphLayout` decides where it goes.** Both are pure. `MapView` is the only part that touches the store, and it's where the library is flattened into the three plain lists `MapGraph` takes.
-- **The library, two hops from a note, or one book.** Above 150 nodes the library view collapses to book hubs and expands one on tap — that's the answer to the hairball and it ships with the map, not after it (`docs/decisions.md` §11).
+- **The tab's top level is `MapView`, and it is a list.** Themes, crossings, loose. That is what a reader can actually take away, and it is the form Dynamic Type and VoiceOver work on — the canvas never could. `docs/decisions.md` §20.
+- **`ThemeEngine` groups; `ThemeName` names; both are pure.** Neither sees a model, exactly as `AffinityEngine` never does.
+- **Ranked, never thresholded — this is the load-bearing decision.** An absolute similarity cut is a number tuned to a model the app is designed to abandon: at `0.45` today's fallback embedder yields *zero* themes, and the day `NLContextualEmbedding`'s assets compile the magnitudes move wholesale. So a note ranks every other by `AffinityEngine.score`, pairs survive where each is in the other's top 6, and communities come from **unweighted** greedy modularity. **Do not feed scores into the merge** — modularity gain isn't invariant under a non-uniform change in weights, and that is exactly what changing embedder is. `ThemeEngineTests` has the test that guards it.
+- **It deliberately ignores the floor, the k-NN at 8 and the degree cap of 6.** Those keep a *drawing* legible; grouping is a different job. That independence is what finally connects `n.03` and `n.04` — the near-restatement scoring 0.448 that phase 6 called the worse half of its own output.
+- **A name is extracted, never invented, and never a tag.** `ThemeName` takes noun phrases from `NounPhrases` (the impure half, which runs `NLTagger`) and picks the ones distinctive to the theme; if its notes share nothing, there is **no name** and the exemplar leads. Tags named themes for one afternoon: the grouping never needed them, but six of seven seed themes came out tag-named and the screen read as though tagging were the mechanism. **Don't put them back** — `docs/decisions.md` §20 records what it cost and why it was accepted.
+- **The names are mediocre and that is downstream of the grouping.** `truth · weather` is a bad name for a loosely-coherent group, and no extractor names a bad cluster well. Don't tune `ThemeName` against the fallback embedder's output — that is phase 6's mistake, twice.
+- **The exemplar is evidence, not decoration.** It is the only reason a reader can catch a grouping the app got wrong, which matters more here than anywhere, because the themes ride on an embedder nobody has verified.
+- **`MapGraph` decides what's in a view; `GraphLayout` decides where it goes.** Both pure. `GraphView` is the half that touches the store; `GraphCanvas` is handed a built graph and hands back what was tapped.
+- **Every graph view is bounded: one theme, two hops from a note, or one book.** The whole-library view and the book-hub collapse are gone, along with `collapseAbove` and `-mapCollapse`.
 - **A local view never hops *through* a book.** One hop through a hub is every note in it, and the view stops being local. Hubs come back at the end, attached to whatever notes were reached.
 - **`GraphLayout` is told the shape of the box and the size of every label**, and both matter. A graph laid out square and drawn into a box twice as tall squeezes every horizontal gap by half; a hub spaced as if it were a point sits straight through the note beside it. Both were seen on screen before they were understood.
+- **Two kinds of line meet here and they are not the same fact.** A **connection** is note-to-note, scored on meaning, and it crosses books freely. An **attachment** is a note to the book it was written from — structure, not something the app found. Both are drawn at the same hairline, because there is one line weight in this system, but the reader can **subtract** the attachments with `connections only` in the chip row. That adds no vocabulary — no dash, no second weight, no color — it only stops drawing. **Filter at the stroke, never in `web`:** `GraphLayout` must go on being told about every edge or nothing stays where it was, and an attachment is what gathers a book's notes around its hub in the first place.
 - **Deleting a connection doesn't delete the edge.** `Eraser.suppress` sets `isSuppressed` and keeps the row, because the next recompute — and every recompute is a full one — would otherwise score the same pair, find it just as strong, and draw the line straight back. Suppression *is* the memory of the deletion.
+- **A crossing shows each note once.** A display rule, not a claim about the data: unfiltered, one hub note took three consecutive rows with its text repeated each time.
+- **The themes are well-formed, not verified.** Rank-invariance fixes scale, not signal. Read `ThemeDumpTests` on a device beside `AffinityDumpTests` before trusting a single theme name.
 
 ## Data model rules
 
@@ -100,8 +110,10 @@ Every `@Model` must stay **CloudKit-compatible**, even though sync is off. Enabl
 
 ## Keep these pure
 
-Three types take plain values and return plain values, with no SwiftData inside. That's what makes them testable, and it's not negotiable:
+These types take plain values and return plain values, with no SwiftData inside. That's what makes them testable, and it's not negotiable:
 
+- **`ThemeEngine`** — vectors + tags → themes and loose notes. Ranked, never thresholded
+- **`ThemeName`** — tags + words → what a theme is called, or nothing
 - **`ReviewSetBuilder`** — `[Note]` + `Date` → the day's set (day-stable, ≤8, ≤2 per book, starred weighted, ≥1 currently-reading)
 - **`AffinityEngine`** — vectors + tags → edges
 - **`GraphLayout`** — nodes + edges → positions
@@ -129,8 +141,10 @@ Marginalia/
     ShortIDCounter           monotonic n.11 ids, never reused
     CaptureDraft             what's typed → what a Note stores. Pure
     BookDraft                what's typed → what a Book stores. Pure
-    TypedPage                `"p. 214"` → `214`, for every page field. Pure
-    NoteWriter               the one path a note takes to exist
+    TypedPage                `"p. 214"` → `214`, for every page field. Pure —
+                             and `CaptureDraft` really does call it now
+    NoteWriter               the one path a note takes to exist, and `refile`,
+                             the one path it takes to change books
     BookWriter               the one path a book takes to exist, and changes by
     ReviewWriter             the one path a follow-up, a star and a surfacing
                              take. Surfacing counts once per day, never at build
@@ -148,11 +162,18 @@ Marginalia/
                              the one place a recompute is triggered from
   Features/
     Stream/                  StreamView, StreamGrouping, TagIndex
-    Capture/                 CaptureBar, CaptureSheet, VoiceCapture, AudioLevels
+    Capture/                 CaptureBar, CaptureSheet, VoiceCapture, AudioLevels,
+                             BookPickerField — the one book picker, shared by the
+                             sheet and MoveNoteSheet, where the Inbox is
+                             `— no book —` rather than a row — and MoveNoteSheet,
+                             which is how a note leaves the Inbox
     Review/                  ReviewView, ReviewCard + ShareCard, ReviewSetBuilder,
                              FollowUpSheet
-    Map/                     MapView, and MapGraph — which nodes belong in a
-                             view and which lines join them. Pure
+    Map/                     MapView — the overview: themes, crossings, loose —
+                             and MapRows, ThemeDetailView, GraphView (the graph
+                             screen, which touches the store), GraphCanvas (the
+                             canvas, which doesn't), and MapGraph — which nodes
+                             belong in a view and which lines join them. Pure
     Search/                  SearchView, SearchQuery, SearchIndex — and
                              NotePicker, the one sheet that makes a link by hand
     Settings/                SettingsView — the reminder, appearance, export,
@@ -163,6 +184,11 @@ Marginalia/
     AffinityEngine           scoring, mutual k-NN, pinning, suppression. Pure
     GraphLayout              force-directed, pure, off the main actor. Told the
                              shape of the box and the size of every label
+    ThemeEngine              which notes belong together. Mutual top-6 by
+                             AffinityEngine.score, then unweighted modularity.
+                             No threshold anywhere. Pure
+    ThemeName                a theme's name: the reader's tag, else the
+                             distinctive terms, else nothing. Pure
     SpeechTranscription      SFSpeechRecognizer, on-device only
     TextScanner              VisionKit in text mode, tap-to-select, and
                              `TextScannerScreen` — the camera under the app's
@@ -196,7 +222,10 @@ Tools/
 |---|---|
 | `-startTab <stream\|books\|map\|review>` | opens on that tab |
 | `-openNote <id>` | opens the stream scrolled to `n.<id>` |
-| `-captureDraft "<text>"` | fills the capture bar and focuses it |
+| `-captureDraft "<text>"` | fills the capture bar and focuses it — which is also the only way to see `→ full note`, the tap-off scrim and the hidden tab bar |
+| `-captureMore 1` | opens the capture sheet the way `→ full note` does, over the stream. With `-captureDraft`, carrying that draft |
+| `-bookPicker 1` | opens every book picker's list — the half a closed field never shows. Pair it with `-captureMore`, `-captureSheet` or `-moveNote` |
+| `-moveNote <id>` | opens `move to book…` over the stream for `n.<id>` |
 | `-captureBar <recording\|transcribing>` | the recording rows, without a microphone |
 | `-captureSheet <quote\|thought\|voice\|scan>` | opens the full sheet over the first book's detail |
 | `-scanner 1` | with `-captureSheet scan`, opens the text scanner — **the simulator has no camera**, so what you see is the written fallback |
@@ -210,10 +239,13 @@ Tools/
 | `-followUp 1` | opens the follow-up composer over the current card |
 | `-confirmDelete <book\|note>` | opens the delete confirmation over book detail |
 | `-confirmDelete connection` | with `-startTab map`, the disconnect confirmation |
-| `-mapSelect <id>` | opens the map with `n.<id>` selected — the panel, and an inverted node |
-| `-mapNote <id>` | opens the map two hops out from `n.<id>` |
-| `-mapBook "<title>"` | opens the map on that book alone — matched on any part of the title |
-| `-mapCollapse 1` | forces the book-hub view, which needs 150 nodes otherwise |
+| `-mapSelect <id>` | opens the graph with `n.<id>` selected — the panel, and an inverted node |
+| `-mapNote <id>` | opens the graph two hops out from `n.<id>` |
+| `-mapBook "<title>"` | opens the graph on that book alone — matched on any part of the title |
+| `-mapTheme <id>` | opens the theme whose **exemplar** is `n.<id>` — an identity, not an ordinal |
+| `-mapThemeGraph <id>` | that theme's graph |
+| `-mapCrossings 1` | scrolls the overview to `crossings` — the lower sections are otherwise unscreenshottable |
+| `-mapLines <all\|connections>` | the map with the book attachments subtracted — and the third line of the foot's hint, which only appears then |
 | `-search "<query>"` | opens the search screen with that query already run |
 | `-settings 1` | opens settings |
 | `-preference.notifications 1` | settings with the reminder on — **and the permission prompt, which sticks to the simulator until it's answered by hand.** Reboot the simulator to clear it |
@@ -285,7 +317,9 @@ Tests use **Swift Testing** (`@Test`, `#expect`), not XCTest.
 - **Open Library needs no API key** and imposes no attribution requirement. Manual book entry must always remain available — treat lookup failure as routine, not exceptional.
 - **Seed ~40 notes**, not 12. A sparse map proves nothing about whether the layout works. `SeedLibrary` has them, and the cross-book tag overlap in them is deliberate — it's what phase 6 tunes against.
 - **Pure enums used from a `@Model` need `nonisolated`.** The project defaults to `MainActor` isolation and SwiftData models aren't; `Glyphs`, `BookStatus`, `NoteKind`, `Inbox`, `AudioLevels` and `BookShelf` are marked accordingly.
-- **So does anything handing a closure to a system framework**, and this one is a crash rather than a compile error. `SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor` makes such a closure `@MainActor`; UIKit, AVFoundation and Vision call them on their own threads; Swift 6 traps. `Theme` is `nonisolated` for exactly this reason — it cost five identical `EXC_BREAKPOINT` crashes before anyone read the report. See `docs/issues.md` §1.
+- **So does anything handing a closure to a system framework**, and this one is a crash rather than a compile error. `SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor` makes such a closure `@MainActor`; UIKit, AVFoundation, Speech and Vision call them on their own threads; Swift 6 traps. `Theme` is `nonisolated` for exactly this reason — it cost five identical `EXC_BREAKPOINT` crashes before anyone read the report. **Mark the closure `@Sendable` at the call site**, every time: it costs nothing where the compiler had already inferred it and removes a crash where it hadn't. `docs/issues.md` §1 declared this audit complete for two phases while `SFSpeechRecognizer.requestAuthorization` sat three lines below the one line it had checked (§22).
+- **Nothing expensive in a `body`.** An `ImageRenderer` inside `ShareCardLink.body` drew a multi-megabyte bitmap for every realized review card on every redraw — a render pass nested inside a render pass — and it is the best candidate for the crash at the end of the set. The same rule caught three cheaper versions of itself in the same pass: `ConnectionIndex.build` read from inside a `ForEach` rebuilds per row, and `ReviewSetBuilder.set` behind a computed property runs over the whole library per redraw. **Build it once above the loop, or hold it in `@State`.** `docs/issues.md` §23.
+- **Two siblings in a `VStack` where one of them scrolls is a feedback loop waiting to happen.** Review's foot hid a line on the last card, which grew the paging scroll view by 27pt, which changed every page's height while one was mid-flight. Hide with `.opacity`, never by removing from the layout. The map had the same shape: its panel appearing shrank the canvas, which changed the aspect `GraphLayout` is told, which re-laid out the entire graph on every tap.
 - **Notes are written in exactly one place.** `NoteWriter.save` allocates the id, trims the body, and falls back to the Inbox. A second write path would drift from it — add a caller, not a copy. **Books likewise go through `BookWriter`**, whether they arrived by search, by barcode, or typed in.
 - **And deleted in exactly one place.** `Eraser` exists because `context.delete(note)` is not enough: `NoteEdge.from` and `.to` have no inverse, so SwiftData nils them instead of removing the edge, and an edge with one end missing is a connection that can never be drawn and never be cleaned up. Follow-ups and a book's notes *are* cascaded by the schema; the edges of every note a book takes with it are not.
 - **Every delete goes through a confirmation, and the Inbox refuses.** `Eraser.delete(book:)` returns `false` for it, for the same reason `BookWriter.apply` won't restatus it — it's found by status, and deleting it would take every quick capture with it while the next one silently built a second drawer.
@@ -294,6 +328,7 @@ Tests use **Swift Testing** (`@Test`, `#expect`), not XCTest.
 - **A transcript is never saved unseen, and neither is a scan.** On-device recognition is wrong often enough that it lands in an editable field, both in the bar and in the sheet; OCR off a printed page is the same bet and lands in the same kind of field. Editing either leaves the note `[v] voice` or `[s] scan`: how it was captured is a fact about the note, not about the keystrokes.
 - **A scan is drawn as a passage and marked as a scan.** `NoteKind.isPassage` is what the quote rule keys on, and it's true for `.quote` and `.scan` — a scan is somebody else's words off a page. The marker still says `[s]`, by the rule above. Never test `kind == .quote` to decide how a body is drawn.
 - **The page number is typed, never inferred.** A folio or a running head is text like any other in the frame, and `ScannedPassage` deliberately doesn't hunt for one — a page number that's wrong one time in five is worse than a field the reader fills in.
+- **A note has a page; a book does not have a bookmark.** `Book.currentPage`, `Book.progress` and the progress bar came out in phase 11 — the only way to move that number was four taps through `edit`, so it was always stale, and deriving it from a note's page would be the app's first inference about the reader. `Book.pageCount` stays: it's how long the book is, which is a fact, and it reads as `499pp` in book detail's byline. `docs/decisions.md` §17.
 - **The day's review set is built once and held in `@State`.** Rebuilding it every redraw would reshuffle the deck the moment the reader starred something, because a star is one of the things the set is scored on.
 - **Don't name a property `set`.** `private var counter: String { set.count … }` fails to parse — Swift reads `set` at the start of a property body as the setter keyword.
 - **`Spacer` collapses inside a `ScrollView`.** Content there sizes to itself, so vertical centering is a `.frame(minHeight:)` against a `GeometryReader`, which is how the review card does it.

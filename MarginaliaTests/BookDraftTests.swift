@@ -18,7 +18,7 @@ struct BookDraftTests {
         #expect(draft.bookAuthor == "Marcus Aurelius")
     }
 
-    /// Unknown is 0, which is what `Book.progress` reads as "no progress bar".
+    /// Unknown is 0, and nothing in the app requires it to be anything else.
     @Test func anUnknownPageCountIsZero() {
         #expect(BookDraft(title: "Meditations").pageCount == 0)
         #expect(BookDraft(title: "Meditations", pages: "not sure").pageCount == 0)
@@ -27,31 +27,18 @@ struct BookDraftTests {
 
     /// People type the label back into the field.
     @Test func theLabelTypedBackIntoTheFieldIsIgnored() {
-        #expect(BookDraft(title: "x", pages: "499", current: "p. 214").currentPage == 214)
-    }
-
-    /// A book you're 340 pages into that claims 300 pages would draw a progress
-    /// bar past its own brackets.
-    @Test func theCurrentPageNeverPassesTheLastOne() {
-        #expect(BookDraft(title: "x", pages: "300", current: "340").currentPage == 300)
-    }
-
-    /// With no page count there's nothing to clamp against, and the number is
-    /// still worth keeping — the count can be filled in later.
-    @Test func theCurrentPageSurvivesAnUnknownPageCount() {
-        #expect(BookDraft(title: "x", current: "214").currentPage == 214)
+        #expect(BookDraft(title: "x", pages: "p. 499").pageCount == 499)
     }
 
     // MARK: Round trips
 
     @Test func theFormOpensOnTheBookItIsEditing() {
         let book = Book(title: "Meditations", author: "Marcus Aurelius",
-                        status: .reading, pageCount: 254, currentPage: 47)
+                        status: .reading, pageCount: 254)
         let draft = BookDraft(book)
 
         #expect(draft.title == "Meditations")
         #expect(draft.pages == "254")
-        #expect(draft.current == "47")
         #expect(draft.status == .reading)
     }
 
@@ -60,7 +47,6 @@ struct BookDraftTests {
     @Test func unknownCountsOpenAsEmptyFields() {
         let draft = BookDraft(Book(title: "Meditations"))
         #expect(draft.pages.isEmpty)
-        #expect(draft.current.isEmpty)
     }
 
     @Test func aSearchResultFillsTheForm() {

@@ -2,11 +2,15 @@
 
 Where the project stands and what happens next. **Read this first in a new session**, then `CLAUDE.md` for the rules.
 
-Last updated 2026-08-14, after phase 10.
+Last updated 2026-08-18, after phase 12d — the map became a summary.
 
 ---
 
 ## State
+
+**Phase 11 is the first time anybody used this app.** Read `docs/phase-11.md`. Ten phases were verified by unit tests, launch arguments and screenshots; `docs/issues.md` §12 said plainly that nothing here had ever been tapped, and on 2026-08-18 somebody finally did. Six reports came back and **two of them were crashes** — the record button and the end of the review set — in code paths a simulator physically cannot reach. Neither was visible in code review, in 402 passing tests, or in any screenshot taken in ten phases.
+
+The ratio is the finding, and it is worth writing down rather than getting past: **one session with a finger found more real defects than the whole of phase 10's screenshot pass.** Two of them had been shipped since phase 3 and phase 5.
 
 The app **builds clean, runs on the simulator in both appearances — Debug and Release — and passes 402 tests (one of them a recorded known issue — see phase 6 below).** Every screen reads from SwiftData, and the app writes notes, books *and* follow-ups: `[+]` in the stream bar files a thought into the Inbox with a fresh id, the full sheet files one against a book, books arrive by Open Library search or barcode or by hand, and review pages through a day-stable set of eight whose actions all do something.
 
@@ -43,8 +47,87 @@ History is one commit per phase on `main` — `git log --oneline` is the authori
 | 8 | Search, export, settings, notifications | **done** (the reminder has never been received — `docs/issues.md` §19) |
 | 9 | Camera OCR capture | **done** (the camera needs a device) |
 | 10 | Polish, app icon, device install | **done** — except the device, which is nobody's to fake |
+| 11 | The first hands-on pass | **in progress** — `docs/phase-11.md` |
+| 12a | The map says which lines are connections | **done** |
+| 12d | The map becomes a summary — themes, crossings, loose | **done** · `docs/decisions.md` §20 |
+| 12b | The device run — the embedding verdict | **not started** · needs an iPhone, and it gates 12c |
+| 12c | A bundled CoreML embedder | **designed, not started** · conditional on 12b |
 
 Full detail for every phase is in `docs/specs/2026-08-13-marginalia-design.md`. The reasoning behind the choices is in `docs/decisions.md` — **don't re-litigate those.**
+
+---
+
+## What phase 12d built
+
+**The map had no takeaway, and 12a is what made that legible enough to see.** §19 subtracted the book lines and said plainly that legible is not the same as good. Looked at again with the lines gone, the problem underneath every drawing question turned out to be that **every node is an opaque handle**: `n.07` says nothing, so a canvas of forty-six of them is a picture nobody can read, no region is named, and the collapsed hub view is a picture of the bookshelf that the books tab already gives with full titles. `docs/decisions.md` §11 wrote the escape clause itself — *"if the map doesn't earn its place in use, it moves back inside Books"* — and this invokes it by rebuilding rather than demoting.
+
+- **The tab's top level is now a summary**: themes ranked and named, each quoting the note at its centre; `crossings`, the connections that span two books; `loose`, the notes joined to nothing. It is a list, so Dynamic Type and VoiceOver work on it, which the canvas could never honestly claim.
+- **`ThemeEngine` is ranked, never thresholded, and that is the whole design.** An absolute similarity cut is a number tuned to a model the app is designed to abandon — at `0.45` the fallback embedder yields **zero** themes, and the contextual model would move every magnitude at once. So: mutual top-6 by `AffinityEngine.score`, then **unweighted** greedy modularity. No magic number anywhere; modularity carries its own stopping point, which also bounds the theme count.
+- **The unweighted merge is not an accident.** Modularity gain is not invariant under a non-uniform change in edge weights, and swapping embedder is exactly that. Feeding scores into the merge would have let the partition shift while every ranking stayed identical. `ThemeEngineTests.themesSurviveAWholesaleShiftInSimilarityMagnitudes` is the guard.
+- **It ignores the floor, the k-NN at 8 and the degree cap of 6** — those keep a drawing legible, and grouping is a different job. Which is how `n.03` and `n.04` finally land in one theme: the near-restatement at `0.448` that phase 6 called the worse half of its own output.
+- **The graph survives where it works.** One theme, two hops from a note, one book. `MapView` (730 lines, "the least-verified file in the app") split into `MapView` + `GraphView` + `GraphCanvas`, which is the refactor phase 11 wanted and rightly declined to do on that pass.
+- **The hold-a-line gesture came in from the cold.** A crossing's long press offers `disconnect`, so the app's only hidden destructive gesture is now in the same menu every other listed row uses.
+- Gone: `Focus.library`, `MapGraph.hubs`, `collapseAbove`, `occupied`, `-mapCollapse`, and four collapse tests. New: `-mapTheme`, `-mapThemeGraph`, `-mapCrossings`.
+
+### Tags stopped naming themes, the same day
+
+Shipped as *tag first, extraction otherwise* and pulled within hours. The grouping never needed tags — an untagged library produces identical themes — but six of the seven seed themes came out tag-named, and the screen read as though tagging were the mechanism. `SeedLibrary` is deliberately heavily tagged, so the sample was misrepresenting the feature.
+
+`NounPhrases` (the impure half, `NLTagger`) now supplies noun phrases and bare nouns; `ThemeName` picks the distinctive ones, and no two parts of a name may share a word.
+
+**It is measurably worse and was accepted anyway.** `#error`, `#stoicism`, `#craft`, `#design` became `error · system`, `truth · weather`, `system`, `mechanism`, plus three unnamed. A tag is a human's one-word summary of a note and extraction from forty short sentences cannot beat one — shared multi-word phrases are vanishingly rare at that size. What the untagged output shows is the truth about an untagged library, which the tag rule had been hiding. Naming quality is downstream of grouping quality, and that waits on 12b like everything else here.
+
+### What the screenshots and the dump changed
+
+Four things were built one way and are shipping another, all four caught by looking rather than by reasoning:
+
+- **`ThemeName` no longer names a group that shares no word.** The first dump produced `aspects · attention · automatically` — three words beginning with `a`, which is not coincidence but the signature: with nothing shared, every candidate ties on weight and the alphabetical tie-break returns the first three words in the group. The relax-to-one-note fallback is deleted and the test that asserted it is inverted. A nameless theme leads with its exemplar.
+- **The weight bar went in twice and came out.** Ragged `▇` drew four near-identical grey rectangles; `ASCIIProgressBar` was legible but means *how far through something you are*, which a theme is not, and the largest theme always filled every cell. It was a third encoding of what the sort order and the count already said.
+- **A crossing shows each note once.** Unfiltered, `n.18` took three consecutive rows with its full text repeated — the hub behaviour phase 6 recorded, arriving in the UI. Greedy strongest-first, one appearance per note.
+- **The exemplar grows at the accessibility sizes.** At two lines and AX5 it truncated to `Slips and mistakes are…`, which is no evidence at all, and a theme nobody can check is a theme the app is merely asserting.
+
+### Unverified, and honestly so
+
+- **Nothing was tapped.** Every state was reached by launch argument, as ever. The theme tap, the crossing's long-press `disconnect` and the graph one level down have a device as their only real verdict.
+- **The themes are the fallback embedder's, and this makes them well-*formed*, not *true*.** Rank-invariance fixes scale, not signal: if the model cannot measure meaning at note length — and phase 6 measured that it cannot — the rankings are noise and the themes are well-formed nonsense. Reading the dump, `#design` and `#stoicism` are defensible and `#error` is visibly two ideas welded together. **Nothing was tuned**, for the reason phase 6 gave: fitting to a model the app abandons is fitting to the wrong thing twice.
+- **`ThemeDumpTests` is the deliverable**, and it should be read on the device beside `AffinityDumpTests`. That is still 12b.
+
+---
+
+## What phase 12a built
+
+**A reader looked at the map and asked whether it only joined books to their notes** — they had thought the point was connecting ideas *across* books. The premise was wrong and the complaint was right, which is the interesting combination.
+
+- **The cross-book graph was already the larger half of what was on screen: 46 note-to-note connections against 40 book attachments.** `MapGraph` has emitted both since phase 7 and `AffinityEngine` has deliberately never boosted same-book. Nothing about the linking was broken.
+- **What was broken was the drawing.** Every edge was stroked identically at `Theme.hairline` with no reference to `isAttachment`, and force-directed layout pulls each note toward its hub — so forty structural lines and forty-six meaning lines resolved into one impression: a star per book.
+- **The map now offers `all lines` / `connections only`** in a chip row under the header. With the attachments subtracted the hubs stand bare and the idea web is the only thing left. **It is a filter, not a second line style** — no dash, no second weight, no tint — so `docs/decisions.md` §15's one-line-weight rule survives untouched. §19 records why dashing was rejected.
+- **It filters at the stroke and not in `web`**, which is the part worth remembering. `GraphLayout` goes on being told about every edge, so **not one node moves when the filter changes** — verified by comparing the dark-pixel distribution of both states across 1300 rows of canvas, where zero rows differ. Filtering in `web` would have re-keyed `.task(id: plan)` and reshuffled the screen on a tap — the loop phase 11 removed — and would also have stopped the hubs gathering their clusters, since the attachment is the force that gathers them.
+- **The foot gains a third line, and only while filtered.** `hint`'s doc comment said "two sentences and no more" for two good reasons, so the third describes a state the reader chose rather than teaching a gesture. The comment was amended rather than silently contradicted — §18 and §1 of `docs/issues.md` are both entries about docs asserting things about code they hadn't opened.
+- **The hub view has no attachments to subtract**, so there the chips go to `.opacity(0)` and keep their height, per the rule about siblings of a scroll view.
+
+### Unverified, and honestly so
+
+- **Nothing here was tapped.** The chip row was reached by `-mapLines connections`, like everything else on this screen.
+- **This makes the idea graph legible, not good.** The connections are still the fallback embedder's and about half remain indefensible. Seeing the shape clearly is what makes the *next* judgement possible; it is not that judgement. That is 12b.
+
+---
+
+## What phase 11 built
+
+- **Two crashes, and neither was where anybody had been looking.** `docs/issues.md` §22 and §23 have the full anatomy. The record button had four independent ways to die, two of them Objective-C exceptions a Swift `do/catch` cannot see; the review set had an `ImageRenderer` drawing a multi-megabyte bitmap *inside `body`*, once per visible card, on every redraw. Both files had shipped for phases with tests passing over them.
+- **The audit this project had already written down had been done half way.** `docs/issues.md` §1's closing note said the `SpeechTranscription` closure audit was complete and named the audio tap. `requestAuthorization` was three lines further down the same file, unannotated, handed to a framework whose own header says it may call back on any thread. That is the second entry in `issues.md` to assert something about code it had never opened — §18 was the first. The lesson is not about Speech.
+- **The map stopped reshuffling itself.** Selecting a node used to make the preview panel appear, which shrank the canvas, which changed the aspect ratio `GraphLayout` is told, which re-ran the whole force-directed layout — so a tap moved every node on screen, and two notes with different-length previews moved them *differently*. The foot is a constant height now and the graph is identical before and after a tap, node for node. What movement remains is animated.
+- **And it says what it does.** With nothing selected the foot carries `tap a note to preview it, again to open it` over `hold a line to disconnect two notes`. The most gestural screen in the app had never had an affordance on it; the reader who found the hub-expand gesture found it by accident, and said so.
+- **The tab bar comes off the screen while the capture field has focus.** It was riding up with the keyboard to sit between the capture bar and the keys, with its home-indicator clearance stranded above them. Ignoring the keyboard safe area would have fixed the tab bar by breaking the capture bar, so the signpost goes rather than the tool — and the root now respects the *bottom* safe area properly, which retires the hardcoded 26pt the tab bar had been carrying since phase 1.
+- **The Inbox stopped being one-way.** The spec has described a quick capture as landing there "to be filed later" since phase 3, and there was no later: nothing in the app could change a note's book after it was written. `NoteWriter.refile` is the one path it takes now, reached from `move to book…` on a row's long press — and from a `book · Inbox ▼` line that appears in the capture bar only while it has focus. Unfocused, the bar is byte-for-byte what it was: the fast path is not allowed to get slower.
+- **Reading progress came out.** `Book.currentPage` moved exactly once in the app's life, through four taps of the edit form, so the bar was always stale. `docs/decisions.md` §17 weighs the three options and says why deriving it from a note's page — the tempting one — would have been the app's first inference about the reader, in a design whose one firm rule about pages is that they are typed and never inferred. `pageCount` stays, as `499pp` in the byline, because how long a book is happens to be a fact.
+- **Three more things stopped growing at `xLarge`**, all three found in one AX5 screenshot: the map's nodes (illegible — the layout is told label widths in *characters*), the map's foot (three quarters of the screen, leaving the graph a strip), and the capture bar's `[+]` and `[●]`, which rendered as `…` and as a burst bracket. **A marker truncated to an ellipsis has stopped being a marker.** That is the sixth time on this project that an image has said something a code review didn't.
+
+### Unverified, and honestly so
+
+- **Which crash it actually was is still unknown.** §22 is fixed on four independent arguments and §23 on three; a crash log off the device would name the one that fired. The fixes stand either way and none of them can be exercised here.
+- **Nothing in this phase was tapped either.** Every screen was reached by launch argument, as ever — including the new `-moveNote`. The fixes for the two crashes are, by their nature, the least verifiable things in the app.
+- **The map's tap targets still overlap above ~100 nodes** (`docs/issues.md` §24), and the obvious fix — raising the spacing floor to 44pt — is not physically available: a hundred and twenty nodes at 44pt each need essentially the whole canvas. It wants a nearest-node hit test on the canvas, which is a change to the gesture layer of the least-verified screen in the app, on a pass that was already changing that screen.
 
 ---
 

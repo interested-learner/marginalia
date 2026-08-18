@@ -182,3 +182,123 @@ Three choices phase 9 had to make that §6 didn't cover.
 **The passage is built by tapping lines, and the page number is never one of them.** VisionKit recognizes a page a line at a time, so a passage is several taps and `ScannedPassage` joins them — including rejoining a word the typesetter broke at the margin, which is the one correction a reader would otherwise make on every scan. What it will not do is look for a folio and fill the page field in. §6's own words are that inferring it "would be wrong often enough to be worse than useless", and the file that could break that rule is the file that says so.
 
 **No camera, no dead end.** Where `DataScannerViewController` isn't available the screen says `[x] no camera here — type the passage in as a quote instead` and drops the `use it` button entirely, since nothing on that machine could enable it. It's the same rule the barcode follows — a lookup failing is routine, not exceptional — and it's why manual entry is never buried behind a failure anywhere in this app.
+
+## 17. Reading progress comes out; the page on a note stays
+
+**2026-08-18 · settled** · supersedes the spec's `Book.currentPage` and the progress bar on book detail
+
+`Book.currentPage` existed from phase 2 and moved exactly once in the app's life: `docs/planning.md` §phase 4 records that *editing a book was added on top of the phase's brief, because without it `currentPage` and `status` were unreachable and the progress bar could never move.* That is the whole case against it. The only way to say where you were in a book was to open the book, tap `edit`, find the `on p.` field, type a number and save — four taps to maintain a decoration, every reading session, forever. Nobody does that, and a progress bar that is always wrong is worse than no progress bar: it makes a confident claim about something the app does not know.
+
+Three options were weighed and one was picked:
+
+- **Derive it from the notes.** Saving a note at `p.214` would advance the book to 214. Tempting, and it costs the reader nothing — but it is quietly false. Where you took a note is not where you stopped reading, and the gap is largest for exactly the readers this app is for: somebody who annotates heavily early and then reads a hundred pages without writing anything would be shown as stalled. It would also be the app's first inference about the reader's behaviour, in a design whose one strong rule about page numbers is that **the page number is typed, never inferred** (§6, and `ScannedPassage`).
+- **Keep it manual, make it faster.** A tappable progress line, one tap instead of four. Cheaper to build and it does not lie — but it leaves a feature whose upkeep is a chore in an app that has no other chores. Nothing else in marginalia asks the reader to maintain a number.
+- **Take it out.** Chosen.
+
+**What goes:** `Book.currentPage`, `Book.progress`, the `on p.` field on the book form, and the `[████░░░░░░] p.214 / 499` line on book detail.
+
+**What stays, and why:** `Book.pageCount`. Open Library fills it, the form takes it, and it is a fact about the book rather than a claim about the reader — so it costs nothing to be right about. It moves into book detail's byline as `Daniel Kahneman · reading · 499pp`, because a stored value that nothing displays is the kind of thing that rots. `ASCIIProgressBar` stays too: review uses it for position in the day's set, which is a number the app actually knows.
+
+**And `Note.page` is untouched.** Per-note pages are the useful half — they are typed at the moment they are true, by somebody looking at the page, and they are what makes a quote citable. That was never the part that didn't work.
+
+The status marker is what carries "where am I with this book" now, which is what it was already doing: `reading`, `queued`, `finished`. One honest fact instead of two, one of which was a fiction.
+
+## 18. The capture bar doesn't name a book; `→ full note` does
+
+**2026-08-18 · settled** · reverses the picker added earlier the same day, and supersedes the spec's "a book can be named on the way past"
+
+Phase 11's stage 2 put a `BookPickerField` in the stream's capture bar, visible once the field had focus. It shipped and was used, and the second hands-on pass came back with three complaints that are all the same complaint:
+
+- **The picker was too small to use.** Rows were 13pt type in 12pt of padding — about 40pt, under the 44pt minimum — in a 240pt box wedged between the field and the keyboard. At eight seed books it was tight. At a real library it was a lottery.
+- **Its closed state answered a question nobody had been asked.** `book · Inbox` reads as a book the reader chose. They chose nothing; the Inbox is where a note goes when nobody says otherwise.
+- **The bar is where notes actually get written, and it was the weaker of the app's two capture surfaces.** Everything worth saying about a note — a page, a tag, a quote rather than a thought — lived behind a book on the other side of the app.
+
+The third point argued for the bar becoming `CaptureSheet`. That was rejected: the bar's persistence *is* the stream, and the spec's oldest rule about it is that the fast path is not allowed to get slower. A sheet costs a tap, an animation, and the always-there line that makes the screen feel like a notebook rather than a form.
+
+**What was built instead is an escalation.** Focused, the bar grows one thing: `→ full note`, a link under the field. It hands the typed text and how it was captured to `CaptureSheet`, which opens with the words already in it and the whole screen to spend. Two taps for a thought; three for a note with a book, a page and tags on it. The bar goes back to one line and two buttons.
+
+Escalating is never destructive. The bar keeps its draft until `CaptureSheet` reports that a note was written, so cancelling the sheet puts the reader back in front of what they wrote. That is why `CaptureSheet` gained an `onSaved` callback rather than the bar clearing itself on the way out.
+
+**And the Inbox stopped being one of the choices.** A note reached it two indistinguishable ways — `book == nil`, and picking the Inbox's own row — which is the same duplication `NoteWriter` and `Eraser` exist to prevent one level down. `BookPickerField` now filters the Inbox out of its list, offers `— no book —` at the top, and says `book · none` when nothing is named. Where the note lands is unchanged: `NoteWriter.save` still falls back to the Inbox, and the Inbox is still a `Book` on the books screen, which is what keeps unfiled captures visible.
+
+**Not built, and worth watching for:** if naming a book from the stream turns out to be the common case rather than the rare one, the answer is a row of recently-used books in the bar — one tap, no list — and not the picker back. That is a thing to see happen before building.
+
+---
+
+## 19. The map lets the book lines be subtracted, and stays at one line weight
+
+**2026-08-18 · settled** · answers a question §15 didn't ask; overturns nothing in §11 or §15
+
+A reader looking at the map asked whether it was "just linking the book to the notes connected to it," and said they had thought the point was to connect ideas *across* books. Both halves of that are worth taking seriously, because the first is wrong and the second is exactly what the app does.
+
+`MapGraph` has emitted two kinds of line since phase 7. A **connection** is note-to-note, scored on meaning by `AffinityEngine`, and same-book is deliberately not boosted (§10) so that a line between two books means something. An **attachment** is a note to the book it was written from. On the seed library that is **46 connections against 40 attachments** — the cross-book idea graph was the larger half of what was on screen the whole time.
+
+**So the failure was one of drawing, not of linking.** §15 says the attachment is drawn at the same hairline as everything else "because there is one line weight in this system," and that rule is right and stays. But it left the reader no way to tell the two apart, and force-directed layout pulls each note toward its hub — so forty structural lines and forty-six meaning lines resolved into one impression: a star per book.
+
+**The fix is subtraction, not decoration.** A chip row under the header — `all lines` / `connections only` — stops the attachments being drawn. Considered and rejected: **dashing the attachments**, and **lightening them to a second tint**. Both would have been the app's first dashed line and its first second line weight, and §10 already rejected dotted-vs-solid for manual-vs-automatic links on the grounds that a *drawn* distinction is one the reader has to sit and interpret. A filter asks nothing of anyone. When it is off the screen is byte-for-byte what it was.
+
+**It filters at the stroke and not in the graph**, which is not an implementation detail. `GraphLayout` goes on being told about every edge, so no node moves when the filter changes — confirmed by comparing the dark-pixel distribution of both states across 1300 rows of canvas: zero rows differ. Filtering in `web` instead would re-key the layout task and reshuffle the screen on a tap, which is the exact loop phase 11 removed (§15, `docs/issues.md` §5), and it would also stop the hubs gathering their clusters, because the attachment is the force doing the gathering.
+
+**What this does not fix.** The connections themselves are still the fallback embedder's, and about half of them are indefensible. Being able to see the idea graph clearly is not the same as the idea graph being good — that waits on a device run and `docs/issues.md` §6. This change makes the *next* judgement possible, and it should not be mistaken for the judgement.
+
+## 20. The map becomes a summary; the graph is demoted to bounded views
+
+**2026-08-18 · settled** · invokes §11's own escape clause; amends §15 and §19 by reference, overturns neither
+
+§19 made the idea graph legible and said plainly that legible is not the same as good. Read once more with a finger on it, the tab still had no takeaway — and the reason turned out to sit underneath every drawing question either §15 or §19 asked.
+
+**Every node on the map is an opaque handle.** `n.07` says nothing. So a screen showing forty-six nodes is showing forty-six things nobody can read, and every fact the shape might carry has to be decoded one tap at a time. §11 chose that deliberately — "nodes are the note id itself in mono type, not a dot with a label beside it" — and it is the most distinctive drawing in the app. It is also why the tab is inert. **The stream shows you notes; the map showed you ids.**
+
+Four things followed from it, and none of them is fixable by drawing better:
+
+- **No region is named.** Force-directed layout answers *who is near whom*. Nothing on the screen said what a cluster **was**, so the reader was asked to infer a theme from the spatial position of numbers.
+- **The collapsed hub view is a picture of the bookshelf**, which the books tab already gives with full titles, statuses and counts.
+- **Density is fixed.** There is no zoom and no pan, and `docs/issues.md` §24 has the arithmetic for why the 44pt hit floor can't be raised either: a hundred and twenty nodes at 44pt need essentially the whole canvas.
+- **It is dominated on every axis it competes on.** Lookup — search is better. Browse — stream and books are better. Its only unique claim was the shape of the reader's thinking, and a shape made of unreadable labels does not deliver it.
+
+§11 wrote the escape clause itself: *"if the map doesn't earn its place in use, it moves back inside Books."* **This is that call, answered by rebuilding rather than by demoting.** The tab stays, and stays called `map` — it was never named after the force-directed drawing, it was named after what the drawing was for, so moving the drawing down a level doesn't falsify the name.
+
+**The tab's top level is now a summary the reader can read**: themes, ranked, each named and each quoting the note at its centre; then `crossings`, the individual connections that span two books; then `loose`, the notes connected to nothing. It is a list, so Dynamic Type, VoiceOver and the accessibility sizes all work on it — none of which the canvas could ever honestly claim.
+
+**The canvas survives at the two sizes where a graph is legible and answers a real question**: one theme's notes, and two hops from one note. The whole-library view and the book-hub collapse are deleted, along with `collapseAbove` and `-mapCollapse`. §19's chip row survives untouched and still earns its place, because a theme spans books and its attachments are still drawn.
+
+### Grouping is ranked, never thresholded
+
+This is the part that would have been got wrong quietly.
+
+A theme is a cluster of meaning, so the obvious build is agglomerative clustering of the vectors cut at a similarity threshold. **Rejected, and it is important to say why: an absolute threshold is a number tuned to a model the app is designed to abandon.** On today's fallback embedder two paraphrases about attention score `0.267` against each other and `0.274` against an unrelated note about a kitchen tap (`NoteEmbeddingTests` records it). A cut at `0.45` yields **zero themes**. The day `NLContextualEmbedding`'s assets finally compile, the magnitudes move wholesale and the same constant could yield one blob. That is precisely the mistake phase 6 refused when it left the floor, the weights and `k` at the spec's values rather than fitting them to the fallback.
+
+So `ThemeEngine` ranks instead of thresholding. Each note ranks every other by `AffinityEngine.score` — **reused, not re-derived, so there is one definition of similarity in the app** — pairs are kept where each is in the other's top six, and communities are found by greedy modularity merging on that sparse graph until no merge improves it. Ties break on note id, as `AffinityEngine` and `MapGraph` both already do, and for the reason phase 6 gave: a map that reshuffled on every launch would read as the app changing its mind.
+
+What that buys:
+
+- **No magic number anywhere.** Modularity carries its own stopping point, which also bounds the theme count — a summary showing sixty themes is not a summary.
+- **It is independent of the floor, the mutual k-NN at 8 and the degree cap of 6**, which is the point. Those three constants exist to keep a *drawing* legible; grouping is a different job and reusing them for it is reusing the wrong tool.
+- **It fixes the documented miss.** `n.03` "good error messages assume the system is at fault" and `n.04` "human error is system error" score `0.448` — a near-restatement rejected by the **floor**, not by k-NN. `docs/planning.md` calls that "the worse half" of what reading phase 6's output said. With no floor they land in one theme.
+- **It survives the embedder swap**, because rankings do and magnitudes don't.
+
+### A theme's name is extracted, and never comes from a tag
+
+**Amended 2026-08-18, the same day, after a reader looked at the screen.** The rule shipped as *tag first, extracted terms otherwise*: if a majority of a theme's notes shared a tag, that tag named it. The grouping never needed tags — a wholly untagged library produces exactly the same themes — but the screen **read** as though tagging were the mechanism, because six of the seven seed themes came out tag-named. `SeedLibrary` is deliberately heavily tagged (phase 6 built it that way to tune against), so the sample was misrepresenting the feature to everybody who looked at it, including the people who wrote it.
+
+**So tags name nothing.** They remain 20% of `AffinityEngine.score`, which is part of what pulls two notes together in the first place, but no label on this screen depends on the reader having typed anything. A name is extracted from the notes' own words by `ThemeName`, or there is no name and the exemplar leads.
+
+**Single distinctive words read as keyword salad** — `error · systems · blame` — so `NounPhrases` extracts noun phrases as well as bare nouns, and a phrase beats a bare noun on a tie. It is a separate file because it runs `NLTagger`: the impure half, exactly as `TextScanner` is to `ScannedPassage`. **No two parts of a name may share a word**, or it comes out `human error · system error · error messages`, which is one idea said three times.
+
+**What that cost, measured rather than assumed.** On the seed library the tag rule gave `#error`, `#stoicism`, `#craft`, `#design`; extraction gives `error · system`, `truth · weather`, `system`, `mechanism`, and three themes with no name at all. That is **worse**, and it is worth writing down why: a tag is a human's own one-word summary of a note, and extraction from forty short sentences cannot beat one. Shared multi-word phrases turn out to be vanishingly rare at that size — `human error` appears in exactly one note — so the extractor degrades to generic single nouns.
+
+**It was accepted anyway, and for a reason that outranks name quality.** The screen must not make the reader feel they have to tag things for it to work. What the untagged output shows is simply the truth about an untagged library, which the tag rule had been hiding behind good seed data.
+
+**A weak name is left in place rather than suppressed.** Requiring two distinct terms — "one generic noun is not a name" — would drop `system` and `mechanism` and leave five of seven themes unnamed, at which point the section stops reading as themes and starts reading as a list of notes with counts. Considered, not taken; revisit it when the grouping is better.
+
+**And naming quality is downstream of grouping quality.** `truth · weather` is a poor name because the group it names is itself only loosely coherent. No extractor names a bad cluster well. That waits on the same device run everything else here waits on.
+
+### Two things this deliberately does not carry
+
+**The weight bar came out too**, a day after going in. It encoded theme size against the largest theme, which the sort order and the note count each already carried — a third encoding of one fact, drawn as `ASCIIProgressBar`, whose form means *how far through something you are*. A theme is not in progress, and the largest one always filled every cell, which reads as 100% of nothing.
+
+**A quotes-versus-thoughts bar and a "most thought with" book ranking** were both considered and cut. They answer *what are my books like*, which is a different question from *what are my ideas like*, and they are the closest thing here to vanity metrics. A counter is not a takeaway. One orientation line in the header — `46 notes · 7 books · 12 themes` — is the whole of it.
+
+### What this does not fix, again
+
+**Rank-invariance fixes scale, not signal.** If the embedder cannot measure meaning at note length — and the fallback demonstrably cannot — then the rankings are noise too and the themes are well-formed nonsense. This change makes the summary well-*formed*; the device run makes it *true*. `ThemeDumpTests` prints every theme and its notes so the judgement can be made by reading, the same device `AffinityDumpTests` was built as in phase 6, and it should be read the same evening 12b happens. **A confidently wrong theme name is a louder mistake than a wrong line on a graph** — the exemplar quote and the tag-naming are the two hedges against that, and they are why this was worth building before the verdict rather than after.

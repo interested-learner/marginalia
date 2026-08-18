@@ -5,8 +5,8 @@ import Testing
 /// Which nodes belong in a view, and which lines join them.
 ///
 /// Pure input and pure output, so every rule in the map — hubs, the two-hop
-/// reach, the cap, the collapse — is assertable without a store, a screen or a
-/// simulator.
+/// reach, the cap, a theme's membership — is assertable without a store, a
+/// screen or a simulator.
 struct MapGraphTests {
 
     /// `count` notes spread evenly over `books` shelves, which is what
@@ -24,6 +24,14 @@ struct MapGraphTests {
         }
     }
 
+    /// Every note on screen at once — the shape the retired `.library` focus
+    /// had, which a theme covering the whole library reproduces exactly.
+    /// `full(…)` is the one builder behind all three views, so these go on
+    /// testing what they always tested.
+    private func everything(_ subjects: [MapGraph.Subject]) -> MapGraph.Focus {
+        .theme(subjects.map(\.id))
+    }
+
     private func hubs(_ web: MapGraph.Web) -> [Int] {
         web.nodes.compactMap { node in
             if case .book(let index) = node.id { return index }
@@ -31,11 +39,11 @@ struct MapGraphTests {
         }
     }
 
-    // MARK: The library
+    // MARK: Every note on screen
 
     @Test func everyNoteIsANodeAndEveryBookIsAHub() {
         let (subjects, shelves) = library(notes: 9, books: 3)
-        let web = MapGraph.web(.library, subjects: subjects, shelves: shelves, ties: [])
+        let web = MapGraph.web(everything(subjects), subjects: subjects, shelves: shelves, ties: [])
 
         #expect(notes(web) == Array(1...9))
         #expect(hubs(web) == [0, 1, 2])
@@ -46,7 +54,7 @@ struct MapGraphTests {
     /// still nine lines.
     @Test func everyNoteAttachesToItsBook() {
         let (subjects, shelves) = library(notes: 9, books: 3)
-        let web = MapGraph.web(.library, subjects: subjects, shelves: shelves, ties: [])
+        let web = MapGraph.web(everything(subjects), subjects: subjects, shelves: shelves, ties: [])
 
         let attachments = web.edges.filter(\.isAttachment)
         #expect(web.edges.count == 9)
@@ -54,9 +62,10 @@ struct MapGraphTests {
     }
 
     @Test func aBookNothingWasWrittenFromIsNotDrawn() {
+        let subjects = [MapGraph.Subject(id: 1, book: 0)]
         let web = MapGraph.web(
-            .library,
-            subjects: [MapGraph.Subject(id: 1, book: 0)],
+            everything(subjects),
+            subjects: subjects,
             shelves: [MapGraph.Shelf(index: 0, title: "Read"), MapGraph.Shelf(index: 1, title: "Queued")],
             ties: []
         )
@@ -66,9 +75,10 @@ struct MapGraphTests {
 
     /// A note whose book has gone is still a note. It just floats.
     @Test func aNoteWithNoBookIsStillANode() {
+        let subjects = [MapGraph.Subject(id: 1), MapGraph.Subject(id: 2, book: 0)]
         let web = MapGraph.web(
-            .library,
-            subjects: [MapGraph.Subject(id: 1), MapGraph.Subject(id: 2, book: 0)],
+            everything(subjects),
+            subjects: subjects,
             shelves: [MapGraph.Shelf(index: 0, title: "Read")],
             ties: []
         )
@@ -80,7 +90,7 @@ struct MapGraphTests {
     @Test func connectionsAreDrawnAsWellAsAttachments() {
         let (subjects, shelves) = library(notes: 4, books: 1)
         let web = MapGraph.web(
-            .library,
+            everything(subjects),
             subjects: subjects,
             shelves: shelves,
             ties: [MapGraph.Tie(1, 3, score: 0.7)]
@@ -96,7 +106,7 @@ struct MapGraphTests {
     @Test func attachmentsDoNotCountTowardWeight() {
         let (subjects, shelves) = library(notes: 3, books: 1)
         let web = MapGraph.web(
-            .library,
+            everything(subjects),
             subjects: subjects,
             shelves: shelves,
             ties: [MapGraph.Tie(1, 2), MapGraph.Tie(1, 3)]
@@ -109,7 +119,7 @@ struct MapGraphTests {
     @Test func aTieToANoteThatIsNotOnScreenIsDropped() {
         let (subjects, shelves) = library(notes: 3, books: 1)
         let web = MapGraph.web(
-            .library,
+            everything(subjects),
             subjects: subjects,
             shelves: shelves,
             ties: [MapGraph.Tie(1, 99), MapGraph.Tie(2, 2)]
@@ -119,7 +129,7 @@ struct MapGraphTests {
     }
 
     @Test func anEmptyLibraryDrawsNothing() {
-        #expect(MapGraph.web(.library, subjects: [], shelves: [], ties: []).isEmpty)
+        #expect(MapGraph.web(.theme([]), subjects: [], shelves: [], ties: []).isEmpty)
     }
 
     /// Built twice, the same both times — the layout hangs off this value, so a
@@ -128,56 +138,9 @@ struct MapGraphTests {
         let (subjects, shelves) = library(notes: 12, books: 3)
         let ties = [MapGraph.Tie(3, 7, score: 0.6), MapGraph.Tie(1, 2, score: 0.9)]
 
-        #expect(MapGraph.web(.library, subjects: subjects, shelves: shelves, ties: ties)
-             == MapGraph.web(.library, subjects: subjects.reversed(), shelves: shelves, ties: ties.reversed()))
-    }
-
-    // MARK: The collapse
-
-    @Test func aLibraryUnderTheThresholdIsNotCollapsed() {
-        let (subjects, shelves) = library(notes: 100, books: 4)
-        let web = MapGraph.web(.library, subjects: subjects, shelves: shelves, ties: [])
-
-        #expect(notes(web).count == 100)
-    }
-
-    @Test func aLibraryOverTheThresholdCollapsesToHubs() {
-        let (subjects, shelves) = library(notes: MapGraph.collapseAbove + 1, books: 4)
-        let web = MapGraph.web(.library, subjects: subjects, shelves: shelves, ties: [])
-
-        #expect(notes(web).isEmpty)
-        #expect(hubs(web) == [0, 1, 2, 3])
-    }
-
-    /// Hubs are joined where a connection crosses between two books, and
-    /// **once** however many cross. Same-book connections leave no line at all,
-    /// which is the point of the view: it shows what reaches across.
-    @Test func hubsAreJoinedWhereAConnectionCrossesBooks() {
-        let (subjects, shelves) = library(notes: 8, books: 2)   // odd ids in book 0
-        let web = MapGraph.web(
-            .library,
-            subjects: subjects,
-            shelves: shelves,
-            ties: [MapGraph.Tie(1, 2), MapGraph.Tie(3, 4), MapGraph.Tie(1, 3)],
-            collapsing: true
-        )
-
-        #expect(web.edges.count == 1)
-        #expect(web.edges.first == MapGraph.Edge(a: .book(0), b: .book(1), isAttachment: false))
-    }
-
-    @Test func aCollapsedHubCarriesItsCrossingsAsWeight() {
-        let (subjects, shelves) = library(notes: 9, books: 3)
-        let web = MapGraph.web(
-            .library,
-            subjects: subjects,
-            shelves: shelves,
-            ties: [MapGraph.Tie(1, 2), MapGraph.Tie(1, 3)],
-            collapsing: true
-        )
-
-        #expect(web.nodes.first { $0.id == .book(0) }?.degree == 2)
-        #expect(web.nodes.first { $0.id == .book(1) }?.degree == 1)
+        #expect(MapGraph.web(everything(subjects), subjects: subjects, shelves: shelves, ties: ties)
+             == MapGraph.web(everything(subjects), subjects: subjects.reversed(),
+                             shelves: shelves, ties: ties.reversed()))
     }
 
     // MARK: Two hops out
@@ -220,6 +183,51 @@ struct MapGraphTests {
         let (subjects, shelves) = library(notes: 4, books: 1)
 
         #expect(MapGraph.web(.note(99), subjects: subjects, shelves: shelves, ties: []).isEmpty)
+    }
+
+    // MARK: One theme
+
+    @Test func aThemeViewIsItsMembersAndNobodyElse() {
+        let (subjects, shelves) = library(notes: 9, books: 3)
+        let web = MapGraph.web(.theme([2, 5, 8]), subjects: subjects, shelves: shelves, ties: [])
+
+        #expect(notes(web) == [2, 5, 8])
+    }
+
+    /// A theme spans books, and saying which is most of what a theme is worth —
+    /// so the hubs come back, attached to whichever members were drawn.
+    @Test func aThemeViewKeepsTheHubsOfTheBooksItSpans() {
+        let (subjects, shelves) = library(notes: 9, books: 3)
+        // ids 1,4,7 are in book 0; 2,5,8 in book 1; 3,6,9 in book 2.
+        let web = MapGraph.web(.theme([1, 2]), subjects: subjects, shelves: shelves, ties: [])
+
+        #expect(hubs(web) == [0, 1])
+        #expect(web.edges.filter(\.isAttachment).count == 2)
+    }
+
+    @Test func aThemeViewDropsConnectionsThatLeaveIt() {
+        let (subjects, shelves) = library(notes: 6, books: 1)
+        let web = MapGraph.web(
+            .theme([1, 2]),
+            subjects: subjects,
+            shelves: shelves,
+            ties: [MapGraph.Tie(1, 2, score: 0.9), MapGraph.Tie(1, 5, score: 0.8)]
+        )
+
+        #expect(web.edges.filter { !$0.isAttachment }.count == 1)
+    }
+
+    @Test func anEmptyThemeDrawsNothing() {
+        let (subjects, shelves) = library(notes: 6, books: 2)
+
+        #expect(MapGraph.web(.theme([]), subjects: subjects, shelves: shelves, ties: []).isEmpty)
+    }
+
+    /// A theme whose members have all been deleted is empty rather than wrong.
+    @Test func aThemeOfNotesThatAreGoneIsEmpty() {
+        let (subjects, shelves) = library(notes: 3, books: 1)
+
+        #expect(MapGraph.web(.theme([90, 91]), subjects: subjects, shelves: shelves, ties: []).isEmpty)
     }
 
     // MARK: One book

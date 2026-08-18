@@ -171,4 +171,78 @@ struct NoteWriterTests {
         #expect(note.book?.title == title)
         #expect(note.book?.author == author)
     }
+
+    // MARK: Filing later
+
+    /// The Inbox is described in the spec as somewhere a note waits "to be
+    /// filed later", and until phase 11 there was no later — nothing in the app
+    /// could change a note's book after it was written.
+    @Test func aNoteLeavesTheInbox() throws {
+        let (context, counter) = try library()
+        let note = try #require(try NoteWriter.save(CaptureDraft(text: "a thought"),
+                                                    in: context, counter: counter))
+        #expect(note.book?.status == .inbox)
+
+        let book = Book(title: "Meditations", status: .reading)
+        context.insert(book)
+        try NoteWriter.refile(note, to: book, in: context)
+
+        #expect(note.book?.title == "Meditations")
+        #expect(book.notes?.contains { $0.shortID == note.shortID } == true)
+    }
+
+    /// And goes back in, because `nil` means the Inbox here exactly as it does
+    /// in `save` — a note filed to the wrong book has to be recoverable by the
+    /// same door it left through.
+    @Test func aNoteGoesBackToTheInbox() throws {
+        let (context, counter) = try library()
+        let book = Book(title: "Meditations", status: .reading)
+        context.insert(book)
+
+        let note = try #require(try NoteWriter.save(CaptureDraft(text: "a thought"),
+                                                    to: book, in: context, counter: counter))
+        try NoteWriter.refile(note, to: nil, in: context)
+
+        #expect(note.book?.status == .inbox)
+    }
+
+    /// Everything about the note except which shelf it sits on. The id above
+    /// all: a note that changed books and changed id would break every
+    /// `→ n.11` ever written about it.
+    @Test func movingANoteChangesNothingElseAboutIt() throws {
+        let (context, counter) = try library()
+        var draft = CaptureDraft(kind: .quote, text: "a passage")
+        draft.page = "214"
+        draft.tags = "#attention, memory"
+
+        let note = try #require(try NoteWriter.save(draft, in: context, counter: counter))
+        let id = note.shortID
+        try ReviewWriter.followUp("a later thought", on: note, in: context)
+
+        let book = Book(title: "Meditations", status: .reading)
+        context.insert(book)
+        try NoteWriter.refile(note, to: book, in: context)
+
+        #expect(note.shortID == id)
+        #expect(note.kind == .quote)
+        #expect(note.page == 214)
+        #expect(note.tags == ["attention", "memory"])
+        #expect(note.thread.count == 1)
+    }
+
+    /// Moving a note to the book it is already in writes nothing — a `save()`
+    /// on every dismissal of the sheet would invalidate every `@Query` in the
+    /// app for no reason.
+    @Test func movingANoteNowhereIsNotAWrite() throws {
+        let (context, counter) = try library()
+        let book = Book(title: "Meditations", status: .reading)
+        context.insert(book)
+
+        let note = try #require(try NoteWriter.save(CaptureDraft(text: "a thought"),
+                                                    to: book, in: context, counter: counter))
+        try NoteWriter.refile(note, to: book, in: context)
+
+        #expect(note.book?.title == "Meditations")
+        #expect(try context.fetchCount(FetchDescriptor<Note>()) == 41)
+    }
 }

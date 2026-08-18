@@ -31,6 +31,11 @@ struct BookDetailView: View {
             header
 
             ScrollView {
+                // Built once per body pass and handed to every row. Read from
+                // inside the `ForEach` it rebuilt the whole edge index per row,
+                // per redraw.
+                let connections = self.connections
+
                 LazyVStack(spacing: 0) {
                     if notes.isEmpty {
                         EmptyState(message: "no notes yet — add the first one below")
@@ -86,14 +91,6 @@ struct BookDetailView: View {
                     .fixedSize(horizontal: false, vertical: true)
 
                 HStack(alignment: .firstTextBaseline, spacing: 12) {
-                    if let progress = book.progress {
-                        ASCIIProgressBar(fraction: progress)
-                        Text("p.\(book.currentPage) / \(book.pageCount)")
-                            .font(Typography.meta)
-                            .foregroundStyle(Theme.textAsh)
-                            .monospacedDigit()
-                    }
-
                     Spacer(minLength: 8)
 
                     // The Inbox is found by status and is where every unfiled
@@ -139,8 +136,18 @@ struct BookDetailView: View {
 
     /// `Daniel Kahneman · reading`, closing up when the author is unknown —
     /// which manual entry and a failed lookup both leave behind.
+    /// `Daniel Kahneman · reading · 499pp`
+    ///
+    /// The length is a fact about the book and it costs nothing to keep — Open
+    /// Library fills it and the form takes it. What went with `currentPage` is
+    /// the *progress*, which nobody was ever going to keep current by hand.
+    /// See `docs/decisions.md` §17.
     private var byline: String {
-        book.author.isEmpty ? book.status.label : "\(book.author) · \(book.status.label)"
+        var parts: [String] = []
+        if !book.author.isEmpty { parts.append(book.author) }
+        parts.append(book.status.label)
+        if book.pageCount > 0 { parts.append("\(book.pageCount)pp") }
+        return parts.joined(separator: " · ")
     }
 
     private var addBar: some View {

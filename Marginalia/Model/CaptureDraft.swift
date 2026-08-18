@@ -33,12 +33,12 @@ struct CaptureDraft {
     }
 
     /// The field is labelled `p.`, and people type the label back into it.
-    /// Anything that isn't a page — blank, zero, negative, prose — is no page,
-    /// because `p.0` on a source line reads as a bug and is one.
-    var pageNumber: Int? {
-        let digits = page.filter(\.isNumber)
-        guard !digits.isEmpty, !page.contains("-"), let number = Int(digits), number > 0
-        else { return nil }
-        return number
-    }
+    ///
+    /// **`TypedPage`, not a copy of it.** This was a byte-identical
+    /// reimplementation for six phases — `CaptureDraft` landed in phase 3 and
+    /// `TypedPage` was extracted in phase 4 without coming back for it — while
+    /// `TypedPage`'s own doc comment claimed it was shared by every page field
+    /// in the app. Two rules that agree by coincidence are one rule waiting to
+    /// disagree.
+    var pageNumber: Int? { TypedPage.parse(page) }
 }

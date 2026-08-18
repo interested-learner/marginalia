@@ -47,7 +47,7 @@ enum Library {
         var books: [String: Book] = [:]
         for seed in SeedLibrary.books {
             let book = Book(title: seed.title, author: seed.author, status: seed.status,
-                            pageCount: seed.pageCount, currentPage: seed.currentPage,
+                            pageCount: seed.pageCount,
                             createdAt: now)
             books[seed.key] = book
             context.insert(book)

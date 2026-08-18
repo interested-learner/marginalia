@@ -1,4 +1,6 @@
 import SwiftUI
+import CoreTransferable
+import UniformTypeIdentifiers
 
 /// One note, filling the screen.
 ///
@@ -9,14 +11,28 @@ struct ReviewCard: View {
     let note: NoteRowData
     let actions: ReviewActions
 
+    /// How tall the card actually turned out. A vertical scroll view nested
+    /// inside the vertical *paging* scroll view swallows the page gesture, so
+    /// this one is only allowed to scroll when it has something to scroll to.
+    @State private var content: CGFloat = 0
+
     var body: some View {
         // Centered vertically, which `Spacer` can't do inside a scroll view —
         // the content sizes to itself there and the spacers collapse. The card
         // scrolls only once a long note plus its thread outgrows the screen.
         GeometryReader { proxy in
             ScrollView {
-                card.frame(minHeight: proxy.size.height)
+                card
+                    .frame(minHeight: proxy.size.height)
+                    .onGeometryChange(for: CGFloat.self) { $0.size.height } action: { content = $0 }
             }
+            // **The one that ate the swipe.** `scrollBounceBehavior` stops the
+            // rubber band; it does not stop the scroll. A card that fits still
+            // consumed a drag the pager should have had, and the closing card —
+            // which has no inner scroll view at all — behaved differently from
+            // every card before it, which is what made the end of the set feel
+            // stuck rather than finished.
+            .scrollDisabled(content <= proxy.size.height + 0.5)
             .scrollBounceBehavior(.basedOnSize)
         }
     }
@@ -90,7 +106,12 @@ struct ReviewActions {
     /// `nil` when the note somehow has no book — the action hides rather than
     /// sitting there doing nothing.
     let openBook: (() -> Void)?
-    let shareCard: () -> Image?
+    /// **What to share, not the sharing of it.** This used to be
+    /// `() -> Image?`, called from `ShareCardLink.body` — so every visible card
+    /// rendered a 420pt bitmap at 3x on every body pass, synchronously, inside
+    /// SwiftUI's own render pass. Now the card hands over the *description* of
+    /// the image and nothing draws until the reader taps `share`.
+    let shareCard: () -> ShareableCard
     /// The map, two hops out from this note.
     let openWeb: () -> Void
     /// Connect this note to another by hand. The one thing in the app that
@@ -125,7 +146,7 @@ private struct ActionRow: View {
                     MarkerButton(title: "\(Glyphs.forward) open book", kind: .link,
                                  action: openBook)
                 }
-                ShareCardLink(note: note, image: actions.shareCard)
+                ShareCardLink(note: note, card: actions.shareCard)
                 Spacer(minLength: 0)
             }
 
@@ -152,18 +173,19 @@ private struct ActionRow: View {
 /// picture.
 private struct ShareCardLink: View {
     let note: NoteRowData
-    let image: () -> Image?
+    let card: () -> ShareableCard
 
     var body: some View {
-        if let rendered = image() {
-            ShareLink(item: rendered,
-                      preview: SharePreview(note.idLabel, image: rendered)) {
-                Text("share")
-                    .font(Typography.source)
-                    .foregroundStyle(Theme.textMute)
-                    .underline(pattern: .solid)
-                    .padding(.vertical, 4)
-            }
+        // `ShareLink` asks its item for bytes when the share sheet opens, so
+        // the render happens on a tap rather than on a redraw. The preview is
+        // the note's id — a text preview costs nothing, and an image preview
+        // would put the whole bitmap back in `body` by another door.
+        ShareLink(item: card(), preview: SharePreview(note.idLabel)) {
+            Text("share")
+                .font(Typography.source)
+                .foregroundStyle(Theme.textMute)
+                .underline(pattern: .solid)
+                .padding(.vertical, 4)
         }
     }
 }
@@ -215,15 +237,36 @@ struct ShareCard: View {
     }
 }
 
-extension ShareCard {
+/// One note, ready to leave the app — and **not yet drawn**.
+///
+/// The renderer is the most expensive thing on the review screen: a 420pt card
+/// at 3x is several megabytes of bitmap, and it used to be built inside
+/// `body`, for every card the paging scroll had realized, on every redraw.
+/// That is a nested SwiftUI render pass inside a render pass, at a memory rate
+/// a phone will eventually answer by killing the app.
+///
+/// A `Transferable` is the shape of the fix rather than a workaround for it:
+/// `ShareLink` holds this value and asks it for bytes only when the share sheet
+/// actually opens. Nothing renders until somebody shares.
+struct ShareableCard: Transferable {
+    let note: NoteRowData
+    /// The appearance the reader is actually looking at — sharing a white card
+    /// out of a dark app would be a surprise.
+    let scheme: ColorScheme
 
-    /// The card as an image, in the appearance the reader is actually looking
-    /// at — sharing a white card out of a dark app would be a surprise.
+    static var transferRepresentation: some TransferRepresentation {
+        DataRepresentation(exportedContentType: .png) { card in
+            await card.png() ?? Data()
+        }
+        .suggestedFileName { "\($0.note.idLabel).png" }
+    }
+
     @MainActor
-    static func rendered(_ note: NoteRowData, in scheme: ColorScheme) -> Image? {
-        let renderer = ImageRenderer(content: ShareCard(note: note).environment(\.colorScheme, scheme))
-        renderer.scale = scale
-        guard let image = renderer.uiImage else { return nil }
-        return Image(uiImage: image)
+    private func png() -> Data? {
+        let renderer = ImageRenderer(
+            content: ShareCard(note: note).environment(\.colorScheme, scheme)
+        )
+        renderer.scale = ShareCard.scale
+        return renderer.uiImage?.pngData()
     }
 }

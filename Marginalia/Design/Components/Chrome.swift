@@ -139,7 +139,6 @@ struct TabBar: View {
                     .buttonStyle(.plain)
                 }
             }
-            .padding(.bottom, 26)          // clears the home indicator
         }
         .background(Theme.canvas)
         // Four fixed labels sharing one row, so this is the ceiling that

@@ -27,6 +27,12 @@ struct ReviewView: View {
     @Environment(\.colorScheme) private var scheme
 
     @State private var today: [Note] = []
+    /// Whether `[↻] keep going` would find anything. Held rather than computed:
+    /// as a computed property it ran a whole `ReviewSetBuilder` pass over every
+    /// note in the library on **every body evaluation**, to decide whether to
+    /// draw one button — and the body is evaluated constantly while a paging
+    /// scroll is in flight.
+    @State private var more = false
     @State private var position: Int? = 0
     @State private var composing: Note?
     /// Which card is picking a note to link to.
@@ -72,13 +78,15 @@ struct ReviewView: View {
     private var cards: some View {
         ScrollView(.vertical) {
             LazyVStack(spacing: 0) {
+                let connections = self.connections
                 ForEach(Array(today.enumerated()), id: \.offset) { index, note in
-                    ReviewCard(note: row(note), actions: actions(for: note))
+                    ReviewCard(note: row(note, connections: connections),
+                               actions: actions(for: note, connections: connections))
                         .containerRelativeFrame(.vertical)
                         .id(index)
                 }
 
-                ClosingCard(remaining: !remaining.isEmpty) { keepGoing() }
+                ClosingCard(remaining: more) { keepGoing() }
                     .containerRelativeFrame(.vertical)
                     .id(today.count)
             }
@@ -95,7 +103,14 @@ struct ReviewView: View {
             // moves. Surfacing is the narrower event and keeps its own guard.
             if previous != current { Haptics.paged() }
             guard let previous, previous < today.count else { return }
-            try? ReviewWriter.surface(today[previous], in: context)
+            let seen = today[previous]
+
+            // **Not on this turn of the run loop.** Surfacing writes, and a
+            // `context.save()` invalidates both `@Query`s on this view, which
+            // re-evaluates the whole body — while the paging scroll is still
+            // decelerating. Handing it to the next turn lets the scroll land
+            // first; the note is the same note either way.
+            Task { @MainActor in try? ReviewWriter.surface(seen, in: context) }
         }
     }
 
@@ -104,11 +119,20 @@ struct ReviewView: View {
             ASCIIProgressBar(fraction: fraction)
             // Nothing to swipe to from the closing card, so the hint goes rather
             // than pointing at the end of the scroll.
-            if !atEnd {
-                Text("\(Glyphs.up) swipe up for next")
-                    .font(Typography.meta)
-                    .foregroundStyle(Theme.textAsh)
-            }
+            //
+            // **Hidden, never removed.** `foot` and the paging scroll view are
+            // siblings in one `VStack`, so taking this line out of the layout
+            // gives the scroll view 27 more points — which changes every
+            // `containerRelativeFrame(.vertical)` page height, mid-flight, at
+            // exactly the moment the reader reaches the last page. The scroll
+            // then re-targets, un-hides the hint, shrinks again, and the deck
+            // sticks. It reads as the app fighting your thumb, and it was only
+            // ever reachable at the end of the set.
+            Text("\(Glyphs.up) swipe up for next")
+                .font(Typography.meta)
+                .foregroundStyle(Theme.textAsh)
+                .opacity(atEnd ? 0 : 1)
+                .accessibilityHidden(atEnd)
         }
         .frame(maxWidth: .infinity)
         .padding(.bottom, 16)
@@ -125,6 +149,7 @@ struct ReviewView: View {
     private func open() {
         if today.isEmpty {
             today = ReviewSetBuilder.set(from: notes, on: .now)
+            more = hasMore
             openAtLaunch()
         }
         arrive()
@@ -141,28 +166,38 @@ struct ReviewView: View {
 
     /// `[↻] keep going` extends past the day's eight rather than starting the
     /// same set over — for anyone who wants more, on a day they have the time.
+    ///
+    /// **There is deliberately no scroll here.** The closing card is the last
+    /// element and carries the id `today.count`, so appending puts the first new
+    /// note at exactly the slot the reader is already looking at: the geometry
+    /// doesn't move and the card's content becomes the next note under the
+    /// thumb. Scrolling would mean animating *backwards* past the eight cards
+    /// that were just inserted above the closing card, which is a long fling to
+    /// arrive where you already were. The haptic is fired by hand because
+    /// `position` genuinely doesn't change and `onChange` will not see this.
     private func keepGoing() {
         let next = ReviewSetBuilder.set(from: notes, on: .now, excluding: Set(today.map(\.shortID)))
         guard !next.isEmpty else { return }
 
-        let landing = today.count
         today += next
-        withAnimation { position = landing }
+        more = hasMore
+        Haptics.paged()
     }
 
-    /// What `keep going` would find. Read to decide whether to offer it at all.
-    private var remaining: [Note] {
-        ReviewSetBuilder.set(from: notes, on: .now,
-                             limit: 1, excluding: Set(today.map(\.shortID)))
+    /// Whether `keep going` would find anything. One card's worth is enough to
+    /// answer the question, and the question is only asked when the deck changes.
+    private var hasMore: Bool {
+        !ReviewSetBuilder.set(from: notes, on: .now,
+                              limit: 1, excluding: Set(today.map(\.shortID))).isEmpty
     }
 
     // MARK: A card
 
-    private func row(_ note: Note) -> NoteRowData {
+    private func row(_ note: Note, connections: [Int: [Int]]) -> NoteRowData {
         NoteRowData(note, connections: connections[note.shortID] ?? [])
     }
 
-    private func actions(for note: Note) -> ReviewActions {
+    private func actions(for note: Note, connections: [Int: [Int]]) -> ReviewActions {
         ReviewActions(
             addThought: { composing = note },
             toggleStar: {
@@ -170,12 +205,15 @@ struct ReviewView: View {
                 Haptics.starred()
             },
             openBook: note.book.map { book in { onOpenBook(book) } },
-            shareCard: { ShareCard.rendered(row(note), in: scheme) },
+            shareCard: { ShareableCard(note: row(note, connections: connections), scheme: scheme) },
             openWeb: { onOpenWeb(note.shortID) },
             link: { linking = note }
         )
     }
 
+    /// Built **once per body pass and handed down**, never read from inside the
+    /// `ForEach`. As a computed property reached per row it rebuilt the whole
+    /// edge index for every card on screen, every redraw.
     private var connections: [Int: [Int]] { ConnectionIndex.build(edges: edges) }
 
     // MARK: Where you are

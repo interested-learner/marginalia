@@ -21,7 +21,6 @@ nonisolated enum SeedLibrary {
         let author: String
         let status: BookStatus
         var pageCount: Int = 0
-        var currentPage: Int = 0
     }
 
     /// Ages are expressed against launch, so a fresh install always opens onto
@@ -69,15 +68,15 @@ nonisolated enum SeedLibrary {
 
     static let books: [BookSeed] = [
         BookSeed(key: "kahneman", title: "Thinking, Fast and Slow", author: "Daniel Kahneman",
-                 status: .reading, pageCount: 499, currentPage: 214),
+                 status: .reading, pageCount: 499),
         BookSeed(key: "aurelius", title: "Meditations", author: "Marcus Aurelius",
-                 status: .finished, pageCount: 254, currentPage: 254),
+                 status: .finished, pageCount: 254),
         BookSeed(key: "pirsig", title: "Zen and the Art of Motorcycle Maintenance", author: "Robert M. Pirsig",
-                 status: .reading, pageCount: 418, currentPage: 284),
+                 status: .reading, pageCount: 418),
         BookSeed(key: "deutsch", title: "The Beginning of Infinity", author: "David Deutsch",
                  status: .queued, pageCount: 487),
         BookSeed(key: "norman", title: "The Design of Everyday Things", author: "Don Norman",
-                 status: .finished, pageCount: 368, currentPage: 368),
+                 status: .finished, pageCount: 368),
         BookSeed(key: "inbox", title: Inbox.title, author: Inbox.author,
                  status: .inbox),
     ]

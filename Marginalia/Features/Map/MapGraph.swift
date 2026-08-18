@@ -7,22 +7,23 @@ import Foundation
 /// it needs; everything about *which* nodes belong in a view and *which* lines
 /// join them is decided here, where a test can ask.
 ///
-/// Three views over one renderer, exactly as the spec has it:
+/// Three views over one renderer, and **all three are bounded**:
 ///
-/// - **library** — everything, or the book hubs alone once the whole thing stops
-///   being legible
+/// - **theme** — the notes one theme is made of, which is where the overview
+///   hands over
 /// - **note** — two hops out from one note, capped, which reads clearly at any
 ///   library size
 /// - **book** — one book and what was written from it, which is where a tapped
 ///   hub expands to
+///
+/// **There is no library view any more, and no hub collapse.** A canvas of the
+/// whole library was a picture of opaque handles that no amount of drawing could
+/// fix, and the collapsed view was a picture of the bookshelf that the books tab
+/// already gives with full titles. `docs/decisions.md` §20 — the summary at the
+/// top of the map tab is what replaced them.
 nonisolated enum MapGraph {
 
     // MARK: The constants
-
-    /// Above this many nodes the library view collapses to book hubs. A graph
-    /// is only legible in a band: sparse and sad at twelve nodes, an unreadable
-    /// hairball at five thousand. See `docs/decisions.md` §11.
-    static let collapseAbove = 150
 
     /// How far a local view reaches. Two hops is the answer to "what is this
     /// note near", and three is most of the library again.
@@ -43,9 +44,13 @@ nonisolated enum MapGraph {
         case book(Int)
     }
 
-    /// What the map is centred on.
+    /// What the graph is centred on. Every case is bounded — see the note above
+    /// about why `library` is gone.
     enum Focus: Hashable, Sendable {
-        case library
+        /// The members of one theme, by short id. An explicit list rather than a
+        /// theme identity, so this file stays dumb: it filters and reuses
+        /// `full(…)` and never has to know what a theme is or how one is found.
+        case theme([Int])
         case note(Int)
         case book(Int)
     }
@@ -119,22 +124,18 @@ nonisolated enum MapGraph {
 
     // MARK: The builder
 
-    /// `collapsing` overrides the node-count rule — `-mapCollapse 1` is the only
-    /// way to see the hub view without a library of two hundred notes, the same
-    /// device as `-tinyLibrary` at the other end of the range.
     static func web(
         _ focus: Focus,
         subjects: [Subject],
         shelves: [Shelf],
-        ties: [Tie],
-        collapsing: Bool? = nil
+        ties: [Tie]
     ) -> Web {
         switch focus {
-        case .library:
-            let collapse = collapsing ?? (subjects.count + occupied(shelves, subjects).count > collapseAbove)
-            return collapse
-                ? hubs(subjects: subjects, shelves: shelves, ties: ties)
-                : full(subjects: subjects, shelves: shelves, ties: ties)
+        case .theme(let ids):
+            let wanted = Set(ids)
+            return full(subjects: subjects.filter { wanted.contains($0.id) },
+                        shelves: shelves,
+                        ties: ties)
 
         case .note(let id):
             return full(subjects: neighbourhood(of: id, subjects: subjects, ties: ties),
@@ -200,47 +201,6 @@ nonisolated enum MapGraph {
         return web
     }
 
-    // MARK: The hub view
-
-    /// The library once it stops fitting: book hubs alone, joined where a
-    /// connection crosses between them.
-    ///
-    /// The answer to the hairball, and it has to exist before the map ships
-    /// rather than after — `docs/decisions.md` §11.
-    private static func hubs(subjects: [Subject], shelves: [Shelf], ties: [Tie]) -> Web {
-        let shelf = Dictionary(subjects.compactMap { subject in
-            subject.book.map { (subject.id, $0) }
-        }, uniquingKeysWith: { first, _ in first })
-
-        var crossings: Set<Edge> = []
-        for tie in ties {
-            guard let left = shelf[tie.a], let right = shelf[tie.b], left != right else { continue }
-            crossings.insert(Edge(a: .book(min(left, right)), b: .book(max(left, right)), isAttachment: false))
-        }
-
-        var degree: [ID: Int] = [:]
-        for edge in crossings {
-            degree[edge.a, default: 0] += 1
-            degree[edge.b, default: 0] += 1
-        }
-
-        var web = Web()
-        for shelf in occupied(shelves, subjects) {
-            web.nodes.append(
-                Node(
-                    id: .book(shelf.index),
-                    label: Glyphs.bookHub(shelf.title),
-                    degree: degree[.book(shelf.index)] ?? 0,
-                    isHub: true
-                )
-            )
-        }
-        web.edges = crossings.sorted { left, right in
-            order(left.a) == order(right.a) ? order(left.b) < order(right.b) : order(left.a) < order(right.a)
-        }
-        return web
-    }
-
     // MARK: The local view
 
     /// Two hops out from one note, strongest connections first, capped.
@@ -281,12 +241,6 @@ nonisolated enum MapGraph {
 
     // MARK: Small shared rules
 
-    /// Books something was actually written from, in shelf order.
-    private static func occupied(_ shelves: [Shelf], _ subjects: [Subject]) -> [Shelf] {
-        let shown = Set(subjects.compactMap(\.book))
-        return shelves.filter { shown.contains($0.index) }.sorted { $0.index < $1.index }
-    }
-
     /// Ties break on the note ids, so a graph built twice comes out the same
     /// way twice — the same rule `AffinityEngine` sorts its links by, and for
     /// the same reason.
@@ -296,10 +250,4 @@ nonisolated enum MapGraph {
         return left.b < right.b
     }
 
-    private static func order(_ id: ID) -> Int {
-        switch id {
-        case .note(let value): value
-        case .book(let value): value
-        }
-    }
 }

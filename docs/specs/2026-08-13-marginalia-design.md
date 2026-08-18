@@ -32,7 +32,7 @@ The **capture bar is pinned to the foot** and present the whole time — that pe
 
 Four types: `[q] quote`, `[t] thought`, `[v] voice`, `[s] scan`.
 
-**From the stream bar** — the fast path. Text or voice only, no book, no page, no tag. The note lands in **Inbox** to be filed later. Two taps from launch to a saved thought.
+**From the stream bar** — the fast path. Text or voice, no book, no page, no tag. The note lands in **Inbox** to be filed later, and any note can be re-filed afterwards through `move to book…`. Focused, the bar grows one thing: `→ full note`, which hands what has been typed to the capture sheet below and gives it the whole screen — two taps for a thought, three for a note with a book on it. Unfocused the bar is unchanged: two taps from launch to a saved thought. Phase 11 briefly put a book picker here and took it back out; `docs/decisions.md` §18 says why.
 
 **From a book** — `[+] add note` on book detail opens the full sheet: type selector, book picker (pre-filled), body, page, tags.
 
@@ -46,7 +46,7 @@ Permissions are requested at first use of each feature. Never at launch.
 
 The library: status marker, title, author, note count. Filterable by reading / finished / queued. Inbox is a book like any other, so unfiled captures are never invisible.
 
-**Book detail** is the header (title, author, note count · status · progress) over that book's notes, with `[+] add note`.
+**Book detail** is the header (title, author, note count · status · length) over that book's notes, with `[+] add note`. **No reading progress** — `docs/decisions.md` §17 took `currentPage` out; the status marker is what says where you are with a book.
 
 **Adding a book** — three ways, in order of how often they'll be used:
 
@@ -68,13 +68,21 @@ The set ends on a closing card with `[↻] keep going`, which extends past the d
 
 ### Map
 
-A fourth tab, two views over one renderer.
+A fourth tab: **a summary of the ideas in the library, with a graph one level down.**
 
-**Global** — the whole library as one shape. Notes are nodes; **each book is a hub node its notes attach to**, which is what makes the view meaningful on day one instead of a scatter of lonely dots. Above ~150 nodes it collapses to book hubs and expands one on tap.
+Superseded by `docs/decisions.md` §20. The tab was originally two views over one renderer, global and local; the global view was a canvas of note ids, and a note id is an opaque handle, so the whole-library shape was a picture nobody could read. §11's own escape clause covered this and was invoked. The graph was not deleted — it was bounded.
 
-**Local** — reachable from any note. Two hops out, capped around 25 nodes. Legible at any library size, and it answers the question you actually have while reading a note.
+**The overview**, and the tab's top level. Three sections down one scroll:
 
-Selecting a node previews its note in a panel at the foot; tap through to open it. Holding an edge deletes that connection, permanently — the pair goes on a suppression list so it isn't re-suggested.
+- **themes** — groups of notes that belong together, ranked, each with the books it spans and the note at its centre quoted as evidence. A theme is named by a tag a majority of its notes carry, else by the terms most distinctive to it, else not at all. **Nothing is invented**: there is no model on the device that could write a name, and the app does not guess one.
+- **crossings** — connections whose two ends were written from different books, strongest first, each note appearing once. The most concrete form of what the app is for.
+- **loose** — notes in no theme. Shown rather than hidden; a summary carrying only the app's successes would be dishonest.
+
+**Grouping is ranked, never thresholded.** Each note ranks every other by `AffinityEngine.score`; pairs survive where each is in the other's top 6; communities come from unweighted greedy modularity. There is no similarity constant anywhere, because an absolute cut would be tuned to an embedder the app is designed to replace — and the replacement moves every magnitude at once. It is deliberately independent of the connection floor, the k-NN at 8 and the degree cap of 6, which exist to keep a drawing legible rather than to find groups.
+
+**The graph**, reached from a theme, from `[◇] connections` on any note, or from a book hub. Every view is bounded: one theme's notes, two hops out from a note (capped around 25), or one book. Selecting a node previews its note in a panel at the foot; tap through to open it. Holding an edge deletes that connection permanently — the pair goes on a suppression list so it isn't re-suggested — and the same `disconnect` is offered by long press on a crossing, where it is visible.
+
+**Two kinds of line, and the reader can subtract one.** A note-to-book **attachment** is structure; a note-to-note **connection** is something the app found by meaning, and it crosses books freely. Both draw at the same hairline — one line weight — so a chip row under the header offers `all lines` / `connections only`. This is a *draw* filter: the layout is told about every edge either way, so nothing moves. `docs/decisions.md` §19.
 
 Visual language is in `docs/design-system.md` under *Map*. In short: nodes are the note id in mono type, books are bracketed and bolder, edges are hairlines, and selection inverts to filled ink. No color, no circles, no shadows.
 
@@ -169,7 +177,6 @@ SwiftData. Every property defaulted, every relationship optional, no unique cons
   var author: String = ""
   var statusRaw: String = "queued"        // reading | finished | queued | inbox
   var pageCount: Int = 0
-  var currentPage: Int = 0
   var isbn: String?
   var createdAt: Date = Date.now
   @Relationship(deleteRule: .cascade, inverse: \Note.book) var notes: [Note]? = []
