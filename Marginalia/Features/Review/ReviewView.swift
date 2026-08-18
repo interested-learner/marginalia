@@ -19,6 +19,9 @@ struct ReviewView: View {
     let onOpenBook: (Book) -> Void
     /// `[◇] connections` — the map, two hops out from the card you're reading.
     let onOpenWeb: (Int) -> Void
+    /// Opening one half of a crossing. Everything a note can do lives where the
+    /// note is, so the card routes there rather than growing six more actions.
+    let onOpenNote: (Int) -> Void
 
     @Query(sort: \Note.createdAt, order: .reverse) private var notes: [Note]
     @Query private var edges: [NoteEdge]
@@ -38,6 +41,22 @@ struct ReviewView: View {
     /// Which card is picking a note to link to.
     @State private var linking: Note?
 
+    /// The day's crossing, or `nil` on a library that has none — in which case
+    /// review is exactly what it was before this card existed. Built once beside
+    /// `today` and held, for the same reason `today` is.
+    @State private var crossing: CrossingFinder.Crossing?
+
+    /// Whether the reader has disconnected it. **The card stays on screen.**
+    /// Removing it would take a page out of the paging scroll view while the
+    /// reader is standing on that page — the same class of feedback loop that
+    /// made the end of the set stick in phase 11. The suppression is recorded
+    /// either way and the card is gone tomorrow.
+    @State private var rejected = false
+
+    /// The disconnect confirmation. Every delete in the app goes through this
+    /// one door, and `Erasure.connection` already writes the sentence.
+    @State private var erasing: Erasure?
+
     var body: some View {
         VStack(spacing: 0) {
             ScreenHeader(style: .title("daily review"), trailing: counter)
@@ -52,6 +71,7 @@ struct ReviewView: View {
             }
         }
         .background(Theme.canvas)
+        .confirming($erasing, in: context, after: disconnected)
         .task { open() }
         // A reminder tapped while review is already on screen. The `.task`
         // covers arriving from another tab; this covers not moving at all.
@@ -86,9 +106,20 @@ struct ReviewView: View {
                         .id(index)
                 }
 
-                ClosingCard(remaining: more) { keepGoing() }
+                if let crossing {
+                    CrossingCard(
+                        crossing: CrossingCardData(crossing),
+                        rejected: rejected,
+                        onOpen: onOpenNote,
+                        onReject: { erasing = .connection(crossing.edge) }
+                    )
                     .containerRelativeFrame(.vertical)
                     .id(today.count)
+                }
+
+                ClosingCard(remaining: more) { keepGoing() }
+                    .containerRelativeFrame(.vertical)
+                    .id(lastIndex)
             }
             .scrollTargetLayout()
         }
@@ -102,6 +133,12 @@ struct ReviewView: View {
             // at the closing card and on `keep going` too — anywhere the deck
             // moves. Surfacing is the narrower event and keeps its own guard.
             if previous != current { Haptics.paged() }
+            // **Paging past a crossing surfaces nothing**, and this guard
+            // already does it: the crossing card's index is `today.count`, so it
+            // fails the bound. That is deliberate rather than lucky — marking
+            // both its notes surfaced would quietly reshape tomorrow's eight,
+            // because `lastSurfacedAt` is exactly what `ReviewSetBuilder` scores
+            // on, and the crossing is extra rather than part of the set.
             guard let previous, previous < today.count else { return }
             let seen = today[previous]
 
@@ -150,6 +187,8 @@ struct ReviewView: View {
         if today.isEmpty {
             today = ReviewSetBuilder.set(from: notes, on: .now)
             more = hasMore
+            crossing = CrossingFinder.pick(from: edges, on: .now,
+                                           avoiding: Set(today.map(\.shortID)))
             openAtLaunch()
         }
         arrive()
@@ -182,6 +221,23 @@ struct ReviewView: View {
         today += next
         more = hasMore
         Haptics.paged()
+    }
+
+    /// The reader said the pair isn't one. `Eraser.suppress` has already run —
+    /// this is what happens after.
+    ///
+    /// **The card is not removed and the crossing is not re-picked.** Both would
+    /// change the paging scroll view's page count under a thumb resting on that
+    /// exact page, which is the shape of defect phase 11 spent a stage on. The
+    /// foot says `disconnected` instead, the suppression is permanent, and
+    /// tomorrow's pick can't return the pair — `CrossingFinder.all` skips
+    /// suppressed edges.
+    private func disconnected() {
+        rejected = true
+        // A suppressed edge frees degree budget, and the next full recompute
+        // hands it to somebody else. `LinkWriter` is the only path an edge takes
+        // to exist, here as everywhere.
+        Task { try? await LinkWriter.relink(in: context) }
     }
 
     /// Whether `keep going` would find anything. One card's worth is enough to
@@ -220,7 +276,15 @@ struct ReviewView: View {
 
     private var index: Int { position ?? 0 }
 
-    private var atEnd: Bool { index >= today.count }
+    /// The closing card's slot. `keepGoing()` grows `today`, so this is computed
+    /// rather than stored — and the crossing card sits at `today.count`, one
+    /// above the last note and one below the end.
+    private var lastIndex: Int { today.count + (crossing == nil ? 0 : 1) }
+
+    /// **Not `index >= today.count`.** With a crossing on screen there is still
+    /// a card below it, and hiding the hint there would say the set had ended
+    /// one page early.
+    private var atEnd: Bool { index >= lastIndex }
 
     /// Clamped, so the closing card reads `8 of 8` rather than `9 of 8`.
     private var counter: String? {
@@ -245,7 +309,10 @@ struct ReviewView: View {
 
         let card = defaults.integer(forKey: "reviewCard")
         if card > 0 { position = min(card - 1, today.count) }
-        if defaults.bool(forKey: "reviewEnd") { position = today.count }
+        // `-reviewCrossing 1` opens on the crossing, which is otherwise reachable
+        // only by swiping past all eight — and the simulator can't be swiped.
+        if defaults.bool(forKey: "reviewCrossing"), crossing != nil { position = today.count }
+        if defaults.bool(forKey: "reviewEnd") { position = lastIndex }
         if defaults.bool(forKey: "followUp") { composing = today[safe: index] }
         if defaults.bool(forKey: "link") { linking = today[safe: index] }
     }

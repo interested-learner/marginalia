@@ -163,7 +163,9 @@ struct RootView: View {
                                    onSettings: { screen = .settings })
                     case .books: BooksView(open: $book)
                     case .map: MapView(note: $web, onOpenNote: open, onOpenBook: open)
-                    case .review: ReviewView(card: $card, onOpenBook: open, onOpenWeb: openWeb)
+                    case .review:
+                        ReviewView(card: $card, onOpenBook: open, onOpenWeb: openWeb,
+                                   onOpenNote: open)
                     }
                 }
             }
