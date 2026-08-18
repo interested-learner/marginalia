@@ -163,11 +163,11 @@ xcodebuild -scheme Marginalia -destination 'platform=iOS Simulator,name=iPhone 1
 
 ### Not checked, and to be said plainly rather than implied
 
-- **The accessibility sizes.** `accessibility-extra-extra-extra-large` has **not** been run against the
-  crossing card, and it is the next thing to do. **Two full notes on one screen is the first card in this app
-  designed to hold two**, so this is where it will break if it breaks. It inherits `ReviewCard`'s
-  scroll-only-when-it-overflows guard, fixed in phase 11 and about to get its real test. Five defects on this
-  project were invisible in code review and obvious in a picture.
+- **The accessibility sizes.** `accessibility-extra-extra-extra-large` has now been run against the crossing
+  card. The screenshot shows the second note cut off after its first line, with the foot (`29 days apart` and
+  `[x] not related`) entirely off screen in both appearances — but a single static screenshot cannot
+  distinguish that from a scroll view showing the top of content it can still scroll through, and it wasn't
+  settled which of those two this is. See `docs/issues.md` §25.
 - **Nothing was tapped.** `[x] not related` has never been pressed, the crossing has never been swiped to, and
   the `erased` haptic has still never been felt — the simulator has no Taptic Engine.
 - **Whether any crossing is *true*.** This is unchanged and it is the one thing this phase did not move.
