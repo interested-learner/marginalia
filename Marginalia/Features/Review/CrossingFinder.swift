@@ -45,8 +45,8 @@ nonisolated enum CrossingFinder {
         // and `n.13` turn up in half the shortlists, and mutual k-NN does not
         // stop it at forty notes — put `n.18` in three consecutive rows the
         // first time this ran. Every one of those connections still exists,
-        // under the note itself; this list just takes the strongest each note
-        // has, so three crossings are three ideas.
+        // under the note itself; a greedy one-pass walk keeps each crossing only
+        // when neither note has been used yet, so three crossings are three ideas.
         var used: Set<Int> = []
         var kept: [Crossing] = []
         for crossing in found {
@@ -69,8 +69,8 @@ nonisolated enum CrossingFinder {
     /// the strongest, which shows one pair every day until it is suppressed.
     ///
     /// `avoiding` is the ids already in the day's set. A crossing that overlaps
-    /// them is skipped where another is available, and shown anyway where none
-    /// is: seeing `n.03` as card 2 and again as half of card 9 is a small
+    /// them is skipped where another is available, and the full ranked list still
+    /// rotates when none is: seeing `n.03` as card 2 and again as half of card 9 is a small
     /// oddity, and suppressing the whole feature on a small library is a bigger
     /// one.
     static func pick(

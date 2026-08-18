@@ -159,13 +159,22 @@ struct CrossingFinderTests {
         }
     }
 
-    /// Showing nothing on a small library is worse than showing `n.03` twice.
-    @Test func itShowsTheBestOneWhenEveryCandidateOverlaps() {
-        let one = book("Norman"), two = book("Pirsig")
-        let a = note(1, in: one), b = note(2, in: two)
-        let picked = CrossingFinder.pick(from: [edge(a, b, 0.6)], on: day(0),
-                                         calendar: calendar, avoiding: [1, 2])
-        #expect(picked != nil)
+    /// Showing nothing on a small library is worse than showing `n.03` twice. The fallback is the full ranked list, still rotating — not a pin to the strongest, which would repeat one pair daily.
+    @Test func itStillShowsACrossingWhenEveryCandidateOverlaps() {
+        let edges = threeCrossings()
+        let avoided = Set(1...6)
+
+        var picked = Set<Int>()
+        for offset in 0..<6 {
+            let crossing = CrossingFinder.pick(from: edges, on: day(offset),
+                                               calendar: calendar, avoiding: avoided)
+            #expect(crossing != nil)
+            if let crossing {
+                picked.insert(crossing.a.shortID)
+                picked.insert(crossing.b.shortID)
+            }
+        }
+        #expect(picked.count > 2)
     }
 
     /// Three crossings over six books, so every note is in exactly one.
