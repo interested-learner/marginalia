@@ -141,9 +141,9 @@ struct TabBar: View {
             }
         }
         .background(Theme.canvas)
-        // Four fixed labels sharing one row, so this is the ceiling that
+        // Three fixed labels sharing one row, so this is the ceiling that
         // matters most — see `chromeTypeSize()`. Above it the labels wrapped
-        // into each other and `map` sat a line below its neighbours.
+        // into each other.
         .chromeTypeSize()
     }
 }

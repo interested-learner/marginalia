@@ -102,8 +102,8 @@ struct RootView: View {
     /// Set by `→ open book` on a review card. The library picks it up when the
     /// tab switches and pushes that book's detail.
     ///
-    /// The first cross-tab route in the app. The map wants the same one, and so
-    /// does a source line's book title.
+    /// The first cross-tab route in the app: a source line's book title also
+    /// reaches this one.
     @State private var book: Book?
 
     /// Set by a tapped reminder: the card review should open on.
