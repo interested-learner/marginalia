@@ -9,8 +9,6 @@ struct StreamView: View {
     /// Whether the capture field has the keyboard. Owned by `RootView`, which
     /// takes the tab bar off the screen while it does.
     @Binding var capturing: Bool
-    /// `[◇] connections` on a row: the map, two hops out from that note.
-    let onOpenWeb: (Int) -> Void
     /// The two screens that aren't tabs, from the one header that carries them.
     let onSearch: () -> Void
     let onSettings: () -> Void
@@ -122,7 +120,6 @@ struct StreamView: View {
                                     note: NoteRowData(note, connections: connections[note.shortID] ?? []),
                                     onDelete: { erasing = .note(note) },
                                     onDeleteFollowUp: { erasing = .thought($0, of: note) },
-                                    onConnections: { onOpenWeb(note.shortID) },
                                     onMove: { sheet = .move(note) }
                                 )
                                 .id(note.shortID)

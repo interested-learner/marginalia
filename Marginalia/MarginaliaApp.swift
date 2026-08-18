@@ -106,10 +106,6 @@ struct RootView: View {
     /// does a source line's book title.
     @State private var book: Book?
 
-    /// Set by `[◇] connections` on a stream row or a review card: the map opens
-    /// two hops out from that note rather than on the whole library.
-    @State private var web: Int?
-
     /// Set by a tapped reminder: the card review should open on.
     @State private var card: Int?
 
@@ -158,14 +154,12 @@ struct RootView: View {
                 case .none:
                     switch tab {
                     case .stream:
-                        StreamView(focus: $focus, capturing: $capturing, onOpenWeb: openWeb,
+                        StreamView(focus: $focus, capturing: $capturing,
                                    onSearch: { screen = .search },
                                    onSettings: { screen = .settings })
                     case .books: BooksView(open: $book)
-                    case .map: MapView(note: $web, onOpenNote: open, onOpenBook: open)
                     case .review:
-                        ReviewView(card: $card, onOpenBook: open, onOpenWeb: openWeb,
-                                   onOpenNote: open)
+                        ReviewView(card: $card, onOpenBook: open, onOpenNote: open)
                     }
                 }
             }
@@ -254,15 +248,6 @@ struct RootView: View {
         screen = nil
         card = shortID
         tab = .review
-    }
-
-    /// A note's own corner of the graph, from wherever the note is being read.
-    /// The map has drawn this view since phase 7 and nothing outside the map
-    /// could ask for it.
-    private func openWeb(_ shortID: Int) {
-        screen = nil
-        web = shortID
-        tab = .map
     }
 }
 

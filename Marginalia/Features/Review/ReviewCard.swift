@@ -112,22 +112,20 @@ struct ReviewActions {
     /// SwiftUI's own render pass. Now the card hands over the *description* of
     /// the image and nothing draws until the reader taps `share`.
     let shareCard: () -> ShareableCard
-    /// The map, two hops out from this note.
-    let openWeb: () -> Void
     /// Connect this note to another by hand. The one thing in the app that
     /// writes `isPinned`, and the only place the reader ever *makes* a link —
     /// everything else on the graph is the app's own work.
     let link: () -> Void
 }
 
-/// `[+] add a thought` · `[ ] star` · `→ open book` · `share` ·
-/// `[◇] connections` · `→ link`.
+/// `[+] add a thought` · `[ ] star` · `→ open book` · `share` · `→ link`.
 ///
-/// **Rows of two, never a row of four.** At 13pt mono four labels are about
+/// **Rows of two, never a row of three.** At 13pt mono three labels are about
 /// 320pt of text before gaps, which overflows a phone at the default text size
 /// and is hopeless above it — the same reason the capture sheet's type selector
-/// offers three segments rather than four. Six actions is three rows, by the
-/// same arithmetic.
+/// offers three segments rather than four. Five actions is two rows, by the
+/// same arithmetic — `→ link` gets a row of its own rather than crowding a
+/// third label beside `→ open book` and `share`.
 private struct ActionRow: View {
     let note: NoteRowData
     let actions: ReviewActions
@@ -151,8 +149,6 @@ private struct ActionRow: View {
             }
 
             HStack(spacing: 20) {
-                MarkerButton(title: "\(Glyphs.tabMap) connections", kind: .link,
-                             action: actions.openWeb)
                 MarkerButton(title: "\(Glyphs.forward) link", kind: .link, action: actions.link)
                 Spacer(minLength: 0)
             }

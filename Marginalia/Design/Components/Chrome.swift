@@ -149,13 +149,12 @@ struct TabBar: View {
 }
 
 enum Tab: CaseIterable {
-    case stream, books, map, review
+    case stream, books, review
 
     var label: String {
         switch self {
         case .stream: "stream"
         case .books: "books"
-        case .map: "map"
         case .review: "review"
         }
     }
@@ -169,7 +168,6 @@ enum Tab: CaseIterable {
         switch self {
         case .stream: Glyphs.tabStream
         case .books: Glyphs.tabBooks
-        case .map: Glyphs.tabMap
         case .review: Glyphs.tabReview
         }
     }

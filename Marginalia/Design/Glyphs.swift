@@ -17,7 +17,6 @@ nonisolated enum Glyphs {
 
     static let tabStream = "[~]"
     static let tabBooks = "[=]"
-    static let tabMap = "[◇]"
     static let tabReview = "[↻]"
 
     // MARK: Note kinds
@@ -79,30 +78,6 @@ nonisolated enum Glyphs {
 
     /// `[4]` — note counts and library counts are bracketed.
     static func count(_ n: Int) -> String { "[\(n)]" }
-
-    /// `[Meditations]` — a book as a hub node on the map.
-    ///
-    /// **The first word, not the title.** The design system draws the hub as
-    /// `[Meditations]`, which is the whole of that book's title and none of
-    /// `Zen and the Art of Motorcycle Maintenance` — forty characters of bold
-    /// mono would sit across half the graph and cover the notes it's meant to
-    /// be gathering. A leading article is dropped because `[The]` names
-    /// nothing, and a single very long word is cut rather than allowed to
-    /// sprawl. The panel at the foot carries the full title when a hub is
-    /// selected.
-    static func bookHub(_ title: String, limit: Int = 12) -> String {
-        let words = title.split(whereSeparator: \.isWhitespace)
-        let articles: Set<String> = ["the", "a", "an"]
-        let first = words.first.map(String.init) ?? ""
-        let word = words.count > 1 && articles.contains(first.lowercased())
-            ? String(words[1])
-            : first
-
-        let trimmed = word.trimmingCharacters(in: .punctuationCharacters)
-        let name = trimmed.isEmpty ? word : trimmed
-        guard name.count > limit else { return "[\(name)]" }
-        return "[\(name.prefix(limit))…]"
-    }
 
     /// `#systems` — tags are stored bare and wear the hash only on screen.
     static func tag(_ name: String) -> String { "#\(name)" }

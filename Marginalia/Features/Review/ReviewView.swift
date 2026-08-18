@@ -17,8 +17,6 @@ struct ReviewView: View {
     /// Cross-tab: `→ open book` hands the book up to `RootView`, which switches
     /// to the library and pushes its detail. The map will want the same route.
     let onOpenBook: (Book) -> Void
-    /// `[◇] connections` — the map, two hops out from the card you're reading.
-    let onOpenWeb: (Int) -> Void
     /// Opening one half of a crossing. Everything a note can do lives where the
     /// note is, so the card routes there rather than growing six more actions.
     let onOpenNote: (Int) -> Void
@@ -262,7 +260,6 @@ struct ReviewView: View {
             },
             openBook: note.book.map { book in { onOpenBook(book) } },
             shareCard: { ShareableCard(note: row(note, connections: connections), scheme: scheme) },
-            openWeb: { onOpenWeb(note.shortID) },
             link: { linking = note }
         )
     }
