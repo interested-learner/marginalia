@@ -51,6 +51,26 @@ enum RelativeTime {
 
     private static let weekdays = ["sun", "mon", "tue", "wed", "thu", "fri", "sat"]
 
+    /// `7 months apart` — the distance between the two notes on a crossing card,
+    /// and the fact that makes the card land. *You thought this in August and
+    /// again in March and never noticed.*
+    ///
+    /// **Symmetric**, because a crossing has no direction. `NoteEdge` stores one
+    /// and the app has displayed both ways since phase 6; a line that read
+    /// differently depending on which note came first would be the first place
+    /// that stopped being true.
+    static func gap(from a: Date, to b: Date, calendar: Calendar = .current) -> String {
+        let parts = calendar.dateComponents([.year, .month, .day], from: min(a, b), to: max(a, b))
+        if let years = parts.year, years > 0 { return apart(years, "year") }
+        if let months = parts.month, months > 0 { return apart(months, "month") }
+        if let days = parts.day, days > 0 { return apart(days, "day") }
+        return "the same day"
+    }
+
+    private static func apart(_ n: Int, _ unit: String) -> String {
+        "\(n) \(unit)\(n == 1 ? "" : "s") apart"
+    }
+
     /// `0:07` — the timer beside the recording dot. Seconds are padded and
     /// minutes are not, so the row doesn't jitter as the count climbs.
     static func elapsed(_ seconds: TimeInterval) -> String {

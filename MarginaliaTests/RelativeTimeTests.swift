@@ -61,4 +61,42 @@ struct RelativeTimeTests {
         let now = date(2026, 8, 13)
         #expect(label(now.addingTimeInterval(600), now) == "just now")
     }
+
+    // MARK: gap — the crossing card's distance line
+    //
+    // Reuses the `calendar` and `date(_:_:_:)` helpers already at the top of
+    // this struct. Do not add a second UTC calendar beside them.
+
+    @Test func gapWithinADayIsTheSameDay() {
+        #expect(RelativeTime.gap(from: date(2026, 3, 1), to: date(2026, 3, 1), calendar: calendar)
+                == "the same day")
+    }
+
+    @Test func gapOfOneDayIsSingular() {
+        #expect(RelativeTime.gap(from: date(2026, 3, 1), to: date(2026, 3, 2), calendar: calendar)
+                == "1 day apart")
+    }
+
+    @Test func gapInDaysBelowAMonth() {
+        #expect(RelativeTime.gap(from: date(2026, 3, 1), to: date(2026, 3, 20), calendar: calendar)
+                == "19 days apart")
+    }
+
+    @Test func gapInMonths() {
+        #expect(RelativeTime.gap(from: date(2025, 8, 14), to: date(2026, 3, 20), calendar: calendar)
+                == "7 months apart")
+    }
+
+    @Test func gapInYears() {
+        #expect(RelativeTime.gap(from: date(2024, 1, 10), to: date(2026, 3, 20), calendar: calendar)
+                == "2 years apart")
+    }
+
+    /// A crossing has no direction, so neither does the line that measures it.
+    @Test func gapIsSymmetric() {
+        let earlier = date(2025, 8, 14)
+        let later = date(2026, 3, 20)
+        #expect(RelativeTime.gap(from: later, to: earlier, calendar: calendar)
+                == RelativeTime.gap(from: earlier, to: later, calendar: calendar))
+    }
 }
