@@ -172,4 +172,40 @@ struct RowMappingTests {
     @Test func aBookWithNoNotesCountsZeroRatherThanNothing() {
         #expect(BookRowData(Book(title: "The Beginning of Infinity", status: .queued)).count == 0)
     }
+
+    // MARK: A crossing
+
+    /// Oldest first, whichever end of the edge it happens to be. The card
+    /// narrates a gap in time and a gap reads forward.
+    @Test func aCrossingPutsTheOlderNoteFirst() {
+        let calendar = Calendar(identifier: .gregorian)
+        let older = Note(shortID: 3, text: "older", createdAt: Date(timeIntervalSince1970: 1_000_000),
+                         book: Book(title: "Norman"))
+        let newer = Note(shortID: 9, text: "newer", createdAt: Date(timeIntervalSince1970: 9_000_000),
+                         book: Book(title: "Pirsig"))
+
+        // `from` is the newer note, so the init has to reorder rather than copy.
+        let edge = NoteEdge(from: newer, to: older, score: 0.6)
+        let data = CrossingCardData(
+            CrossingFinder.Crossing(edge: edge, a: newer, b: older),
+            now: Date(timeIntervalSince1970: 9_000_000),
+            calendar: calendar
+        )
+
+        #expect(data.a.id == 3)
+        #expect(data.b.id == 9)
+        #expect(data.gap == RelativeTime.gap(from: older.createdAt, to: newer.createdAt,
+                                             calendar: calendar))
+    }
+
+    @Test func aCrossingCarriesEachNotesSourceLine() {
+        let a = Note(shortID: 1, text: "a", book: Book(title: "Norman"))
+        let b = Note(shortID: 2, text: "b", book: Book(title: "Pirsig"))
+        let data = CrossingCardData(
+            CrossingFinder.Crossing(edge: NoteEdge(from: a, to: b, score: 0.6), a: a, b: b)
+        )
+
+        #expect(data.a.source.contains("Norman"))
+        #expect(data.b.source.contains("Pirsig"))
+    }
 }

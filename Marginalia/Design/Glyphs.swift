@@ -44,6 +44,9 @@ nonisolated enum Glyphs {
     static let starred = "[*]"
     static let star = "[ ]"
     static let followUp = "[+]"
+    /// Two notes from two books that say the same thing. The mark the map tab
+    /// wore before it was deleted — the vocabulary doesn't grow, it moves.
+    static let crossing = "[◇]"
 
     // MARK: Navigation
 

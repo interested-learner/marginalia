@@ -147,3 +147,26 @@ extension ConnectionIndex {
         })
     }
 }
+
+extension CrossingCardData {
+
+    /// **Oldest first**, whichever end of the edge it came from. The card
+    /// narrates a distance in time and a distance reads forward — `n.03` in
+    /// august, then `n.19` in march, then `7 months apart` under both.
+    init(
+        _ crossing: CrossingFinder.Crossing,
+        now: Date = .now,
+        calendar: Calendar = .current
+    ) {
+        let ordered = crossing.a.createdAt <= crossing.b.createdAt
+            ? (crossing.a, crossing.b)
+            : (crossing.b, crossing.a)
+
+        self.init(
+            a: NoteRowData(ordered.0, now: now, calendar: calendar),
+            b: NoteRowData(ordered.1, now: now, calendar: calendar),
+            gap: RelativeTime.gap(from: ordered.0.createdAt, to: ordered.1.createdAt,
+                                  calendar: calendar)
+        )
+    }
+}
