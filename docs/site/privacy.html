@@ -1,0 +1,87 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>marginalia — privacy</title>
+<style>
+  :root { --canvas:#fdfcfc; --ink:#201d1d; --body:#424245; --mute:#646262; --hair:rgba(32,29,29,.12); }
+  @media (prefers-color-scheme: dark) {
+    :root { --canvas:#201d1d; --ink:#fdfcfc; --body:#d8d6d6; --mute:#9a9898; --hair:rgba(253,252,252,.12); }
+  }
+  * { box-sizing: border-box; }
+  body { margin:0; padding:40px 20px 80px; background:var(--canvas); color:var(--body);
+         font-family:"JetBrains Mono",ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+         font-size:15px; line-height:1.6; }
+  main { max-width:680px; margin:0 auto; }
+  h1,h2 { color:var(--ink); font-weight:700; letter-spacing:-.01em; }
+  h1 { font-size:22px; margin:0 0 4px; }
+  h2 { font-size:15px; margin:36px 0 8px; }
+  .sub { color:var(--mute); margin:0 0 32px; }
+  hr { border:0; border-top:1px solid var(--hair); margin:32px 0; }
+  a { color:var(--ink); }
+  ul { padding-left:20px; }
+  li { margin:6px 0; }
+  .foot { color:var(--mute); font-size:13px; margin-top:48px; }
+</style>
+</head>
+<body><main>
+
+<h1>marginalia — privacy</h1>
+<p class="sub">last updated 19 august 2026</p>
+
+<p>marginalia is a notes app for things you read. It has no account, no analytics, no
+advertising, no tracking, and no third-party SDKs of any kind.</p>
+
+<h2>What stays on your phone</h2>
+<p>Everything you write. Your notes, the books you add, your tags, your follow-up thoughts,
+your stars, the connections the app works out between notes, your voice recordings and their
+transcripts, and any passage you photograph off a page. All of it is stored on the device and
+none of it is transmitted anywhere.</p>
+<ul>
+  <li><strong>Voice notes</strong> are transcribed on the device. Audio is not uploaded.</li>
+  <li><strong>Scanned passages</strong> are read on the device. Images are not uploaded, and no
+      photograph is retained after the text is taken from it.</li>
+  <li><strong>The connections between notes</strong> are computed on the device by a language
+      model that ships with iOS. Your notes are not sent to any server to be analysed.</li>
+</ul>
+
+<h2>The one thing that leaves the device</h2>
+<p>When you add a book by searching for it, or by scanning the barcode on the back cover, the
+title or ISBN you entered is sent to <a href="https://openlibrary.org">Open Library</a>
+(operated by the Internet Archive) to look up the author and page count. That request contains
+the search text and nothing else — no identifier, no account, no device information beyond what
+any HTTPS request necessarily carries. Open Library's handling of it is governed by
+<a href="https://archive.org/about/terms.php">the Internet Archive's privacy policy</a>.</p>
+<p>You can skip this entirely: every book can be typed in by hand, and manual entry is always
+available.</p>
+
+<h2>Permissions</h2>
+<p>Each is requested the first time you use the feature it belongs to, never at launch, and the
+app works without any of them.</p>
+<ul>
+  <li><strong>Microphone</strong> — to record a voice note.</li>
+  <li><strong>Speech recognition</strong> — to transcribe that recording, on the device.</li>
+  <li><strong>Camera</strong> — to read a passage off a printed page, or scan a barcode.</li>
+  <li><strong>Notifications</strong> — only if you switch on the daily reminder. It is scheduled
+      locally on your phone; nothing is sent through a server.</li>
+</ul>
+
+<h2>Your data, and getting rid of it</h2>
+<p>There is nothing for us to delete, because we never receive anything. Deleting the app
+removes every note with it. There is currently no sync and no backup, so
+<strong>if you want a copy of your notes, use <em>export as markdown</em> in settings</strong> —
+it produces a plain text document you can keep anywhere.</p>
+
+<h2>Children</h2>
+<p>marginalia collects no personal information from anyone, of any age.</p>
+
+<h2>Changes</h2>
+<p>If a future version sends anything else anywhere, this page will say so before that version
+ships, and the app's own about screen will say so too.</p>
+
+<hr>
+<p class="foot">Questions: [SUPPORT EMAIL] · <a href="./support.html">support</a></p>
+
+</main></body>
+</html>

@@ -481,4 +481,6 @@ Learned the hard way in phases 1 and 2.
 | `docs/design-system.md` | Every token and component spec. Authority on visual values |
 | `docs/decisions.md` | Why things were chosen. 21 entries. Settled — don't reopen without a changed premise |
 | `docs/prototype/` | The original Claude Design prototype. Authority on look, overridden by the spec on behavior |
+| `docs/app-store-listing.md` | The listing, as copy to argue with. Name, subtitle, description, keywords, screenshots, and what's left before submitting |
+| `docs/site/` | The privacy policy and support pages the App Store requires as URLs. GitHub Pages, `main` → `/docs` |
 | `README.md` | Human-facing |
