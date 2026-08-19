@@ -1,14 +1,22 @@
 import Foundation
 
-/// What a fresh install opens onto.
+/// The sample library — **not** what a fresh install opens onto.
 ///
-/// Forty notes, not twelve. Two reasons: a sparse map proves nothing about
-/// whether the layout works in phase 7, and phase 6 tunes the affinity weights
-/// against this content — so the notes need **genuine conceptual overlap across
-/// books**, not forty unrelated sentences. `attention`, `error`, `quality`,
-/// `memory` and `systems` each run through three or four different authors on
-/// purpose; that's the signal the embedder is supposed to find without being
-/// told.
+/// Since phase 15 a reader's first launch gets the Inbox and nothing else
+/// (`docs/decisions.md` §25). This is reached only through `-sampleLibrary 1`
+/// and `-tinyLibrary <n>`, and by the tests, and it is the content every App
+/// Store screenshot is taken against.
+///
+/// Forty notes, not twelve, for a reason that outlived the screen it was
+/// written for: phase 6 tunes the affinity weights against this content, so the
+/// notes need **genuine conceptual overlap across books** rather than forty
+/// unrelated sentences. `attention`, `solitude`, `habit`, `doubt` and
+/// `conformity` each run through three or four different authors on purpose —
+/// that is the signal the embedder is supposed to find without being told, and
+/// it is what gives the crossing card anything to show.
+///
+/// **Everything here is public domain**, including the translations. See the
+/// note on `books` below.
 ///
 /// Values only, no SwiftData. `Library.prepare` turns them into models.
 nonisolated enum SeedLibrary {
@@ -66,212 +74,242 @@ nonisolated enum SeedLibrary {
 
     // MARK: Books
 
+    /// **Public domain, deliberately.** The sample library ships inside the
+    /// binary and appears in every App Store screenshot, and the first version
+    /// of it quoted four books that are still in copyright. A reader copying a
+    /// passage into their own notes is one thing; redistributing those passages
+    /// as app content to every installer, and publishing them on a store page,
+    /// is another. `docs/decisions.md` §27.
+    ///
+    /// Translations carry their own copyright, so the two translated authors
+    /// use the ones that are clear: **Marcus Aurelius in George Long (1862)**
+    /// and **Montaigne in Charles Cotton (1685)**. Modern translations are not
+    /// interchangeable here even though they read better.
     static let books: [BookSeed] = [
-        BookSeed(key: "kahneman", title: "Thinking, Fast and Slow", author: "Daniel Kahneman",
-                 status: .reading, pageCount: 499),
         BookSeed(key: "aurelius", title: "Meditations", author: "Marcus Aurelius",
                  status: .finished, pageCount: 254),
-        BookSeed(key: "pirsig", title: "Zen and the Art of Motorcycle Maintenance", author: "Robert M. Pirsig",
-                 status: .reading, pageCount: 418),
-        BookSeed(key: "deutsch", title: "The Beginning of Infinity", author: "David Deutsch",
-                 status: .queued, pageCount: 487),
-        BookSeed(key: "norman", title: "The Design of Everyday Things", author: "Don Norman",
-                 status: .finished, pageCount: 368),
+        BookSeed(key: "montaigne", title: "Essays", author: "Michel de Montaigne",
+                 status: .reading, pageCount: 1344),
+        BookSeed(key: "thoreau", title: "Walden", author: "Henry David Thoreau",
+                 status: .reading, pageCount: 352),
+        BookSeed(key: "james", title: "The Principles of Psychology", author: "William James",
+                 status: .reading, pageCount: 1393),
+        BookSeed(key: "emerson", title: "Self-Reliance and Other Essays", author: "Ralph Waldo Emerson",
+                 status: .queued, pageCount: 176),
         BookSeed(key: "inbox", title: Inbox.title, author: Inbox.author,
                  status: .inbox),
     ]
 
-    // MARK: Notes — oldest first, so ids ascend the way they were written
+    // MARK: Notes — grouped by book, ages ascending, so ids read as written
 
     static let notes: [NoteSeed] = [
 
-        // The Design of Everyday Things — read first, finished.
+        // Meditations — read first, finished. Long's translation.
 
-        NoteSeed(key: "nor.invisible", book: "norman", kind: .quote,
-                 text: "Good design is actually a lot harder to notice than poor design, in part because good designs fit our needs so well that the design is invisible.",
-                 page: 10, tags: ["design", "quality"], age: .daysAgo(41, hour: 21)),
-
-        NoteSeed(key: "nor.affordance", book: "norman", kind: .thought,
-                 text: "Affordances aren't properties of an object — they're relationships between the object and whoever is using it. Which means the same interface can be obvious to me and opaque to you, and neither of us is wrong.",
-                 page: 14, tags: ["design", "systems"], age: .daysAgo(40, hour: 8)),
-
-        NoteSeed(key: "nor.errors", book: "norman", kind: .thought,
-                 text: "Good error messages assume the user is competent and the system is at fault. Applies to people too.",
-                 page: 65, tags: ["design", "error"], age: .daysAgo(38, hour: 22)),
-
-        NoteSeed(key: "nor.systemerror", book: "norman", kind: .quote,
-                 text: "Human error usually is a result of poor design: it should be called system error.",
-                 page: 68, tags: ["error", "systems"], age: .daysAgo(36, hour: 20), starred: true),
-
-        NoteSeed(key: "nor.slips", book: "norman", kind: .thought,
-                 text: "Slips and mistakes are different failures — one is the right plan executed wrong, the other is the wrong plan executed perfectly. Typos versus wrong algorithms. Treating them the same is why so much review is wasted.",
-                 page: 72, tags: ["error", "quality"], age: .daysAgo(34, hour: 9)),
-
-        NoteSeed(key: "nor.discoverability", book: "norman", kind: .thought,
-                 text: "Discoverability is a memory subsidy. Every control you can see is one you don't have to remember.",
-                 page: 130, tags: ["design", "memory"], age: .daysAgo(32, hour: 19)),
-
-        NoteSeed(key: "nor.forcing", book: "norman", kind: .thought,
-                 text: "Forcing functions are the humane version of discipline — they make the wrong thing impossible rather than shameful.",
-                 page: 220, tags: ["design", "habit"], age: .daysAgo(30, hour: 7)),
-
-        // Meditations.
+        NoteSeed(key: "mar.retreat", book: "aurelius", kind: .quote,
+                 text: "Men seek retreats for themselves — houses in the country, sea-shores, mountains. But it is in thy power whenever thou shalt choose to retire into thyself.",
+                 page: 44, tags: ["solitude", "attention"], age: .daysAgo(45, hour: 7), starred: true),
 
         NoteSeed(key: "mar.present", book: "aurelius", kind: .quote,
                  text: "Confine thyself to the present.",
-                 page: 12, tags: ["stoicism", "attention"], age: .daysAgo(29, hour: 6)),
+                 page: 52, tags: ["attention", "time"], age: .daysAgo(42, hour: 6)),
 
-        NoteSeed(key: "mar.weather", book: "aurelius", kind: .thought,
-                 text: "The whole book is one instruction written down over and over: notice what is yours to decide, and let the rest be weather.",
-                 page: 14, tags: ["stoicism", "control"], age: .daysAgo(28, hour: 21)),
+        NoteSeed(key: "mar.judgement", book: "aurelius", kind: .quote,
+                 text: "If thou art pained by any external thing, it is not this thing that disturbs thee, but thy own judgement about it.",
+                 page: 118, tags: ["judgement", "control"], age: .daysAgo(38, hour: 21), starred: true),
 
-        NoteSeed(key: "mar.mind", book: "aurelius", kind: .quote,
-                 text: "You have power over your mind — not outside events. Realize this, and you will find strength.",
-                 page: 47, tags: ["stoicism", "control"], age: .daysAgo(26, hour: 7), starred: true),
+        NoteSeed(key: "mar.last", book: "aurelius", kind: .quote,
+                 text: "Do every act of thy life as if it were thy last.",
+                 page: 27, tags: ["time", "attention"], age: .daysAgo(35, hour: 8)),
 
-        NoteSeed(key: "mar.planning", book: "aurelius", kind: .thought,
-                 text: "Half of what I plan for is weather. The planning is still worth doing; the anxiety attached to it isn't.",
-                 page: 51, tags: ["stoicism", "control", "attention"], age: .daysAgo(24, hour: 22)),
+        NoteSeed(key: "mar.inward", book: "aurelius", kind: .thought,
+                 text: "\"Retire into thyself\" is not a holiday. He means an attention you can enter without going anywhere, which is harder than the country house and cheaper.",
+                 tags: ["solitude", "attention"], age: .daysAgo(33, hour: 20)),
 
-        NoteSeed(key: "mar.beone", book: "aurelius", kind: .quote,
-                 text: "Waste no more time arguing about what a good man should be. Be one.",
-                 page: 88, tags: ["stoicism", "craft"], age: .daysAgo(23, hour: 8)),
+        NoteSeed(key: "mar.queue", book: "aurelius", kind: .thought,
+                 text: "Every time I read the judgement line I want it to be about big things. It is almost always about a queue.",
+                 tags: ["judgement"], age: .daysAgo(31, hour: 7)),
 
         NoteSeed(key: "mar.repetition", book: "aurelius", kind: .thought,
-                 text: "Marcus writes the same lesson down again and again, which is the point — he clearly hadn't learned it either. Repetition isn't a failure to progress. It's what progress looks like from the inside.",
-                 page: 96, tags: ["stoicism", "habit", "memory"], age: .daysAgo(22, hour: 20)),
+                 text: "He repeats himself constantly and I think that is the form rather than a flaw. A private notebook is allowed to say the same thing until it takes.",
+                 tags: ["habit", "memory"], age: .daysAgo(30, hour: 22)),
 
-        NoteSeed(key: "mar.opinion", book: "aurelius", kind: .quote,
-                 text: "Everything we hear is an opinion, not a fact. Everything we see is a perspective, not the truth.",
-                 page: 140, tags: ["stoicism", "attention"], age: .daysAgo(21, hour: 12)),
+        NoteSeed(key: "mar.have", book: "aurelius", kind: .quote,
+                 text: "Think not so much of what thou hast not as of what thou hast.",
+                 page: 163, tags: ["time", "attention"], age: .daysAgo(24, hour: 9)),
 
-        NoteSeed(key: "mar.memento", book: "aurelius", kind: .thought,
-                 text: "Memento mori reads as morbid right up until you notice it's a prioritization algorithm.",
-                 page: 198, tags: ["stoicism", "attention"], age: .daysAgo(20, hour: 23)),
+        // Essays — Cotton's translation. Still reading; it is not a book you finish.
 
-        // Zen and the Art of Motorcycle Maintenance, and Thinking, Fast and Slow —
-        // both open at once, and the second keeps arguing with the first.
+        NoteSeed(key: "mon.quote", book: "montaigne", kind: .quote,
+                 text: "I quote others only in order the better to express myself.",
+                 page: 171, tags: ["reading", "self"], age: .daysAgo(34, hour: 19), starred: true),
 
-        NoteSeed(key: "pir.truth", book: "pirsig", kind: .quote,
-                 text: "The truth knocks on the door and you say, go away, I'm looking for the truth, and so it goes away.",
-                 page: 24, tags: ["quality", "attention"], age: .daysAgo(19, hour: 9)),
+        NoteSeed(key: "mon.know", book: "montaigne", kind: .quote,
+                 text: "What do I know?",
+                 page: 393, tags: ["doubt", "judgement"], age: .daysAgo(29, hour: 21)),
 
-        NoteSeed(key: "kah.system1", book: "kahneman", kind: .quote,
-                 text: "System 1 operates automatically and quickly, with little or no effort and no sense of voluntary control.",
-                 page: 20, tags: ["attention", "systems"], age: .daysAgo(18, hour: 21)),
+        NoteSeed(key: "mon.patchwork", book: "montaigne", kind: .quote,
+                 text: "We are all patchwork, and so shapeless and diverse in composition that each bit, each moment, plays its own game.",
+                 page: 244, tags: ["self", "doubt"], age: .daysAgo(26, hour: 20), starred: true),
 
-        NoteSeed(key: "kah.cost", book: "kahneman", kind: .thought,
-                 text: "System 1 and System 2 aren't two people living in your head. They're a name for how much it costs to think about something, and what you will quietly do to avoid paying.",
-                 page: 24, tags: ["attention", "systems"], age: .daysAgo(17, hour: 8)),
+        NoteSeed(key: "mon.belong", book: "montaigne", kind: .quote,
+                 text: "The greatest thing in the world is to know how to belong to oneself.",
+                 page: 178, tags: ["solitude", "self"], age: .daysAgo(22, hour: 7)),
 
-        NoteSeed(key: "pir.stuck", book: "pirsig", kind: .thought,
-                 text: "Pirsig's stuckness is the debugger's plateau. The stuck feeling is information — it means the model I brought is wrong, not that I'm slow.",
-                 page: 60, tags: ["craft", "quality"], age: .daysAgo(16, hour: 22)),
+        NoteSeed(key: "mon.borrow", book: "montaigne", kind: .thought,
+                 text: "He quotes more than he writes and it never reads as borrowed. The trick seems to be that he argues with the quote instead of hiding behind it.",
+                 tags: ["reading", "self"], age: .daysAgo(19, hour: 21)),
 
-        NoteSeed(key: "kah.ease", book: "kahneman", kind: .thought,
-                 text: "Cognitive ease makes a familiar falsehood feel true. The same mechanism makes a codebase you wrote yourself feel well designed.",
-                 page: 45, tags: ["memory", "quality"], age: .daysAgo(15, hour: 20)),
+        NoteSeed(key: "mon.doubt", book: "montaigne", kind: .thought,
+                 text: "\"What do I know\" is a question he asks himself, not the reader. Completely different sentence from the way it gets quoted at people.",
+                 tags: ["doubt"], age: .daysAgo(16, hour: 8)),
 
-        NoteSeed(key: "inb.filing", book: "inbox", kind: .thought,
-                 text: "The best filing system is the one you would still use while tired.",
-                 tags: ["systems", "habit"], age: .daysAgo(15, hour: 7)),
+        NoteSeed(key: "mon.essayer", book: "montaigne", kind: .thought,
+                 text: "Essayer — to try, to attempt. Every one of these is a draft he decided not to finish, which is exactly why they are still alive.",
+                 tags: ["reading", "craft"], age: .daysAgo(14, hour: 22)),
 
-        NoteSeed(key: "kah.important", book: "kahneman", kind: .quote,
-                 text: "Nothing in life is as important as you think it is while you are thinking about it.",
-                 page: 85, tags: ["attention"], age: .daysAgo(14, hour: 23), starred: true),
+        NoteSeed(key: "mon.knowledge", book: "montaigne", kind: .quote,
+                 text: "There is no desire more natural than the desire for knowledge.",
+                 page: 612, tags: ["reading"], age: .daysAgo(12, hour: 9)),
 
-        NoteSeed(key: "pir.system", book: "pirsig", kind: .thought,
-                 text: "The motorcycle you're working on is a system you are part of, not an object sitting across from you. Same with a codebase, and it explains why the ones I inherit feel hostile for the first month.",
-                 page: 100, tags: ["systems", "craft"], age: .daysAgo(13, hour: 19)),
+        // Walden.
 
-        NoteSeed(key: "kah.anchoring", book: "kahneman", kind: .thought,
-                 text: "Anchoring is why every estimate meeting should open in silence. The first number said out loud is the only one that matters afterward.",
-                 page: 88, tags: ["systems", "error"], age: .daysAgo(12, hour: 9)),
+        NoteSeed(key: "tho.deliberately", book: "thoreau", kind: .quote,
+                 text: "I went to the woods because I wished to live deliberately, to front only the essential facts of life.",
+                 page: 90, tags: ["attention", "simplicity"], age: .daysAgo(28, hour: 20), starred: true),
 
-        NoteSeed(key: "pir.cycle", book: "pirsig", kind: .quote,
-                 text: "The real cycle you're working on is a cycle called yourself.",
-                 page: 160, tags: ["craft"], age: .daysAgo(11, hour: 21)),
+        NoteSeed(key: "tho.simplify", book: "thoreau", kind: .quote,
+                 text: "Our life is frittered away by detail. Simplify, simplify.",
+                 page: 91, tags: ["simplicity", "attention"], age: .daysAgo(25, hour: 7)),
 
-        NoteSeed(key: "kah.availability", book: "kahneman", kind: .thought,
-                 text: "Availability is a memory bug being read as evidence. Whatever comes to mind fastest gets treated as whatever happens most.",
-                 page: 109, tags: ["memory", "error"], age: .daysAgo(10, hour: 8)),
+        NoteSeed(key: "tho.desperation", book: "thoreau", kind: .quote,
+                 text: "The mass of men lead lives of quiet desperation.",
+                 page: 8, tags: ["conformity"], age: .daysAgo(21, hour: 21)),
 
-        NoteSeed(key: "pir.gumption", book: "pirsig", kind: .thought,
-                 text: "Gumption traps map exactly onto debugging morale. Setbacks are part of the work, not interruptions to it.",
-                 page: 161, tags: ["craft", "attention"], age: .daysAgo(9, hour: 22)),
+        NoteSeed(key: "tho.chairs", book: "thoreau", kind: .quote,
+                 text: "I had three chairs in my house; one for solitude, two for friendship, three for society.",
+                 page: 140, tags: ["solitude"], age: .daysAgo(18, hour: 19)),
 
-        NoteSeed(key: "kah.hindsight", book: "kahneman", kind: .quote,
-                 text: "The idea that the future is unpredictable is undermined every day by the ease with which the past is explained.",
-                 page: 201, tags: ["memory", "error"], age: .daysAgo(8, hour: 20)),
+        NoteSeed(key: "tho.tools", book: "thoreau", kind: .quote,
+                 text: "Men have become the tools of their tools.",
+                 page: 37, tags: ["simplicity", "systems"], age: .daysAgo(15, hour: 20), starred: true),
 
-        NoteSeed(key: "inb.maintenance", book: "inbox", kind: .thought,
-                 text: "Every tool I've abandoned asked me to do maintenance work it could have done itself.",
-                 tags: ["design", "habit"], age: .daysAgo(7, hour: 12)),
+        NoteSeed(key: "tho.onpurpose", book: "thoreau", kind: .thought,
+                 text: "\"Deliberately\" is doing all the work in that sentence. Not slowly — on purpose. You can be deliberate at speed, which is the part people leave out.",
+                 tags: ["attention"], age: .daysAgo(11, hour: 8)),
 
-        NoteSeed(key: "pir.quality", book: "pirsig", kind: .thought,
-                 text: "Quality can't be defined but you know it when you see it — which is the same problem as good taste in code review, and the same reason neither survives being turned into a checklist.",
-                 page: 184, tags: ["quality", "craft"], age: .daysAgo(6, hour: 21), starred: true),
+        NoteSeed(key: "tho.cost", book: "thoreau", kind: .quote,
+                 text: "The cost of a thing is the amount of what I will call life which is required to be exchanged for it.",
+                 page: 31, tags: ["time", "simplicity"], age: .daysAgo(8, hour: 21)),
 
-        NoteSeed(key: "kah.postmortem", book: "kahneman", kind: .thought,
-                 text: "Hindsight makes every outage look preventable, which is why a postmortem has to be written against the information available at the time and not the information available now.",
-                 page: 203, tags: ["error", "systems", "quality"], age: .daysAgo(5, hour: 9)),
+        NoteSeed(key: "tho.town", book: "thoreau", kind: .thought,
+                 text: "He walked into town most days. The cabin was a study rather than an escape, and the book gets worse if you forget that.",
+                 tags: ["solitude"], age: .daysAgo(5, hour: 20)),
 
-        NoteSeed(key: "pir.care", book: "pirsig", kind: .quote,
-                 text: "Care and Quality are internal and external aspects of the same thing.",
-                 page: 190, tags: ["quality", "craft"], age: .daysAgo(4, hour: 22)),
+        NoteSeed(key: "tho.morning", book: "thoreau", kind: .quote,
+                 text: "Morning is when I am awake and there is a dawn in me.",
+                 page: 94, tags: ["attention"], age: .daysAgo(2, hour: 7)),
 
-        NoteSeed(key: "kah.twoselves", book: "kahneman", kind: .thought,
-                 text: "The remembering self and the experiencing self want different books. I keep buying for the first one.",
-                 page: 208, tags: ["memory", "attention"], age: .daysAgo(3, hour: 20)),
+        // The Principles of Psychology. Long, and being read in pieces.
 
-        NoteSeed(key: "pir.peace", book: "pirsig", kind: .thought,
-                 text: "Peace of mind isn't the reward for good work, it's the precondition. You can't see the fault in a machine while you're angry at it.",
-                 page: 247, tags: ["craft", "attention"], age: .daysAgo(2, hour: 21)),
+        NoteSeed(key: "jam.attend", book: "james", kind: .quote,
+                 text: "My experience is what I agree to attend to.",
+                 page: 402, tags: ["attention", "self"], age: .daysAgo(20, hour: 21), starred: true),
 
-        NoteSeed(key: "inb.twobooks", book: "inbox", kind: .voice,
-                 text: "Reading two books at once isn't dilution — the second one keeps arguing with the first, and the argument is where the notes come from.",
-                 tags: ["attention", "habit"], age: .daysAgo(2, hour: 8)),
+        NoteSeed(key: "jam.flywheel", book: "james", kind: .quote,
+                 text: "Habit is thus the enormous fly-wheel of society, its most precious conservative agent.",
+                 page: 121, tags: ["habit", "systems"], age: .daysAgo(17, hour: 20)),
 
-        NoteSeed(key: "inb.review", book: "inbox", kind: .voice,
-                 text: "Idea for the reading log: weight the daily set toward notes I've never followed up on, rather than notes I've never seen.",
-                 tags: ["systems"], age: .daysAgo(1, hour: 23)),
+        NoteSeed(key: "jam.overlook", book: "james", kind: .quote,
+                 text: "The art of being wise is the art of knowing what to overlook.",
+                 page: 369, tags: ["attention", "judgement"], age: .daysAgo(13, hour: 8)),
 
-        NoteSeed(key: "pir.romantic", book: "pirsig", kind: .thought,
-                 text: "Pirsig calls it romantic versus classical understanding; Norman would call it experience versus mechanism. Both are saying you cannot design well while holding only one of them.",
-                 page: 284, tags: ["quality", "design"], age: .daysAgo(1, hour: 20)),
+        NoteSeed(key: "jam.interest", book: "james", kind: .quote,
+                 text: "Millions of items of the outward order are present to my senses which never properly enter into my experience. Why? Because they have no interest for me.",
+                 page: 402, tags: ["attention"], age: .daysAgo(10, hour: 22)),
 
-        NoteSeed(key: "inb.stars", book: "inbox", kind: .thought,
-                 text: "Note to self: stop starring things. Star everything and you have starred nothing.",
-                 tags: ["habit", "systems"], age: .daysAgo(1, hour: 9)),
+        NoteSeed(key: "jam.ally", book: "james", kind: .thought,
+                 text: "The habit chapter reads as a warning and a set of instructions at the same time. Make the nervous system an ally rather than an enemy, before it decides for itself.",
+                 tags: ["habit"], age: .daysAgo(7, hour: 20)),
+
+        NoteSeed(key: "jam.agree", book: "james", kind: .thought,
+                 text: "\"What I agree to attend to\" — agree. He puts it as consent, which makes every distraction something I said yes to.",
+                 tags: ["attention", "self"], age: .daysAgo(4, hour: 21), starred: true),
+
+        NoteSeed(key: "jam.stream", book: "james", kind: .quote,
+                 text: "Consciousness does not appear to itself chopped up in bits. It is nothing jointed; it flows.",
+                 page: 239, tags: ["attention"], age: .daysAgo(1, hour: 9)),
+
+        NoteSeed(key: "jam.after", book: "james", kind: .thought,
+                 text: "Reading James after Aurelius is strange. One is a laboratory and one is a notebook, and they arrive at the same place about attention from opposite ends.",
+                 tags: ["attention", "reading"], age: .minutesAgo(38)),
+
+        // Self-Reliance — queued, and dipped into out of order anyway.
+
+        NoteSeed(key: "eme.consistency", book: "emerson", kind: .quote,
+                 text: "A foolish consistency is the hobgoblin of little minds.",
+                 page: 33, tags: ["conformity", "doubt"], age: .daysAgo(9, hour: 21), starred: true),
+
+        NoteSeed(key: "eme.nonconformist", book: "emerson", kind: .quote,
+                 text: "Whoso would be a man must be a nonconformist.",
+                 page: 29, tags: ["conformity"], age: .daysAgo(6, hour: 20)),
+
+        NoteSeed(key: "eme.trust", book: "emerson", kind: .quote,
+                 text: "Trust thyself: every heart vibrates to that iron string.",
+                 page: 27, tags: ["self"], age: .daysAgo(3, hour: 8)),
+
+        NoteSeed(key: "eme.misunderstood", book: "emerson", kind: .quote,
+                 text: "To be great is to be misunderstood.",
+                 page: 34, tags: ["conformity", "doubt"], age: .daysAgo(3, hour: 21)),
+
+        // Inbox — captured without a book, to be filed later.
 
         NoteSeed(key: "inb.findable", book: "inbox", kind: .thought,
                  text: "A note you can't find is a note you didn't take.",
-                 tags: ["systems", "memory"], age: .minutesAgo(41)),
+                 tags: ["systems", "memory"], age: .daysAgo(13, hour: 21)),
 
-        NoteSeed(key: "kah.budget", book: "kahneman", kind: .voice,
+        NoteSeed(key: "inb.filing", book: "inbox", kind: .voice,
+                 text: "Idea for the reading log: weight the daily set toward notes I've never followed up on, rather than notes I've never seen.",
+                 tags: ["systems"], age: .daysAgo(1, hour: 11)),
+
+        NoteSeed(key: "inb.budget", book: "inbox", kind: .voice,
                  text: "Attention is a finite budget and switching costs are paid in comprehension — same as context switching in engineering work.",
-                 page: 214, tags: ["attention", "systems"], age: .minutesAgo(2)),
+                 tags: ["attention", "systems"], age: .minutesAgo(32)),
     ]
 
     // MARK: Connections
 
+    /// Hand-picked and **cross-book wherever the pairing earns it**, because a
+    /// crossing is the one thing the app computes that nothing else does and it
+    /// needs real material to find. Pinned, so phase 6's first recompute keeps
+    /// them.
     static let edges: [EdgeSeed] = [
-        EdgeSeed(a: "nor.errors", b: "nor.systemerror"),
-        EdgeSeed(a: "nor.slips", b: "kah.postmortem"),
-        EdgeSeed(a: "nor.affordance", b: "pir.romantic"),
-        EdgeSeed(a: "nor.discoverability", b: "inb.findable"),
-        EdgeSeed(a: "nor.forcing", b: "mar.repetition"),
-        EdgeSeed(a: "mar.present", b: "kah.budget"),
-        EdgeSeed(a: "mar.memento", b: "kah.important"),
-        EdgeSeed(a: "mar.weather", b: "mar.planning"),
-        EdgeSeed(a: "kah.cost", b: "kah.anchoring"),
-        EdgeSeed(a: "kah.availability", b: "kah.twoselves"),
-        EdgeSeed(a: "kah.hindsight", b: "kah.postmortem"),
-        EdgeSeed(a: "pir.gumption", b: "kah.budget"),
-        EdgeSeed(a: "pir.quality", b: "nor.invisible"),
-        EdgeSeed(a: "pir.quality", b: "pir.care"),
-        EdgeSeed(a: "pir.stuck", b: "pir.peace"),
-        EdgeSeed(a: "inb.filing", b: "inb.findable"),
+        // Attention, running through four authors on purpose.
+        EdgeSeed(a: "jam.attend", b: "mar.present"),
+        EdgeSeed(a: "jam.attend", b: "tho.deliberately"),
+        EdgeSeed(a: "mar.present", b: "tho.deliberately"),
+        EdgeSeed(a: "jam.interest", b: "jam.attend"),
+        EdgeSeed(a: "inb.budget", b: "jam.attend"),
+        EdgeSeed(a: "jam.agree", b: "jam.attend"),
+
+        // Inconsistency — Emerson defending it, Montaigne describing it.
+        EdgeSeed(a: "eme.consistency", b: "mon.patchwork"),
+        EdgeSeed(a: "mon.know", b: "eme.misunderstood"),
+
+        // Solitude, and what it is actually for.
+        EdgeSeed(a: "mon.belong", b: "tho.chairs"),
+        EdgeSeed(a: "tho.simplify", b: "mar.retreat"),
+        EdgeSeed(a: "mon.belong", b: "eme.trust"),
+
+        // Habit.
+        EdgeSeed(a: "jam.flywheel", b: "mar.repetition"),
+        EdgeSeed(a: "jam.ally", b: "jam.flywheel"),
+
+        // Judgement, conformity, time.
+        EdgeSeed(a: "jam.overlook", b: "mar.judgement"),
+        EdgeSeed(a: "tho.desperation", b: "eme.nonconformist"),
+        EdgeSeed(a: "tho.cost", b: "mar.have"),
+        EdgeSeed(a: "inb.findable", b: "inb.filing"),
     ]
 
     // MARK: Follow-ups
@@ -280,16 +318,16 @@ nonisolated enum SeedLibrary {
     /// answers rather than restatements — the point of a thread is that the
     /// second thought disagrees with, qualifies, or applies the first.
     static let followUps: [FollowUpSeed] = [
-        FollowUpSeed(note: "nor.systemerror",
-                     text: "Held up for a month now, except where the design is fine and the person was tired. Norman doesn't have much to say about tired.",
+        FollowUpSeed(note: "tho.simplify",
+                     text: "Held up for a month, except on the days when the detail was the work. Thoreau has very little to say about the days when the detail is the work.",
                      age: .daysAgo(9, hour: 20)),
 
-        FollowUpSeed(note: "mar.mind",
+        FollowUpSeed(note: "mar.judgement",
                      text: "Read this again on a bad week and it landed as instruction rather than comfort, which I think is how it was meant.",
                      age: .daysAgo(4, hour: 7)),
 
-        FollowUpSeed(note: "kah.anchoring",
-                     text: "Tried the silent-first-pass version twice. The spread of estimates roughly doubled, which I'm choosing to read as honesty.",
+        FollowUpSeed(note: "jam.attend",
+                     text: "Tried treating every notification as something I had agreed to. Lasted two days, which is longer than I expected and shorter than I wanted.",
                      age: .daysAgo(2, hour: 18)),
     ]
 

@@ -485,3 +485,40 @@ font tool, which is the only thing against it.
 **Availability came from web search, which is indicative and not authoritative.** A name is held
 only once the app record exists in App Store Connect. Reserve it before building anything on it.
 
+---
+
+## 27. The sample library is rewritten from public-domain sources
+
+**Phase 15**, and it is the prerequisite §25 left behind. Removing the seed from a reader's
+first launch fixed the thing that mattered — nobody is handed somebody else's library any more —
+but the passages were still compiled into the binary, and they were about to be published on an
+App Store page under Nathaniel's name. Dead strings are one thing; a store screenshot is
+another.
+
+The old library quoted *Thinking, Fast and Slow*, *The Design of Everyday Things*, *Zen and the
+Art of Motorcycle Maintenance* and *The Beginning of Infinity* verbatim. All four are in
+copyright.
+
+Rewritten from five works that are not: **Meditations** (Marcus Aurelius), **Essays**
+(Montaigne), **Walden** (Thoreau), **The Principles of Psychology** (William James) and
+**Self-Reliance** (Emerson).
+
+**Translations carry their own copyright and are not interchangeable.** Aurelius is George Long
+(1862) and Montaigne is Charles Cotton (1685) for that reason alone — the modern translations
+read better and could not be used. The three English authors are clear outright.
+
+**The structure is unchanged and the overlap is still deliberate.** Forty notes, six books,
+seventeen pinned edges, three follow-ups — the same shape, because phase 6 tunes the affinity
+weights against this content and `ReviewSetBuilder` is exercised against its dates. What
+replaced `attention`/`error`/`quality` as the load-bearing themes is `attention`, `solitude`,
+`habit`, `doubt` and `conformity`, each running through three or four authors so the embedder
+has something real to find and the crossing card has something to show. It does: the first
+crossing it produced was Thoreau's *"the mass of men lead lives of quiet desperation"* against
+Emerson's *"whoso would be a man must be a nonconformist"*, written a fortnight apart, and that
+is the App Store screenshot.
+
+**A quieter gain.** Roughly half the notes are now the reader's own thoughts rather than
+quotations, which is both safer and more honest about what the app is for — the quotes are the
+raw material and the thinking is the point. `mon.quote` is the joke that earns its place:
+*"I quote others only in order the better to express myself."*
+
