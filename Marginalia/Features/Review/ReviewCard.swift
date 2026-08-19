@@ -201,7 +201,7 @@ struct ShareCard: View {
 
             Hairline()
 
-            Text("marginalia")
+            Text("passim")
                 .font(Typography.wordmark)
                 .foregroundStyle(Theme.ink)
         }

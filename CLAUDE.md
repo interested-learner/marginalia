@@ -2,6 +2,8 @@
 
 Working context for Claude Code in this repository. Read this before touching any file.
 
+> **The app is called passim.** It was `marginalia` until phase 15, when the name turned out to be taken by a near-identical App Store app — `docs/decisions.md` §26. **The rename is user-visible only:** the bundle id, the display name, the wordmark, the `passim://` scheme and the `[p]` icon all changed; the Xcode target, the scheme, the product `Marginalia.app` and the Swift module did not, because none of that is user-visible and renaming the target means hand-editing `project.pbxproj`. Historical prose in `docs/decisions.md`, `docs/issues.md` and the phase docs still says `marginalia`, deliberately — those are records of what happened.
+
 > **Starting a session?** Read [`docs/planning.md`](docs/planning.md) first — it says what's built, what's next, and what's temporary scaffolding waiting to be replaced. If a build hangs or the app crashes, read [`docs/issues.md`](docs/issues.md) before debugging — it is probably already in there.
 >
 > **Phase 12 removed a whole tab.** Read `docs/phase-12.md` and `docs/decisions.md` §21. The map was read on a device and the verdict was not that it was wrong but that there was **no reason to open it** — so the summary, the graph and everything under them came out, and the one thing worth keeping moved into review as the **crossing card**. 4,082 lines and 90 tests went with it. If you are about to propose a screen that draws the library, read §21 first.
@@ -14,7 +16,7 @@ Working context for Claude Code in this repository. Read this before touching an
 
 ## What this is
 
-**marginalia** — a native iOS app for notes taken from books. Three tabs:
+**passim** — a native iOS app for notes taken from books. (The repo, the Xcode target and the Swift module are still called `Marginalia`; only the product was renamed. `docs/decisions.md` §26.) Three tabs:
 
 - **stream** — every note across every book, newest first, filterable by tag. A persistent capture bar sits at the bottom for text or voice. Focused, it grows `→ full note` — which carries the draft into the capture sheet — and the tab bar goes; unfocused it is one line and two buttons, and **the fast path is not allowed to get slower**. It does not name a book: `docs/decisions.md` §18.
 - **books** — the library, and each book's notes.
@@ -253,6 +255,17 @@ Tools/
 | `-tinyLibrary <n>` | the sample books and `n` notes instead of forty — **uninstall first** |
 | `-storeFailure 1` | opens the "library won't open" screen |
 
+> **`build test` leaves an empty library behind, and it will cost you an afternoon.** `xcodebuild test` installs the app and launches it as the **test host**, so `MarginaliaApp.init` runs and bootstraps `.empty` — the Inbox, written to the real container. A `-sampleLibrary 1` launch afterwards finds a store that is no longer empty, skips the bootstrap, and comes up blank, which reads exactly like the argument being broken. **Uninstall between the test run and the screenshot launch**, not before it:
+>
+> ```bash
+> xcodebuild ... build test          # installs + launches the app as the test host
+> xcrun simctl uninstall booted com.passim.app   # <- AFTER the tests, not before
+> xcrun simctl install booted .build/Build/Products/Debug-iphonesimulator/Marginalia.app
+> xcrun simctl launch booted com.passim.app -sampleLibrary 1
+> ```
+>
+> Confirmed by doing it: uninstall, `build test`, launch with `-sampleLibrary 1` → empty stream. This was invisible before `docs/decisions.md` §25, because the test host seeded the full forty and you got a library either way.
+
 **A reader's first launch gets the Inbox and nothing else** — `docs/decisions.md` §25. The sample library no longer bootstraps itself, so a store that has just been installed is genuinely empty and every command in this file that expects notes to look at needs `-sampleLibrary 1` alongside it. `Library.Bootstrap` has no default: the app says `.empty`, the tests and these arguments say `.sample`.
 
 `-tinyLibrary` spreads its notes **across books**, one at a time, rather than taking them off the front of the seed. `ReviewSetBuilder` allows two cards per book, so a prefix of one book's notes builds a set of two and always lands on review's empty state, whatever number you asked for. `2` is the empty state; `4` is a full set with nothing left over, which is the only way to see an exhausted `[↻] keep going`.
@@ -268,7 +281,7 @@ xcodebuild -scheme Marginalia -destination 'platform=iOS Simulator,name=iPhone 1
 # run in the simulator
 xcrun simctl boot "iPhone 17"
 xcrun simctl install booted .build/Build/Products/Debug-iphonesimulator/Marginalia.app
-xcrun simctl launch booted com.marginalia.app
+xcrun simctl launch booted com.passim.app
 
 # check both appearances — do this after any UI change
 xcrun simctl ui booted appearance dark      # or: light
@@ -288,7 +301,7 @@ swift Tools/MakeAppIcon.swift
 
 # the simulator can't be tapped from the command line, so to screenshot
 # any tab that isn't stream:
-xcrun simctl launch booted com.marginalia.app -startTab review
+xcrun simctl launch booted com.passim.app -startTab review
 ```
 
 Tests use **Swift Testing** (`@Test`, `#expect`), not XCTest.

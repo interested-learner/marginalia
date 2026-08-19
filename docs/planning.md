@@ -167,7 +167,7 @@ Kept as a record, because `docs/decisions.md` §21 supersedes §20 one day after
 - **Manual linking, at last.** `LinkWriter.pin` is the only writer of `isPinned`, reached from `→ link` on a review card, which opens a picker over the library — the search sheet the spec asked for, built on the search machinery that had just been written. Pinning a pair the app already found adopts that edge and keeps its score; pinning a pair the reader once **disconnected** un-suppresses it, because both flags record a deliberate act and this is the newer one.
 - **The recompute, measured.** `docs/issues.md` §15 asked for a number instead of a paragraph and now has a table. **0.71 µs a pair at `-O`** — 356 ms at a thousand notes, ~9 seconds at five thousand, off the main actor throughout. The incremental path the spec described is **not needed**, and that's now a measurement rather than an opinion.
 - **And half that cost was work in the wrong place.** `AffinityEngine` was normalizing tags and re-deriving vector magnitudes inside the pair loop — O(N) jobs done O(N²) times. Hoisting them per subject took it from 1.50 µs a pair to 0.71, with the graph **unchanged edge for edge at every size measured**, which is the check that made it an optimization rather than a change.
-- **The two routes.** A source line's book title opens the book, through a `marginalia://book/…` link resolved by the same route `→ n.11` already took — **a book is addressed by one of its notes**, because books have no id of their own and inventing one to shorten a URL would be a schema change in the service of a link. And `[◇] connections` opens a note's local map, from a stream row's long-press menu and from a third row on the review card. *(Both of the other two are gone: `[◇] connections` with the map in phase 12, `→ n.11` with the id links in phase 13. The book title is the whole scheme now.)*
+- **The two routes.** A source line's book title opens the book, through a `passim://book/…` link resolved by the same route `→ n.11` already took — **a book is addressed by one of its notes**, because books have no id of their own and inventing one to shorten a URL would be a schema change in the service of a link. And `[◇] connections` opens a note's local map, from a stream row's long-press menu and from a third row on the review card. *(Both of the other two are gone: `[◇] connections` with the map in phase 12, `→ n.11` with the id links in phase 13. The book title is the whole scheme now.)*
 
 ### The bug the screenshot caught
 
@@ -359,7 +359,7 @@ Between phase 5 and phase 6, six of the thirteen entries in `docs/issues.md` wer
 - **`Library`** — schema, container, and a `prepare` that runs every launch: seeds an empty store, then raises the id counter past everything already in it.
 - **`ShortIDCounter`** — monotonic, in `UserDefaults`. Deleting the newest note does not free its id.
 - **`SeedLibrary`** — 40 notes across five books plus the Inbox, dated relative to first launch so the stream opens with all three date headers. **The cross-book tag overlap is deliberate**: `attention`, `error`, `quality`, `memory` and `systems` each run through three or four authors, and that's the signal phase 6 tunes against. 16 seeded edges are `isPinned`, so the first recompute won't prune them.
-- **Stream** — real feed, date grouping, chips derived from the notes themselves, and `marginalia://note/…` handled so a connection scrolls to its note (clearing the tag filter first, or the link would land on an empty feed).
+- **Stream** — real feed, date grouping, chips derived from the notes themselves, and `passim://note/…` handled so a connection scrolls to its note (clearing the tag filter first, or the link would land on an empty feed).
 - **Books, review, map** — all reading from the store. Book detail landed in phase 4; the real review set and the real graph are phases 5 and 7.
 
 ### Scaffolding phase 2 removed
@@ -435,26 +435,26 @@ Learned the hard way in phases 1 and 2.
 - **Pure enums touched from a `@Model` need `nonisolated`.** The project sets `SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor` and SwiftData models aren't MainActor, so `Note.idLabel` calling `Glyphs.noteID` doesn't compile until `Glyphs` is marked. Same for `BookStatus` and `NoteKind`.
 - **Launch arguments are how you screenshot anything but the top of the stream.** The simulator can't be tapped from the command line, so every screen reached by tapping has one. The full table is in `CLAUDE.md`; they compose.
   ```bash
-  xcrun simctl launch booted com.marginalia.app -startTab review -reviewCrossing 1
-  xcrun simctl launch booted com.marginalia.app -openNote 20
-  xcrun simctl launch booted com.marginalia.app -startTab books -openBook "Meditations"
-  xcrun simctl launch booted com.marginalia.app -startTab books -addBook 1 -bookSearch "meditations"
-  xcrun simctl launch booted com.marginalia.app -startTab books -openBook "Med" -confirmDelete book
-  xcrun simctl launch booted com.marginalia.app -tinyLibrary 2 -startTab review   # uninstall first
-  xcrun simctl launch booted com.marginalia.app -search "error"
-  xcrun simctl launch booted com.marginalia.app -startTab books -openBook "Med" -captureSheet scan -scanner 1
-  xcrun simctl launch booted com.marginalia.app -settings 1
-  xcrun simctl launch booted com.marginalia.app -startTab review -link 1
+  xcrun simctl launch booted com.passim.app -startTab review -reviewCrossing 1
+  xcrun simctl launch booted com.passim.app -openNote 20
+  xcrun simctl launch booted com.passim.app -startTab books -openBook "Meditations"
+  xcrun simctl launch booted com.passim.app -startTab books -addBook 1 -bookSearch "meditations"
+  xcrun simctl launch booted com.passim.app -startTab books -openBook "Med" -confirmDelete book
+  xcrun simctl launch booted com.passim.app -tinyLibrary 2 -startTab review   # uninstall first
+  xcrun simctl launch booted com.passim.app -search "error"
+  xcrun simctl launch booted com.passim.app -startTab books -openBook "Med" -captureSheet scan -scanner 1
+  xcrun simctl launch booted com.passim.app -settings 1
+  xcrun simctl launch booted com.passim.app -startTab review -link 1
   ```
 - **A permission prompt sticks to the simulator, and it survives an uninstall.** `-preference.notifications 1` raises the notification alert; nothing on the command line can answer it, so it sits on the SpringBoard over every screenshot taken afterwards — including after `simctl uninstall` and a reinstall. Reboot the simulator to clear it.
   ```bash
   xcrun simctl shutdown all && xcrun simctl boot "iPhone 17"
   ```
-- **`simctl openurl` is not the in-app path.** Opening `marginalia://book/20` from outside raises the system's *Open in "marginalia"?* alert, which blocks the simulator until it's dismissed by hand. In-app taps are intercepted by `OpenURLAction` in `RootView` and never reach the system. **The note form of the scheme is gone** — it existed only behind the `→ n.11` links, and went with them in phase 13. `-openNote` still works and never parsed a URL; it seeds `focus` directly.
+- **`simctl openurl` is not the in-app path.** Opening `passim://book/20` from outside raises the system's *Open in "marginalia"?* alert, which blocks the simulator until it's dismissed by hand. In-app taps are intercepted by `OpenURLAction` in `RootView` and never reach the system. **The note form of the scheme is gone** — it existed only behind the `→ n.11` links, and went with them in phase 13. `-openNote` still works and never parsed a URL; it seeds `focus` directly.
 - **A fresh install is empty, and screenshots need `-sampleLibrary 1`.** Phase 15 stopped the sample library bootstrapping itself — `docs/decisions.md` §25 — so a clean install has the Inbox and nothing else. Every command above that expects notes to look at wants `-sampleLibrary 1` (all forty) or `-tinyLibrary <n>` (a prefix) alongside it.
 - **Reinstall before screenshotting a seed change.** A bootstrap only runs against an empty store, so an existing install keeps the old notes.
   ```bash
-  xcrun simctl uninstall booted com.marginalia.app
+  xcrun simctl uninstall booted com.passim.app
   ```
 - **CoreData logs `Sandbox access to file-write-create denied` during `test`.** That's the app's `init` opening a store inside the test host; it falls back to in-memory and the tests are unaffected. The persistent store works in a normal run — check the file if you doubt it.
 - **Run the tests, don't assume they pass.** `TEST_HOST` was malformed in phase 1 and the test bundle silently failed to link while `build` still reported success. `build test` is the command that tells the truth.

@@ -40,7 +40,7 @@ struct ScreenHeader<Detail: View>: View {
                 HStack(alignment: .firstTextBaseline, spacing: 8) {
                     switch style {
                     case .wordmark(let subtitle):
-                        Text("marginalia")
+                        Text("passim")
                             .font(Typography.wordmark)
                             .foregroundStyle(Theme.ink)
                         Text("· \(subtitle)")

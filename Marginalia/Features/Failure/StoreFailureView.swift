@@ -19,7 +19,7 @@ struct StoreFailureView: View {
         VStack(alignment: .leading, spacing: 16) {
             Spacer()
 
-            Text("marginalia")
+            Text("passim")
                 .font(Typography.wordmark)
                 .foregroundStyle(Theme.ink)
 
@@ -29,7 +29,7 @@ struct StoreFailureView: View {
                 .fixedSize(horizontal: false, vertical: true)
 
             Text("your notes have not been deleted — the app just couldn't get "
-                 + "to them this time. quit marginalia and open it again; if it "
+                 + "to them this time. quit passim and open it again; if it "
                  + "says this twice, the message below is what to report.")
                 .font(Typography.noteBody)
                 .lineSpacing(Typography.bodyLeading)

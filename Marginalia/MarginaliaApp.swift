@@ -89,7 +89,7 @@ struct MarginaliaApp: App {
 }
 
 struct RootView: View {
-    /// Only for resolving a `marginalia://book/…` link — a book is addressed by
+    /// Only for resolving a `passim://book/…` link — a book is addressed by
     /// one of its notes and somebody has to look it up. Every other screen
     /// reaches the store through its own `@Query`.
     @Environment(\.modelContext) private var context
@@ -102,7 +102,7 @@ struct RootView: View {
     // since the simulator can't be tapped from the command line.
     @State private var tab: Tab = Tab(argument: UserDefaults.standard.string(forKey: "startTab")) ?? .stream
 
-    /// Set by a `marginalia://note/11` link on a source line. The stream clears
+    /// Set by a `passim://note/11` link on a source line. The stream clears
     /// it once it has scrolled there.
     ///
     /// `-openNote 20` seeds it at launch, for the same reason `-startTab` exists:
@@ -260,12 +260,12 @@ struct RootView: View {
     }
 }
 
-/// `marginalia://book/11` — the scheme behind the book title on a source line.
+/// `passim://book/11` — the scheme behind the book title on a source line.
 ///
 /// It has to stay inline in a wrapping paragraph, so it's rendered as a link in
 /// an `AttributedString` rather than as a button. This is the other half of that.
 ///
-/// **There was a `marginalia://note/11` beside it**, behind the `→ n.11`
+/// **There was a `passim://note/11` beside it**, behind the `→ n.11`
 /// connections every row used to carry. Those came out in phase 13
 /// (`docs/decisions.md` §22) and the note form went with them — nothing produced
 /// it any more. Opening a note by id is still a thing the app does, from
@@ -276,7 +276,7 @@ struct RootView: View {
 /// would be a schema change in the service of a link. `n.11`'s book is a thing
 /// the store can already answer.
 nonisolated enum NoteLink {
-    static let scheme = "marginalia"
+    static let scheme = "passim"
 
     enum Target: Equatable {
         /// The book that note was written from.

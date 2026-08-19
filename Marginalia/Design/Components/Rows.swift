@@ -105,7 +105,7 @@ struct NoteRow: View {
 
     /// `Thinking, Fast and Slow · p.214 · #systems`
     ///
-    /// The book's title carries a `marginalia://book/…` link so it stays
+    /// The book's title carries a `passim://book/…` link so it stays
     /// tappable while still flowing inline; `RootView` intercepts the scheme.
     /// The line has to stay one wrapping paragraph, so what is tappable in it is
     /// a link rather than a button.

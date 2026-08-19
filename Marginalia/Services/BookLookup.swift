@@ -49,7 +49,7 @@ nonisolated enum BookLookup {
 
     /// Open Library asks callers to identify themselves. No key, just manners.
     private static let agent =
-        "marginalia/1.0 (iOS book notes; github.com/interested-learner/marginalia)"
+        "passim/1.0 (iOS book notes; github.com/interested-learner/marginalia)"
 
     // MARK: Fetching
 

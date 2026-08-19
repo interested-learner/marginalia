@@ -1,6 +1,6 @@
 #!/usr/bin/env swift
 
-// Renders the app icon — `[m]`, the bracket marker vocabulary applied to itself.
+// Renders the app icon — `[p]`, the bracket marker vocabulary applied to itself.
 //
 // The icon is the one image in an app whose identity is the absence of images,
 // which is exactly why it is a script and not a binary somebody exported once.
@@ -29,12 +29,12 @@ let side = 1024.0
 
 /// The glyph is fitted to this fraction of the icon's width rather than set at a
 /// chosen point size. iOS masks the icon to a squircle, so the corners are not
-/// ours to use; `[m]` sits inside the width the mask actually keeps.
+/// ours to use; `[p]` sits inside the width the mask actually keeps.
 let fitWidth = 0.80
 
 /// Extra space between the brackets and the `m`, as a fraction of the font size.
 ///
-/// **This is the number the icon was tuned on.** JetBrains Mono sets `[m]`
+/// **This is the number the icon was tuned on.** JetBrains Mono sets `[p]`
 /// tightly enough that at home-screen size the two bracket stems and the `m`'s
 /// three stems read as one five-bar smear. Opening the brackets separates the
 /// marker into its parts at 40pt, which is the size that decides whether an
@@ -88,17 +88,30 @@ func render(
         colorSpace: space, components: [glyph.r, glyph.g, glyph.b, 1]
     )!
 
-    // Fit `[m]` to `fitWidth` by measuring at a reference size and scaling —
+    // Fit `[p]` to `fitWidth` by measuring at a reference size and scaling —
     // the mono advance is linear in point size, so one measurement is enough.
     let reference = 100.0
-    let referenceWidth = typeset("[m]", size: reference).bounds.width
+    let referenceWidth = typeset("[p]", size: reference).bounds.width
     let size = reference * (side * fitWidth) / referenceWidth
 
-    let line = typeset("[m]", size: size, color: color)
+    let line = typeset("[p]", size: size, color: color)
 
-    // Optically centred on the ink, not on the typographic line. A line's
-    // height is ascender-to-descender and `[m]` uses neither fully, so
-    // centring the line would sit the marker low.
+    // Optically centred on the ink, not on the typographic line — a line's
+    // height is the full ascender-to-descender box, and centring on that sits
+    // the marker low.
+    //
+    // **`p` has a descender and `m` did not**, so the glyph this was tuned on
+    // in phase 10 no longer describes it. Measured on the rendered PNG after
+    // the phase 15 rename: ink spans y 310..743 on a 1024 canvas, so the ink
+    // box sits ~14px below centre — but the **brackets** land at 310..713,
+    // centre 511.5 against a true centre of 512. That is the right answer and
+    // not quite the one the code asks for: the eye reads the brackets as the
+    // frame and the descender as hanging off it, which is what typography
+    // does. `.useOpticalBounds` excludes enough of the descender overshoot to
+    // land there.
+    //
+    // If the letter ever changes again, re-measure rather than assuming. A
+    // glyph with no descender and one with a deep one do not centre alike.
     let bounds = line.bounds
     ctx.textPosition = CGPoint(
         x: (side - bounds.width) / 2 - bounds.minX,
@@ -135,7 +148,7 @@ func typeset(
         CFAttributedStringCreate(nil, text as CFString, attributes as CFDictionary)
     )
     // `.useOpticalBounds` is the ink, which is what centring wants — the
-    // typographic bounds include the trailing kern and would push `[m]` left.
+    // typographic bounds include the trailing kern and would push `[p]` left.
     return (line, CTLineGetBoundsWithOptions(line, .useOpticalBounds))
 }
 
@@ -160,7 +173,7 @@ render(
 // Tinted: grayscale, and **opaque**. Apple's guidance is a transparent ground
 // here and iOS 26 cannot draw one — its Liquid Glass pass puts a specular
 // highlight behind the artwork, and over a mostly-transparent image that
-// highlight is the artwork: a white disc with `[m]` scattered across it. Seen
+// highlight is the artwork: a white disc with `[p]` scattered across it. Seen
 // on the home screen, isolated by shipping the variants one at a time.
 // `docs/issues.md` §20. An opaque neutral ground gives the highlight something
 // to sit under, which is what every other icon on that screen has.

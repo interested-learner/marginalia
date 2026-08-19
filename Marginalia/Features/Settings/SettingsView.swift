@@ -162,7 +162,7 @@ struct SettingsView: View {
 
     private var about: some View {
         SettingsSection("about") {
-            Caption("marginalia \(version) — notes taken from books.")
+            Caption("passim \(version) — notes taken from books.")
             Caption("your notes stay on this phone. no account, no analytics, "
                  + "no tracking. the connections between them are worked out "
                  + "here, by a model that ships with the phone.")

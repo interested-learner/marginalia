@@ -930,7 +930,7 @@ Expected: build succeeds and all tests pass — 402 plus the new ones, nothing d
 xcrun simctl boot "iPhone 17" 2>/dev/null || true
 xcrun simctl install booted .build/Build/Products/Debug-iphonesimulator/Marginalia.app
 xcrun simctl ui booted appearance light
-xcrun simctl launch booted com.marginalia.app -startTab review -reviewCrossing 1
+xcrun simctl launch booted com.passim.app -startTab review -reviewCrossing 1
 sleep 3 && xcrun simctl io booted screenshot /tmp/crossing-light.png
 ```
 
@@ -1132,7 +1132,7 @@ Record the exact test count in the final report. Do not round it and do not say 
 xcrun simctl install booted .build/Build/Products/Debug-iphonesimulator/Marginalia.app
 for mode in light dark; do
   xcrun simctl ui booted appearance $mode
-  xcrun simctl launch booted com.marginalia.app -startTab review -reviewCrossing 1
+  xcrun simctl launch booted com.passim.app -startTab review -reviewCrossing 1
   sleep 3 && xcrun simctl io booted screenshot /tmp/crossing-$mode.png
 done
 ```
@@ -1144,7 +1144,7 @@ done
 ```bash
 xcrun simctl ui booted content_size accessibility-extra-extra-extra-large
 xcrun simctl ui booted appearance light
-xcrun simctl launch booted com.marginalia.app -startTab review -reviewCrossing 1
+xcrun simctl launch booted com.passim.app -startTab review -reviewCrossing 1
 sleep 3 && xcrun simctl io booted screenshot /tmp/crossing-ax5.png
 xcrun simctl ui booted content_size large
 ```
@@ -1156,9 +1156,9 @@ Note the underscore — `content-size` is not the option name and prints the usa
 - [ ] **Step 4: The three-tab bar, and the review card without `[◇] connections`**
 
 ```bash
-xcrun simctl launch booted com.marginalia.app -startTab review -reviewCard 1
+xcrun simctl launch booted com.passim.app -startTab review -reviewCard 1
 sleep 3 && xcrun simctl io booted screenshot /tmp/review-card.png
-xcrun simctl launch booted com.marginalia.app -confirmDelete connection -startTab review -reviewCrossing 1
+xcrun simctl launch booted com.passim.app -confirmDelete connection -startTab review -reviewCrossing 1
 sleep 3 && xcrun simctl io booted screenshot /tmp/disconnect.png
 ```
 

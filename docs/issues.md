@@ -218,6 +218,30 @@ What did improve: `29 days apart` is now *above* the fold, where in the foot it 
 
 **If it turns out the scroll does work, there's still a design question sitting under this**, not a bug: is scrolling past a screen's worth of content the right affordance for a card whose entire second half — and its only action — is invisible on arrival, with nothing on screen hinting there's more below? The design system already folds the margin past `isAccessibilitySize` (`CLAUDE.md`'s design rule 9) rather than leaving it to scroll off, so there's precedent in this app for an accessibility-size-specific layout change rather than relying on scroll alone. Which way a two-note card should fold — stack differently, shrink something, drop something — is an open design question this phase deliberately didn't answer. Don't answer it here either; find out first whether it needs answering.
 
+### 29. The test host writes a real store into the simulator, and it now shows
+
+**Phase 15.** `xcodebuild test` launches the app as its own test host, so `MarginaliaApp.init`
+runs against the simulator's real container and bootstraps a library there — since
+`docs/decisions.md` §25, an `.empty` one. Any `-sampleLibrary 1` launch afterwards finds a
+non-empty store, skips the bootstrap, and draws an empty app. **Confirmed by isolating it:**
+uninstall, run `build test`, launch with `-sampleLibrary 1`, get the empty state.
+
+Harmless before §25 — the test host seeded forty notes and you got a library either way — and
+the workflow answer is in `CLAUDE.md`: uninstall *after* the test run, not before.
+
+**Two things here are worth someone's attention, and neither is settled.**
+
+The app writing to the reader-facing container merely because a test bundle was loaded is a side
+effect nobody asked for. Guarding `init` on `XCTestConfigurationFilePath` in the environment
+would stop it, and would also stop the test host racing the store the screenshots use. Not done
+here: it changes launch behaviour on one observation, and it deserves its own look.
+
+And it casts doubt on something this file has said since phase 1 — that the test host's store
+open *fails* under the sandbox and falls back to in-memory. The `Sandbox access to
+file-write-create denied` lines are still in the log, yet a store was created and persisted with
+the Inbox in it. Both cannot be true as stated. **Nobody has isolated which**, and with the
+in-memory fallback now deleted (§7) the old sentence describes code that no longer exists.
+
 ### 28. `books` reads `[1]` on a first launch, and the one row isn't a book
 
 **Phase 15, and it is the seed removal making a pre-existing choice visible.** The Inbox is a `Book` like any other — that is what keeps unfiled captures from being invisible, and it is deliberate. It therefore counts in the library's header, so a reader who has just installed the app opens `books` and reads `[1]` over a single row called `Inbox`, having added nothing.
@@ -327,7 +351,7 @@ Phase 8's daily notification is written, scheduled and unobserved. `Notification
 
 Local notifications **do** work in the simulator, so this is cheap to check by hand: turn the reminder on, set it a minute ahead, background the app, wait. It wasn't done here because the permission prompt is a system alert and the simulator can't be tapped from the command line — see below.
 
-**Phase 9 tried the two command-line routes around that, and both are dead ends.** `xcrun simctl privacy` has **no notifications service** — its list is TCC only (calendar, contacts, location, photos, microphone, motion, reminders, siri), and notifications aren't TCC — so authorization cannot be granted from a shell. And `xcrun simctl push booted com.marginalia.app payload.apns` prints `Notification sent to 'com.marginalia.app'` and then delivers **nothing**, because the app has never been authorized; the exit code says success and the screen stays a home screen. Neither is a bug in the app and both are worth knowing before somebody spends the afternoon phase 9 spent twenty minutes on. The cost is still ten minutes — they just have to be a person's, with the simulator on screen.
+**Phase 9 tried the two command-line routes around that, and both are dead ends.** `xcrun simctl privacy` has **no notifications service** — its list is TCC only (calendar, contacts, location, photos, microphone, motion, reminders, siri), and notifications aren't TCC — so authorization cannot be granted from a shell. And `xcrun simctl push booted com.passim.app payload.apns` prints `Notification sent to 'com.passim.app'` and then delivers **nothing**, because the app has never been authorized; the exit code says success and the screen stays a home screen. Neither is a bug in the app and both are worth knowing before somebody spends the afternoon phase 9 spent twenty minutes on. The cost is still ten minutes — they just have to be a person's, with the simulator on screen.
 
 **A stuck permission alert survives an uninstall.** Launching with `-preference.notifications 1` raises the notification prompt, and because nothing can answer it, it stays on the SpringBoard across app launches *and* across an uninstall/reinstall, sitting over every screenshot taken afterwards. `xcrun simctl shutdown all && xcrun simctl boot "iPhone 17"` clears it. This is the same class as the `simctl openurl` alert already noted in `docs/planning.md`.
 

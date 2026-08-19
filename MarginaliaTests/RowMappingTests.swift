@@ -111,7 +111,7 @@ struct RowMappingTests {
     /// went is `→ n.11` on the row, which named a note the reader couldn't see.
     @Test func theBookTitleIsTheOnlyLinkARowCarries() throws {
         let url = try #require(NoteLink.url(forBookOf: 9))
-        #expect(url.absoluteString == "marginalia://book/9")
+        #expect(url.absoluteString == "passim://book/9")
         #expect(NoteLink.target(from: url) == .book(of: 9))
     }
 

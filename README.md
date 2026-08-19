@@ -1,10 +1,12 @@
-# marginalia
+# passim
 
 Notes from books. A native iOS app for capturing what you read and actually running into it again.
 
+*passim, adv. — "here and there throughout": the citation term for an idea that is scattered across a work rather than sitting on one page. Formerly marginalia; see [`docs/decisions.md`](docs/decisions.md) §26.*
+
 ---
 
-Most reading apps are built around highlights you never revisit. marginalia is built around the opposite assumption: the value isn't in capturing the passage, it's in meeting it again six weeks later next to a thought you'd forgotten you had.
+Most reading apps are built around highlights you never revisit. passim is built around the opposite assumption: the value isn't in capturing the passage, it's in meeting it again six weeks later next to a thought you'd forgotten you had.
 
 **Three tabs.**
 

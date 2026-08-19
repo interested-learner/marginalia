@@ -18,7 +18,7 @@ enum NotificationScheduler {
 
     /// One id prefix, so a re-schedule can remove exactly what it wrote and
     /// nothing else — the app has no other notifications, but it might.
-    private static let prefix = "marginalia.daily."
+    private static let prefix = "passim.daily."
 
     /// What a tap hands back: the note the reminder was about.
     nonisolated static let noteKey = "note"
@@ -161,7 +161,7 @@ final class NotificationRouter: NSObject, UNUserNotificationCenterDelegate {
     static let shared = NotificationRouter()
 
     /// Fired when a reminder is tapped. `userInfo["note"]` is the short id.
-    nonisolated static let tapped = Notification.Name("marginalia.notificationTapped")
+    nonisolated static let tapped = Notification.Name("passim.notificationTapped")
 
     /// Called once, at launch. Without a delegate a tap just foregrounds the app
     /// and the reminder's note is lost.

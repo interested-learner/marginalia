@@ -357,7 +357,7 @@ A bare id is a bad link label. It gives the reader nothing to decide with: you c
 
 **It also removed real work from three `body` passes.** `StreamView`, `SearchView` and `BookDetailView` each held a live `@Query` over every edge in the library and rebuilt an O(edges) index on every redraw, to render a line of ids. All three queries are gone. That is the same rule that caught `ImageRenderer` in phase 11 — `CLAUDE.md`, *nothing expensive in a `body`*.
 
-**`NoteLink` lost its note form** with the last producer of it: no `marginalia://note/11`, no `.onOpenURL`. `marginalia://book/11` behind a book title is the whole scheme now. Opening a note by id still happens — from `-openNote` and from a tapped reminder — and neither ever went through a URL.
+**`NoteLink` lost its note form** with the last producer of it: no `passim://note/11`, no `.onOpenURL`. `passim://book/11` behind a book title is the whole scheme now. Opening a note by id still happens — from `-openNote` and from a tapped reminder — and neither ever went through a URL.
 
 **The accepted cost:** `→ link` on a review card now writes an edge whose effect is invisible until a future crossing rotation reaches it, and only if the pair crosses books. That is an action with no feedback, it is known, and it is not being solved by putting the ids back. If manual linking turns out to matter, the answer is a surface that shows a note's connections as *notes* — which is what `→ n.11` never was.
 

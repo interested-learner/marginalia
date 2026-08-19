@@ -191,7 +191,7 @@ nonisolated enum MarkdownExport {
     /// line is testable without a disk.
     static func file(_ document: String, on date: Date, calendar: Calendar = .current) throws -> URL {
         let url = FileManager.default.temporaryDirectory
-            .appending(path: "marginalia-\(day(date, calendar)).md")
+            .appending(path: "passim-\(day(date, calendar)).md")
         try document.write(to: url, atomically: true, encoding: .utf8)
         return url
     }
