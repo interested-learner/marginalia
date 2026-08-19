@@ -12,14 +12,37 @@ is written to promise the thing that actually happens.
 
 ## Name — 30 characters
 
-| Option | Chars | Note |
-|---|---|---|
-| `marginalia` | 10 | First choice. **Availability unverified** — `docs/planning.md` open question 5 has said "likely contested" since phase 10 and nobody has searched |
-| `Marginalia — Book Notes` | 23 | Fallback that survives a collision and carries a keyword |
-| `Marginalia: Reading Notes` | 25 | Same idea |
+```
+Passim — Book Notes
+```
+19 characters. **Decided phase 15** — `docs/decisions.md` §26.
 
-**Check this before claiming the bundle ID.** The App Store name and the bundle identifier are
-independent, but both want deciding together, and an App ID cannot be released once registered.
+*passim*, adv. — "here and there throughout." The citation term you use when an idea is not on
+one page but scattered across the whole work. That is the definition of a crossing, and the
+crossing is the only thing in this app that no competitor claims.
+
+`marginalia` is out: **Marginalia: Book Quotes** already exists and is substantially the same
+pitch. The wider search was worse news than one collision — **Commonplace: Notebook** does
+"intelligent recall to gently surface past entries," privacy-first, no ads or tracking;
+**Library Notes** has a review mode for book quotes; **Screvi**, **KnowledgeSaved** and
+**BookNotes** all gather and revisit highlights. *Book notes* and *resurfacing* are both
+crowded categories, and a name pointing at either would put this app in a queue behind them.
+Cross-book semantic connection is the free ground.
+
+Rejected, and why, so nobody re-runs the search:
+
+| Name | Verdict |
+|---|---|
+| `Commonplace` | Taken — *Commonplace: Notebook*, and it is the closest competitor of the lot |
+| `Throughline` | Taken on the App Store, and NPR has a show of that name |
+| `Concordance` | Taken several times over, all Bible study. The association is unshakeable |
+| `Interleave` | Taken — interleave.app, a local-first incremental reading app. Too close |
+| `Ligature` | **Clear**, and the runner-up. Two letters joined into one; typographic, which suits the identity. Reads as a font tool to some |
+| `Crossing` | Unverified and a common word — hard to trademark, likely contested |
+
+**Availability was checked by web search, which is indicative and not authoritative.** The name
+is only really yours when the app record is created in App Store Connect, which is what reserves
+it. Do that before building a listing around it.
 
 ## Subtitle — 30 characters
 
@@ -113,7 +136,7 @@ Apple-native notes app.
 
 Both live at `docs/site/`. **To publish:** GitHub → Settings → Pages → Deploy from a branch →
 `main` → `/docs`. `.nojekyll` is already there so the files serve as written. **Both pages carry
-`[SUPPORT EMAIL]` as a placeholder** — that is the one thing that must be filled in before
+`supportforapplication@gmail.com` as a placeholder** — that is the one thing that must be filled in before
 either URL goes in the listing.
 
 ## Category, rating, availability
@@ -154,8 +177,8 @@ First release.
 
 ## Before submitting
 
-- [ ] Search the App Store for "marginalia" and settle the name (open question 5, unanswered since phase 10)
-- [ ] Fill in `[SUPPORT EMAIL]` on both pages and enable GitHub Pages
+- [x] ~~Settle the name~~ — `Passim`, phase 15, `docs/decisions.md` §26. Still to do: **reserve it in App Store Connect**, which is the only thing that actually holds it
+- [ ] Fill in `supportforapplication@gmail.com` on both pages and enable GitHub Pages
 - [ ] Public-domain screenshot fixture
 - [ ] App Privacy answers in App Store Connect, matching `PrivacyInfo.xcprivacy`: Search History, not linked, not tracking, App Functionality
 - [ ] An archive that validates — needs `-allowProvisioningUpdates`, which registers the App ID

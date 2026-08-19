@@ -448,3 +448,40 @@ Two separate problems, and the first is the one that matters:
 
 **Residual, and it is small:** `SeedLibrary`'s passages are still compiled into the binary, unreachable. The exposure that mattered — presenting in-copyright quotations from Kahneman, Pirsig, Deutsch and Norman to every installer as their own library — is gone; what's left is dead strings. Rewriting them from public-domain sources, or compiling the fixture out of release, are both available and neither is urgent.
 
+---
+
+## 26. The app is called Passim
+
+**Phase 15.** `marginalia` is unavailable in the only sense that matters: **Marginalia: Book
+Quotes** is already on the App Store and is substantially this pitch. Open question 5 had
+guessed "likely contested" since phase 10 and was right.
+
+The search turned up something more useful than one collision. **Commonplace: Notebook** —
+"intelligent recall to gently surface past entries," privacy-first, no ads, no tracking.
+**Library Notes** — inspired by commonplace books, with a review mode over quotes. **Screvi**,
+**KnowledgeSaved**, **BookNotes** — gather highlights, revisit them. *Book notes* is crowded and
+*resurfacing what you saved* is crowded, and both were the categories this app was naming itself
+into.
+
+**What none of them claims is the crossing:** two notes from two different books, connected by
+meaning, with the gap in time between them. That is the free ground, and the name should stand
+on it.
+
+*passim*, adv. — "here and there throughout." The citation term for an idea that is not on one
+page but scattered across the whole work. **It is the definition of a crossing.** It is also
+exactly the register the app already speaks in: an obscure scholarly abbreviation, set in
+JetBrains Mono, next to `[◇]` and `n.11`.
+
+The cost is real and taken deliberately: nobody knows the word on sight. The store name carries
+`Passim — Book Notes` so the category is legible, and the keyword field does the searching — the
+name's job is to be memorable and defensible, not to be a description.
+
+Rejected: `Commonplace` (taken, and by the nearest competitor), `Throughline` (taken, plus
+NPR's), `Concordance` (taken repeatedly, permanently Bible-flavoured), `Interleave` (taken by a
+local-first incremental reading app — too close to be safe). `Ligature` was the runner-up and is
+clear: two letters joined into one, typographic like the rest of the identity. It reads as a
+font tool, which is the only thing against it.
+
+**Availability came from web search, which is indicative and not authoritative.** A name is held
+only once the app record exists in App Store Connect. Reserve it before building anything on it.
+
