@@ -21,7 +21,7 @@ struct NoteWriterTests {
     private func library() throws -> (ModelContext, ShortIDCounter) {
         let context = ModelContext(try ModelContainer.marginalia(inMemory: true))
         let counter = ShortIDCounter(defaults: defaults())
-        try Library.prepare(context, counter: counter)
+        try Library.prepare(context, counter: counter, bootstrap: .sample(notes: nil))
         return (context, counter)
     }
 

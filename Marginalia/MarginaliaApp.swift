@@ -36,7 +36,7 @@ struct MarginaliaApp: App {
             problem = "-storeFailure — no store was opened on purpose."
         } else {
             do {
-                opened = try Library.open(noteLimit: Self.seedLimit)
+                opened = try Library.open(bootstrap: Self.bootstrap)
             } catch {
                 problem = error.localizedDescription
             }
@@ -61,17 +61,30 @@ struct MarginaliaApp: App {
         }
     }
 
-    /// `-tinyLibrary 2` seeds a library that small instead of the full forty.
+    /// What a first launch is given.
     ///
-    /// Review's empty state needs fewer than `ReviewSetBuilder.minimum` notes
-    /// and an exhausted `[↻] keep going` needs fewer than a set's worth, and
-    /// neither is reachable in a library of forty — so neither had ever been
-    /// seen. Same device as `-startTab`: the simulator can't be tapped.
+    /// **A reader gets `.empty` — the Inbox and nothing else.** The sample
+    /// library used to arrive on every fresh install, which handed a reader
+    /// five books they had not read and forty notes they had not written, and
+    /// then fed those notes back to them in review as things they once thought.
+    /// `docs/decisions.md` §25.
     ///
-    /// **The seed only runs against an empty store**, so uninstall first.
-    private static var seedLimit: Int? {
-        let requested = UserDefaults.standard.integer(forKey: "tinyLibrary")
-        return requested > 0 ? requested : nil
+    /// It is still reachable, because every screenshot in this project needs a
+    /// library to photograph and the simulator can't be tapped:
+    ///
+    /// - `-sampleLibrary 1` — all forty notes and the five books.
+    /// - `-tinyLibrary <n>` — the sample books and `n` notes, for review's
+    ///   empty state and an exhausted `[↻] keep going`, neither of which is
+    ///   reachable in a library of forty.
+    ///
+    /// **A bootstrap only runs against an empty store**, so uninstall first or
+    /// you'll keep whatever is already there.
+    private static var bootstrap: Library.Bootstrap {
+        let defaults = UserDefaults.standard
+        let tiny = defaults.integer(forKey: "tinyLibrary")
+        if tiny > 0 { return .sample(notes: tiny) }
+        if defaults.bool(forKey: "sampleLibrary") { return .sample(notes: nil) }
+        return .empty
     }
 }
 

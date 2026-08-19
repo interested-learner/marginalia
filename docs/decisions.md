@@ -425,3 +425,26 @@ Clear only the second and you re-trigger a pass that re-embeds nothing. Clear on
 
 **Book detail was consolidated to one `.sheet` on the way through.** It already carried two, which `StreamView` documents as "a coin-toss over which one presents"; `edit` would have made it three. It now has one `BookDetailSheet` value, the way the stream has one `StreamSheet`.
 
+---
+
+## 25. The sample library stops shipping; a first launch is the Inbox and nothing else
+
+**Phase 15**, out of the App Store feasibility pass, and it was not on any existing list.
+
+`Library.prepare` seeded whenever the store held no books, and on a real install that is the reader's first launch. They got five books they had not read and forty notes they had not written — already starred, already threaded, already connected — and review then handed those notes back to them, one a day, as things they once thought. The app's whole premise is meeting *your* older thinking again; it was staging a fake version of that on day one.
+
+Two separate problems, and the first is the one that matters:
+
+- **It is somebody else's reading, presented as yours.** No amount of good sample content fixes that. A reader cannot tell which of the first forty notes are theirs without remembering, and the one screen designed to resurface old notes is the one that makes the confusion daily.
+- **App Review reads pre-populated user data as an unfinished app** — guideline 2.1 / 4.3 territory. Placeholder content in a shipping build is a thing reviewers look for.
+
+**Removed from the bootstrap rather than deleted.** Every screenshot in this project needs a library to photograph and the simulator can't be tapped, so `SeedLibrary` stays exactly where it was, behind `-sampleLibrary 1` (all forty) and `-tinyLibrary <n>` (a prefix), and the tests go on using it.
+
+`Library.Bootstrap` is `.empty` or `.sample(notes:)` and **has no default**. The expensive mistake is the sample library turning up somewhere nobody asked for it — which is the mistake the app shipped with — so every caller states which it wants and a new one can't inherit the wrong answer by omission.
+
+**`.empty` still writes one book.** "No seed" was never the same thing as "no books": the Inbox is a `Book` found by status, `NoteWriter` falls back to it, `BookWriter.apply` and `Eraser.delete(book:)` both refuse to touch it, and `CrossingFinder` excludes it as a source. Bootstrapping the Inbox and only the Inbox is the actual change.
+
+**The cost is a cold start, and it is now visible instead of hidden.** Review needs eight older notes, the crossing needs a cross-book edge, and the linking web needs enough notes to have neighbours above a 0.55 floor. On day one the app is a very austere notes list and every reason to keep it is weeks away. The seed was concealing that, not solving it. File import — Kindle, Readwise, markdown — is the real answer and is deliberately out of v1; until then the honest moves are copy that explains the deferral and a listing that promises the right thing.
+
+**Residual, and it is small:** `SeedLibrary`'s passages are still compiled into the binary, unreachable. The exposure that mattered — presenting in-copyright quotations from Kahneman, Pirsig, Deutsch and Norman to every installer as their own library — is gone; what's left is dead strings. Rewriting them from public-domain sources, or compiling the fixture out of release, are both available and neither is urgent.
+

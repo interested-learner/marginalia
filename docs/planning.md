@@ -451,7 +451,8 @@ Learned the hard way in phases 1 and 2.
   xcrun simctl shutdown all && xcrun simctl boot "iPhone 17"
   ```
 - **`simctl openurl` is not the in-app path.** Opening `marginalia://book/20` from outside raises the system's *Open in "marginalia"?* alert, which blocks the simulator until it's dismissed by hand. In-app taps are intercepted by `OpenURLAction` in `RootView` and never reach the system. **The note form of the scheme is gone** — it existed only behind the `→ n.11` links, and went with them in phase 13. `-openNote` still works and never parsed a URL; it seeds `focus` directly.
-- **Reinstall before screenshotting a seed change.** The seed only runs against an empty store, so an existing install keeps the old notes.
+- **A fresh install is empty, and screenshots need `-sampleLibrary 1`.** Phase 15 stopped the sample library bootstrapping itself — `docs/decisions.md` §25 — so a clean install has the Inbox and nothing else. Every command above that expects notes to look at wants `-sampleLibrary 1` (all forty) or `-tinyLibrary <n>` (a prefix) alongside it.
+- **Reinstall before screenshotting a seed change.** A bootstrap only runs against an empty store, so an existing install keeps the old notes.
   ```bash
   xcrun simctl uninstall booted com.marginalia.app
   ```

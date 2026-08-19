@@ -138,7 +138,9 @@ Marginalia/
   Model/
     Book  Note  FollowUp  NoteEdge      the four @Model types
     Library                  schema, container, first-launch bootstrap
-    SeedLibrary              the 40 seed notes, as plain values
+    SeedLibrary              the 40 sample notes, as plain values. **Never
+                             bootstrapped on a reader's first launch** — only
+                             behind `-sampleLibrary` / `-tinyLibrary` and in tests
     ShortIDCounter           monotonic n.11 ids, never reused
     CaptureDraft             what's typed → what a Note stores. Pure
     BookDraft                what's typed → what a Book stores. Pure
@@ -243,8 +245,11 @@ Tools/
 | `-preference.notifications 1` | settings with the reminder on — **and the permission prompt, which sticks to the simulator until it's answered by hand.** Reboot the simulator to clear it |
 | `-link 1` | opens the link picker over the current review card |
 | `-linkSearch "<query>"` | fills the link picker's field |
-| `-tinyLibrary <n>` | seeds `n` notes instead of forty — **uninstall first** |
+| `-sampleLibrary 1` | bootstraps the sample library — five books and forty notes. **A fresh install is empty now**, so every screenshot pass below needs this or `-tinyLibrary`. **Uninstall first** |
+| `-tinyLibrary <n>` | the sample books and `n` notes instead of forty — **uninstall first** |
 | `-storeFailure 1` | opens the "library won't open" screen |
+
+**A reader's first launch gets the Inbox and nothing else** — `docs/decisions.md` §25. The sample library no longer bootstraps itself, so a store that has just been installed is genuinely empty and every command in this file that expects notes to look at needs `-sampleLibrary 1` alongside it. `Library.Bootstrap` has no default: the app says `.empty`, the tests and these arguments say `.sample`.
 
 `-tinyLibrary` spreads its notes **across books**, one at a time, rather than taking them off the front of the seed. `ReviewSetBuilder` allows two cards per book, so a prefix of one book's notes builds a set of two and always lands on review's empty state, whatever number you asked for. `2` is the empty state; `4` is a full set with nothing left over, which is the only way to see an exhausted `[↻] keep going`.
 
@@ -307,7 +312,7 @@ Tests use **Swift Testing** (`@Test`, `#expect`), not XCTest.
 - **Permissions are requested at first use**, never at launch. Microphone, speech recognition, camera and notifications each prompt at the moment the feature is invoked. That rule is why `NotificationScheduler` has both `isAuthorized` (never prompts, used by the scheduler on every launch) and `authorize` (prompts, used only by the toggle in settings) — a scheduler that asked would break the rule every time the app opened, and the screenshot that caught it is the only reason anybody noticed.
 - **The simulator cannot test** microphone, transcription, camera OCR, or barcode scanning. Those need the device. Don't claim they work from a simulator run.
 - **Open Library needs no API key** and imposes no attribution requirement. Manual book entry must always remain available — treat lookup failure as routine, not exceptional.
-- **Seed ~40 notes**, not 12. A dozen notes produce almost no edges, and a library with no cross-book edge has no crossing to show. `SeedLibrary` has them, and the cross-book tag overlap in them is deliberate — it's what phase 6 tunes against.
+- **The sample library is ~40 notes**, not 12, and **it is not what a reader gets.** A dozen notes produce almost no edges, and a library with no cross-book edge has no crossing to show, so `SeedLibrary` has forty and the cross-book tag overlap in them is deliberate — it's what phase 6 tunes against. But it bootstraps only behind `-sampleLibrary` / `-tinyLibrary` and in tests: shipping it handed a reader five books they hadn't read and forty notes they hadn't written, and then fed those back to them in review as things they once thought. `docs/decisions.md` §25.
 - **Pure enums used from a `@Model` need `nonisolated`.** The project defaults to `MainActor` isolation and SwiftData models aren't; `Glyphs`, `BookStatus`, `NoteKind`, `Inbox`, `AudioLevels` and `BookShelf` are marked accordingly.
 - **So does anything handing a closure to a system framework**, and this one is a crash rather than a compile error. `SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor` makes such a closure `@MainActor`; UIKit, AVFoundation, Speech and Vision call them on their own threads; Swift 6 traps. `Theme` is `nonisolated` for exactly this reason — it cost five identical `EXC_BREAKPOINT` crashes before anyone read the report. **Mark the closure `@Sendable` at the call site**, every time: it costs nothing where the compiler had already inferred it and removes a crash where it hadn't. `docs/issues.md` §1 declared this audit complete for two phases while `SFSpeechRecognizer.requestAuthorization` sat three lines below the one line it had checked (§22).
 - **Nothing expensive in a `body`.** An `ImageRenderer` inside `ShareCardLink.body` drew a multi-megabyte bitmap for every realized review card on every redraw — a render pass nested inside a render pass — and it is the best candidate for the crash at the end of the set. The same rule caught three cheaper versions of itself in the same pass: `ConnectionIndex.build` read from inside a `ForEach` rebuilds per row, and `ReviewSetBuilder.set` behind a computed property runs over the whole library per redraw. **Build it once above the loop, or hold it in `@State`.** `docs/issues.md` §23.

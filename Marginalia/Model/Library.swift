@@ -19,24 +19,47 @@ enum Library {
     /// passes it — a store that refuses to open is otherwise reachable only by
     /// corrupting one.
     static func open(
-        noteLimit: Int? = nil,
+        bootstrap: Bootstrap = .empty,
         makeContainer: () throws -> ModelContainer = { try .marginalia() }
     ) throws -> ModelContainer {
         let store = try makeContainer()
         // A library that won't prepare is a library that would hand out `n.11`
         // twice, so it fails exactly the way one that won't open does.
-        try prepare(store.mainContext, noteLimit: noteLimit)
+        try prepare(store.mainContext, bootstrap: bootstrap)
         return store
     }
 
-    /// Runs on every launch. Seeds an empty store, then makes sure the id
-    /// counter is ahead of everything already in it.
+    /// What a store that has never been opened before is given.
     ///
-    /// The second half matters even when nothing was seeded: the store can
+    /// **There is no default, on purpose.** A reader's first launch and a
+    /// screenshot pass want opposite things, and the expensive mistake — which
+    /// is the one the app shipped with until phase 15 — is the sample library
+    /// arriving somewhere nobody asked for it. Every caller says which.
+    enum Bootstrap: Equatable {
+        /// The Inbox, and nothing else. What a real first launch gets.
+        case empty
+        /// The Inbox, the sample books, and `notes` of the sample notes —
+        /// `nil` for all forty. **Tests and screenshots only; this does not
+        /// ship.** `docs/decisions.md` §25.
+        case sample(notes: Int?)
+    }
+
+    /// Runs on every launch. Bootstraps a store that has nothing in it, then
+    /// makes sure the id counter is ahead of everything already in it.
+    ///
+    /// The second half matters even when nothing was written: the store can
     /// outlive its `UserDefaults` — a reinstall over an existing container, or
     /// a restore that carries the database but not the domain — and a counter
     /// that restarted at 1 would hand out ids that already exist.
-    /// `noteLimit` is `-tinyLibrary 2`: seed that many notes instead of all
+    ///
+    /// **`.empty` still writes one book.** The Inbox is a `Book` found by
+    /// status, and the whole app leans on it existing: `NoteWriter` falls back
+    /// to it, `BookWriter.apply` and `Eraser.delete(book:)` both refuse to
+    /// touch it, and `CrossingFinder` excludes it as a source. Bootstrapping it
+    /// is the actual work here — "no seed" was never the same thing as "no
+    /// books".
+    ///
+    /// `.sample(notes:)` is `-tinyLibrary 2`: that many notes instead of all
     /// forty, so review's empty state and an exhausted `[↻] keep going` — both
     /// of which need a library smaller than the seed — are reachable at all.
     /// The books are all seeded either way; it's the note count both states
@@ -46,10 +69,16 @@ enum Library {
         now: Date = .now,
         counter: ShortIDCounter = ShortIDCounter(),
         calendar: Calendar = .current,
-        noteLimit: Int? = nil
+        bootstrap: Bootstrap
     ) throws {
         if try context.fetchCount(FetchDescriptor<Book>()) == 0 {
-            seed(into: context, now: now, calendar: calendar, noteLimit: noteLimit)
+            switch bootstrap {
+            case .empty:
+                context.insert(Book(title: Inbox.title, author: Inbox.author,
+                                    status: .inbox, createdAt: now))
+            case .sample(let notes):
+                seed(into: context, now: now, calendar: calendar, noteLimit: notes)
+            }
             try context.save()
         }
 

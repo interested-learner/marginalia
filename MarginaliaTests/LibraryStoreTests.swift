@@ -24,7 +24,7 @@ struct LibraryStoreTests {
     private func seeded(now: Date = .now) throws -> (ModelContext, ShortIDCounter) {
         let context = try store()
         let counter = ShortIDCounter(defaults: defaults())
-        try Library.prepare(context, now: now, counter: counter)
+        try Library.prepare(context, now: now, counter: counter, bootstrap: .sample(notes: nil))
         return (context, counter)
     }
 
@@ -55,7 +55,7 @@ struct LibraryStoreTests {
     /// neither had ever actually been seen.
     @Test func aTinyLibrarySeedsOnlyThatManyNotes() throws {
         let context = try store()
-        try Library.prepare(context, counter: ShortIDCounter(defaults: defaults()), noteLimit: 2)
+        try Library.prepare(context, counter: ShortIDCounter(defaults: defaults()), bootstrap: .sample(notes: 2))
 
         #expect(try notes(context).count == 2)
         #expect(try notes(context).map(\.shortID) == [1, 2])
@@ -73,7 +73,7 @@ struct LibraryStoreTests {
     /// skipped rather than being an error.
     @Test func aTinyLibraryDropsTheEdgesItCannotJoin() throws {
         let context = try store()
-        try Library.prepare(context, counter: ShortIDCounter(defaults: defaults()), noteLimit: 1)
+        try Library.prepare(context, counter: ShortIDCounter(defaults: defaults()), bootstrap: .sample(notes: 1))
 
         for edge in try context.fetch(FetchDescriptor<NoteEdge>()) {
             #expect(edge.from != nil && edge.to != nil)
@@ -87,7 +87,7 @@ struct LibraryStoreTests {
     @Test func preparingASecondTimeSeedsNothingFurther() throws {
         let (context, counter) = try seeded()
         let before = try notes(context).count
-        try Library.prepare(context, now: .now, counter: counter)
+        try Library.prepare(context, now: .now, counter: counter, bootstrap: .sample(notes: nil))
         #expect(try notes(context).count == before)
         #expect(try books(context).filter { $0.status == .inbox }.count == 1)
     }
@@ -105,7 +105,7 @@ struct LibraryStoreTests {
         let highest = try #require(try notes(context).map(\.shortID).max())
 
         let replacement = ShortIDCounter(defaults: defaults())   // as if reinstalled
-        try Library.prepare(context, now: .now, counter: replacement)
+        try Library.prepare(context, now: .now, counter: replacement, bootstrap: .sample(notes: nil))
         #expect(replacement.next() > highest)
     }
 
@@ -277,16 +277,56 @@ struct LibraryOpenTests {
         var description: String { "the store refused to open" }
     }
 
+    private func defaults() -> UserDefaults {
+        let name = "marginalia.tests.\(UUID().uuidString)"
+        let defaults = UserDefaults(suiteName: name)!
+        defaults.removePersistentDomain(forName: name)
+        return defaults
+    }
+
     @Test func openReturnsAPreparedLibrary() throws {
         let store = try Library.open { try .marginalia(inMemory: true) }
 
-        // `prepare` ran: the seed is in there, Inbox included.
+        // `prepare` ran: the Inbox is there.
         let books = try store.mainContext.fetchCount(FetchDescriptor<Book>())
         #expect(books > 0)
     }
 
-    @Test func openHonoursTheNoteLimit() throws {
-        let store = try Library.open(noteLimit: 2) { try .marginalia(inMemory: true) }
+    /// **What a reader actually gets.** `open` defaults to `.empty`, so a first
+    /// launch is the Inbox and nothing else — no books somebody else read and
+    /// no notes somebody else wrote. `docs/decisions.md` §25.
+    @Test func aFirstLaunchGetsTheInboxAndNothingElse() throws {
+        let store = try Library.open { try .marginalia(inMemory: true) }
+        let context = store.mainContext
+
+        #expect(try context.fetchCount(FetchDescriptor<Note>()) == 0)
+        #expect(try context.fetchCount(FetchDescriptor<NoteEdge>()) == 0)
+
+        // One book, and it is the Inbox — which has to exist, because
+        // `NoteWriter` falls back to it and the app finds it by status.
+        let books = try context.fetch(FetchDescriptor<Book>())
+        #expect(books.count == 1)
+        #expect(books.first?.status == .inbox)
+    }
+
+    /// And the first note written into an empty library lands in it, rather
+    /// than building a second drawer.
+    @Test func theFirstCaptureIntoAnEmptyLibraryFindsThatInbox() throws {
+        let store = try Library.open { try .marginalia(inMemory: true) }
+        let context = store.mainContext
+
+        let note = try #require(try NoteWriter.save(
+            CaptureDraft(text: "the first thing anybody writes"),
+            in: context, counter: ShortIDCounter(defaults: defaults())))
+
+        #expect(note.book?.status == .inbox)
+        #expect(try context.fetch(FetchDescriptor<Book>()).count == 1)
+    }
+
+    @Test func theSampleLibraryIsStillReachableForScreenshots() throws {
+        let store = try Library.open(bootstrap: .sample(notes: 2)) {
+            try .marginalia(inMemory: true)
+        }
 
         let notes = try store.mainContext.fetchCount(FetchDescriptor<Note>())
         #expect(notes == 2)

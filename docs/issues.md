@@ -218,6 +218,12 @@ What did improve: `29 days apart` is now *above* the fold, where in the foot it 
 
 **If it turns out the scroll does work, there's still a design question sitting under this**, not a bug: is scrolling past a screen's worth of content the right affordance for a card whose entire second half — and its only action — is invisible on arrival, with nothing on screen hinting there's more below? The design system already folds the margin past `isAccessibilitySize` (`CLAUDE.md`'s design rule 9) rather than leaving it to scroll off, so there's precedent in this app for an accessibility-size-specific layout change rather than relying on scroll alone. Which way a two-note card should fold — stack differently, shrink something, drop something — is an open design question this phase deliberately didn't answer. Don't answer it here either; find out first whether it needs answering.
 
+### 28. `books` reads `[1]` on a first launch, and the one row isn't a book
+
+**Phase 15, and it is the seed removal making a pre-existing choice visible.** The Inbox is a `Book` like any other — that is what keeps unfiled captures from being invisible, and it is deliberate. It therefore counts in the library's header, so a reader who has just installed the app opens `books` and reads `[1]` over a single row called `Inbox`, having added nothing.
+
+It was always this way; forty seed notes and five books hid it. Whether the count should exclude the Inbox, or the row should read differently before anything is in it, is a design question and not obviously a bug — the Inbox genuinely is a place notes live, and a `[0]` over a visible row would be its own kind of wrong. **Not answered here.** Worth deciding before the App Store screenshots are taken, since a first launch is now what a new reader actually sees.
+
 ### 27. A sheet's save button is below the fold at the largest accessibility size
 
 **Found in phase 15 while screenshotting `EditNoteSheet`, and it is not that sheet's bug.** At `accessibility-extra-extra-extra-large` the edit sheet shows its header and a body field that fills the screen; the page field, the tag field and `save changes` are all below the fold. `CaptureSheet` was screenshotted at the same size immediately afterwards and is in the same state — worse, in fact, since the type selector and the book picker sit above its field too, so `save note` is further down. It has been that way since phase 3 and nobody had looked.

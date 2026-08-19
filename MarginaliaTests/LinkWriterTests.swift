@@ -298,7 +298,7 @@ struct LinkWriterTests {
         guard source != nil else { return }
         let context = try store()
         let defaults = UserDefaults(suiteName: "marginalia.tests.\(UUID().uuidString)")!
-        try Library.prepare(context, counter: ShortIDCounter(defaults: defaults))
+        try Library.prepare(context, counter: ShortIDCounter(defaults: defaults), bootstrap: .sample(notes: nil))
 
         try await LinkWriter.relink(in: context)
 
