@@ -91,6 +91,27 @@ nonisolated enum CrossingFinder {
         return pool[Int(seed % UInt64(pool.count))]
     }
 
+    /// The crossing for a pair of ids, whatever state it is in — how a stored
+    /// session gets its ninth card back.
+    ///
+    /// **Suppression is deliberately not filtered here, unlike `all`.** A
+    /// crossing the reader disconnected keeps its slot for the rest of the day:
+    /// `ReviewView` already refuses to remove the card or re-pick the pair
+    /// within a session, and re-picking it on the way back would put a fresh
+    /// claim under a thumb that had just answered the question. Tomorrow's
+    /// `pick` can't return it, which is where the suppression lands.
+    static func find(pair: (Int, Int), in edges: [NoteEdge]) -> Crossing? {
+        let wanted = (min(pair.0, pair.1), max(pair.0, pair.1))
+
+        for edge in edges {
+            guard let from = edge.from, let to = edge.to else { continue }
+            guard (min(from.shortID, to.shortID), max(from.shortID, to.shortID)) == wanted
+            else { continue }
+            return Crossing(edge: edge, a: from, b: to)
+        }
+        return nil
+    }
+
     /// Ties break on the pair, low id first — the same rule `AffinityEngine`
     /// and `ReviewSetBuilder` both use, so a recompute over unchanged
     /// notes returns the same order.

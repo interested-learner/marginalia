@@ -19,7 +19,10 @@ nonisolated enum MarkdownExport {
     struct Note: Equatable {
         let id: Int
         /// `quote`, `thought`, `voice`, `scan` — the word, not the marker. A
-        /// bracketed glyph is a thing the app draws, not a thing a document says.
+        /// bracketed glyph is a thing the app draws, not a thing a document
+        /// says. As of phase 13 the app doesn't draw one here either: the rule
+        /// this file wrote down turned out to be about redundancy rather than
+        /// about documents. `docs/decisions.md` §22.
         let kind: String
         let text: String
         let isQuote: Bool
@@ -143,8 +146,9 @@ nonisolated enum MarkdownExport {
         return lines
     }
 
-    /// `[t] thought · 2026-08-01 · p.214 · #attention #memory`, minus whatever
-    /// this note hasn't got.
+    /// `thought · 2026-08-01 · p.214 · #attention #memory`, minus whatever this
+    /// note hasn't got. **No marker** — this comment used to illustrate itself
+    /// with `[t] thought`, which the code has never emitted.
     private static func meta(_ note: Note, _ calendar: Calendar) -> String {
         var parts = [note.kind, day(note.createdAt, calendar)]
         if let page = note.page, page > 0 { parts.append("p.\(page)") }

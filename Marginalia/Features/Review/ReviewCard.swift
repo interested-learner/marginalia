@@ -45,8 +45,8 @@ struct ReviewCard: View {
 
             // No quote marks on a passage here either — see `QuoteRule`. The
             // card doesn't draw the rule (it's centred and open, with nothing
-            // beside it to rule against), so a quote is marked by `[q] quote`
-            // in the metadata line above and by `— book · page` below it.
+            // beside it to rule against), so a quote is marked by `quote` in the
+            // metadata line above and by `— book · page` below it.
             Text(note.text)
                 .font(Typography.reviewBody)
                 .lineSpacing(Typography.reviewLeading)
@@ -57,14 +57,6 @@ struct ReviewCard: View {
                 Text("— \(note.source)")
                     .font(Typography.source)
                     .foregroundStyle(Theme.textMute)
-                    .fixedSize(horizontal: false, vertical: true)
-            }
-
-            if !note.links.isEmpty {
-                Text(connections)
-                    .font(Typography.source)
-                    .foregroundStyle(Theme.textMute)
-                    .tint(Theme.textMute)
                     .fixedSize(horizontal: false, vertical: true)
             }
 
@@ -81,20 +73,6 @@ struct ReviewCard: View {
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(.horizontal, 20)
         .padding(.vertical, 24)
-    }
-
-    /// `→ n.09 · → n.11`, the same non-breaking, in-palette links the stream
-    /// draws. Backlinks included — edges store a direction, both ends show it.
-    private var connections: AttributedString {
-        var line = AttributedString()
-        for (position, shortID) in note.links.enumerated() {
-            if position > 0 { line += AttributedString(" · ") }
-            var part = AttributedString("\(Glyphs.forward)\u{00A0}\(Glyphs.noteID(shortID))")
-            part.underlineStyle = .single
-            part.link = NoteLink.url(for: shortID)
-            line += part
-        }
-        return line
     }
 }
 

@@ -20,8 +20,8 @@ struct RowMappingTests {
              createdAt: now.addingTimeInterval(-60 * Double(minutesAgo)), book: book)
     }
 
-    private func row(_ note: Note, connections: [Int] = []) -> NoteRowData {
-        NoteRowData(note, connections: connections, now: now)
+    private func row(_ note: Note) -> NoteRowData {
+        NoteRowData(note, now: now)
     }
 
     // MARK: Identity
@@ -33,14 +33,18 @@ struct RowMappingTests {
 
     // MARK: Metadata
 
-    @Test func metadataIsTheKindMarkerThenTheKindThenTheAge() {
-        #expect(row(note(.voice, minutesAgo: 2)).meta == "[v] voice · 2 mins ago")
+    @Test func metadataIsTheKindThenTheAge() {
+        #expect(row(note(.voice, minutesAgo: 2)).meta == "voice · 2 mins ago")
     }
 
-    @Test func eachKindBringsItsOwnMarker() {
-        #expect(row(note(.quote)).meta.hasPrefix("[q] quote") == true)
-        #expect(row(note(.thought)).meta.hasPrefix("[t] thought") == true)
-        #expect(row(note(.scan)).meta.hasPrefix("[s] scan") == true)
+    /// **The word, and not the marker beside it.** `[t] thought` said the same
+    /// thing twice; `docs/decisions.md` §22. The bracket still belongs on a
+    /// button, where it is the affordance rather than a second spelling.
+    @Test func theKindIsNamedInWordsAndCarriesNoMarker() {
+        #expect(row(note(.quote)).meta.hasPrefix("quote ·") == true)
+        #expect(row(note(.thought)).meta.hasPrefix("thought ·") == true)
+        #expect(row(note(.scan)).meta.hasPrefix("scan ·") == true)
+        #expect(row(note(.voice)).meta.contains(Glyphs.voice) == false)
     }
 
     // MARK: Source line
@@ -93,31 +97,31 @@ struct RowMappingTests {
     }
 
     /// A scan is a passage read off a printed page, so it wears the quote rule
-    /// — while its metadata still says `[s] scan`, because how a note was
-    /// captured is a fact about the note.
-    @Test func aScanGetsTheQuoteRuleAndKeepsItsOwnMarker() {
+    /// — while its metadata still calls itself a scan and never a quote, because
+    /// how a note was captured is a fact about the note.
+    @Test func aScanGetsTheQuoteRuleAndStillNamesItselfAScan() {
         #expect(row(note(.scan)).isQuote)
-        #expect(row(note(.scan)).meta.hasPrefix("\(Glyphs.scan) scan · "))
+        #expect(row(note(.scan)).meta.hasPrefix("scan · "))
     }
 
     // MARK: Connections
 
-    @Test func connectionsAreCarriedOntoTheRowInOrder() {
-        #expect(row(note(), connections: [9, 3]).links == [9, 3])
+    /// **A row draws no connections at all**, on any screen — `docs/decisions.md`
+    /// §22. The edges are still computed and still exported as `[[n.03]]`; what
+    /// went is `→ n.11` on the row, which named a note the reader couldn't see.
+    @Test func theBookTitleIsTheOnlyLinkARowCarries() throws {
+        let url = try #require(NoteLink.url(forBookOf: 9))
+        #expect(url.absoluteString == "marginalia://book/9")
+        #expect(NoteLink.target(from: url) == .book(of: 9))
     }
 
-    @Test func aConnectionLinkRoundTripsThroughItsURL() throws {
-        let url = try #require(NoteLink.url(for: 9))
-        #expect(url.absoluteString == "marginalia://note/9")
-        #expect(NoteLink.shortID(from: url) == 9)
+    @Test func anUnrelatedURLIsNotTreatedAsALink() throws {
+        #expect(NoteLink.target(from: try #require(URL(string: "https://example.com/book/9"))) == nil)
     }
 
-    @Test func anUnrelatedURLIsNotTreatedAsANoteLink() throws {
-        #expect(NoteLink.shortID(from: try #require(URL(string: "https://example.com/note/9"))) == nil)
-    }
-
-    @Test func aNoteWithNoConnectionsHasNoLinks() {
-        #expect(row(note()).links.isEmpty)
+    /// The note form of the scheme went with the connections that produced it.
+    @Test func thereIsNoNoteFormOfTheSchemeAnyMore() throws {
+        #expect(NoteLink.target(from: try #require(URL(string: "marginalia://note/9"))) == nil)
     }
 
     // MARK: Follow-ups

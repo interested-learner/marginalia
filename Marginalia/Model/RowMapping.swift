@@ -12,7 +12,6 @@ extension NoteRowData {
     /// repeat the title already at the top of the screen.
     init(
         _ note: Note,
-        connections: [Int] = [],
         showingBook: Bool = true,
         now: Date = .now,
         calendar: Calendar = .current
@@ -20,18 +19,24 @@ extension NoteRowData {
         self.init(
             id: note.shortID,
             idLabel: note.idLabel,
-            meta: "\(note.kind.marker) \(note.kind.label) · "
+            // **The word, not the marker and the word.** `[t] thought` said the
+            // same thing twice and the letter said it worse; the bracket earns
+            // its place beside a *verb* (`[+] add a thought`, `[ ] star`), where
+            // it is the affordance, not beside the glyph's own name. This is the
+            // rule `MarkdownExport` has followed since it was written — *a
+            // bracketed glyph is a thing the app draws, not a thing a document
+            // says* — now extended to what the app draws. `docs/decisions.md` §22.
+            meta: note.kind.label + " · "
                 + RelativeTime.label(for: note.createdAt, now: now, calendar: calendar),
             text: note.text,
             // A scan is somebody else's words off a page, so it wears the quote
-            // rule like a typed quote does — while its marker still says `[s]`.
+            // rule like a typed quote does — while still calling itself `scan`.
             isQuote: note.kind.isPassage,
             source: Self.source(for: note, showingBook: showingBook),
             // What the row makes tappable inside the source line. Empty where
             // the title isn't in the line at all, so the row never hunts for a
             // range that isn't there.
             bookTitle: showingBook ? (note.book?.title ?? "") : "",
-            links: connections,
             followUps: Self.thread(for: note, now: now, calendar: calendar),
             isStarred: note.isStarred
         )

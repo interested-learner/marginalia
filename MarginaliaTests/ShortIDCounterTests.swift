@@ -2,8 +2,9 @@ import Testing
 import Foundation
 @testable import Marginalia
 
-/// Ids are never reused after a delete: a dangling `→ n.07` pointing at a
-/// *different* note is worse than one pointing at nothing.
+/// Ids are never reused after a delete: a dangling `[[n.07]]` in an exported
+/// document, pointing at a *different* note, is worse than one pointing at
+/// nothing.
 struct ShortIDCounterTests {
 
     /// Each test gets its own suite so nothing leaks between them or into the app.

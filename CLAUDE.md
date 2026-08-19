@@ -6,6 +6,8 @@ Working context for Claude Code in this repository. Read this before touching an
 >
 > **Phase 12 removed a whole tab.** Read `docs/phase-12.md` and `docs/decisions.md` §21. The map was read on a device and the verdict was not that it was wrong but that there was **no reason to open it** — so the summary, the graph and everything under them came out, and the one thing worth keeping moved into review as the **crossing card**. 4,082 lines and 90 tests went with it. If you are about to propose a screen that draws the library, read §21 first.
 >
+> **Phase 13 removed things the app was saying twice.** Read `docs/decisions.md` §22. `[t] thought` became `thought`, `→ n.11` came off every row on every screen, and the crossing card's bare hairline became a `LabeledRule` carrying `29 days apart`. The rule that decided the first: **a glyph earns its place beside a verb, never beside the glyph's own name.** If you are about to add a marker to a label, or an id to a line, read §22 first.
+>
 > **Phase 11 was the first pass with a real finger on the app.** Read `docs/phase-11.md`. Every phase before it was verified by unit tests, launch arguments and screenshots, and `docs/issues.md` §12 said plainly that nothing here had ever been tapped. It has now been, and it came back with six reports and two crashes — **neither of them visible in code review, in a full passing suite, or in any screenshot taken in ten phases.** Both were in code a simulator cannot reach.
 >
 > **The simulator still can't compile `NLContextualEmbedding`'s assets**, so every connection anyone has looked at came out of the `NLEmbedding` fallback, and about half of them are defensible — read `docs/planning.md` §phase 6 before tuning the floor or the weights, which were deliberately left at the spec's values.
@@ -16,7 +18,7 @@ Working context for Claude Code in this repository. Read this before touching an
 
 - **stream** — every note across every book, newest first, filterable by tag. A persistent capture bar sits at the bottom for text or voice. Focused, it grows `→ full note` — which carries the draft into the capture sheet — and the tab bar goes; unfocused it is one line and two buttons, and **the fast path is not allowed to get slower**. It does not name a book: `docs/decisions.md` §18.
 - **books** — the library, and each book's notes.
-- **review** — a daily set of ~8 older notes, one per screen, swiped through. Resurfacing what you already thought. **A ninth card**, when the library has one to show, is a **crossing**: two notes from two different books that the app connected by meaning, with the gap in time between them. It is the one place a reader can contradict the linking engine — `[x] not related`. `docs/decisions.md` §21.
+- **review** — a daily set of ~8 older notes, one per screen, swiped through. Resurfacing what you already thought. **It reopens exactly where you left it** — same notes, same card, same crossing — until the calendar day turns, including across a relaunch and a night in the background. `ReviewSession` is the memory and `docs/decisions.md` §23 is why it can't be recomputed. **A ninth card**, when the library has one to show, is a **crossing**: two notes from two different books that the app connected by meaning, with the gap in time between them. It is the one place a reader can contradict the linking engine — `[x] not related`. `docs/decisions.md` §21.
 
 **There was a fourth tab, `map`, and it is gone** — read `docs/decisions.md` §21 before proposing any screen that draws the library, because there were three of them and the last one was deleted the day after it shipped. The complaint that killed it was never that the drawing was illegible or that the themes were wrong; it was that there was no reason to open it.
 
@@ -38,13 +40,13 @@ The look comes from the **OpenCode design system**. It is severe on purpose, and
 
 1. **No raw color literals in views.** Every color comes from `Theme`. Not `Color.gray`, not `#f8f7f7`, not `.secondary`. If a color you need isn't in `Theme`, add it there with both appearances defined, then use it. This rule is the only reason dark mode works.
 2. **No shadows. Anywhere.** Not on cards, sheets, buttons, or bars. Separation is done with hairlines (`Theme.hairline`, 1px) and surface tint (`Theme.surfaceSoft`) — nothing else. `--elevation-1` in the source system is a hairline, not a shadow.
-3. **ASCII markers, not SF Symbols.** `[+] [x] [-] [~] [=] [◇] [↻] [q] [t] [v] [s]` and the arrows `→ ←`. Use the named cases in `Glyphs`, never a literal. There are no icons in this app — **and no dingbats either**: `★`, `✎`, `✓` and their kin read as icons and are just as forbidden. Every marker is bracket-plus-character, so `[ ] star` and `[+] add a thought`. Box-drawing and block characters (`▁▂▃▄▅▆▇`, `█░`, `■`, `●`, `▼`) are fine; they're terminal furniture, not pictures, and each one is in the prototype.
+3. **ASCII markers, not SF Symbols.** `[+] [x] [-] [~] [=] [◇] [↻] [q] [t] [v] [s]` and the arrows `→ ←`. Use the named cases in `Glyphs`, never a literal. There are no icons in this app — **and no dingbats either**: `★`, `✎`, `✓` and their kin read as icons and are just as forbidden. Every marker is bracket-plus-character, so `[ ] star` and `[+] add a thought`. **But a marker beside its own name says one thing twice** — `[t] thought` became `thought` in phase 13, and the kind markers now appear only in the capture sheet's type selector, where they mark a *control*. The test: a glyph earns its place beside a **verb**, never beside the glyph's own name. `docs/decisions.md` §22. Box-drawing and block characters (`▁▂▃▄▅▆▇`, `█░`, `■`, `●`, `▼`) are fine; they're terminal furniture, not pictures, and each one is in the prototype.
 4. **Radius 4px on interactive elements only.** Buttons, inputs, chips. Everything else is square. Never a pill, never a circle, never 26pt iOS-style card corners.
 5. **One font.** JetBrains Mono at every size and weight — body, headings, numbers, buttons. There is no sans face and no italic in this system.
 6. **No cover art, no images, no color-coding.** Books are title + author + status marker + note count. The absence of imagery is the identity; a row of cover thumbnails would make this a different app.
 7. **Lowercase chrome.** Tab labels, the wordmark, screen titles, and placeholder text are all lowercase (`stream`, `books`, `review`, `add a thought…`).
 8. **One header per screen.** The wordmark appears on **stream only**. Every other screen gets a single header with its own name — never a wordmark row stacked above a title row.
-9. **Support Dynamic Type.** Every size in `Typography` scales with the reader's setting. Never a hardcoded `.system(size:)`. **Chrome stops growing at `xLarge` and content never stops** — `chromeTypeSize()`, on the tab bar, `ScreenHeader`, review's foot, and the capture bar's `[+]` and `[●]`, and on nothing else. A note gets every point it asks for; a signpost that fills the room it points out of is worse at its job. **The margin folds** past `isAccessibilitySize` and the id moves above the note — the one conditional in the margin rule, and `docs/design-system.md` says why.
+9. **Support Dynamic Type.** Every size in `Typography` scales with the reader's setting. Never a hardcoded `.system(size:)`. **Chrome stops growing at `xLarge` and content never stops** — `chromeTypeSize()`, on the tab bar, `ScreenHeader`, review's foot, the capture bar's `[+]` and `[●]`, and the crossing card's head, and on nothing else. A note gets every point it asks for; a signpost that fills the room it points out of is worse at its job. **The margin folds** past `isAccessibilitySize` and the id moves above the note — the one conditional in the margin rule, and `docs/design-system.md` says why.
 10. **A quote wears the rule and no quote marks.** `“ ”` is a rule *and* quote marks, which is not a convention, and it would be the closest thing to a dingbat in the app. The 2pt `ink` rule is the mark. `docs/issues.md` §18 — which asserted for three phases that the app didn't draw them while two files did.
 
 Colors, condensed — but `Theme.swift` is authoritative:
@@ -78,7 +80,7 @@ Notes connect themselves. The user is never asked to link anything and there is 
 - `AffinityEngine` scores pairs `0.8 · cosine + 0.2 · tagOverlap`. Same-book is deliberately **not** boosted — a line between two books is the only kind worth anything here, and rewarding proximity again would bury it.
 - Three constraints keep the web from becoming a hairball: a **floor** of `score ≥ 0.55`, **mutual k-NN** (each note in the other's top 8), and a **degree cap** of 6.
 - **Automatic and manual links render identically.** `isPinned` and `isSuppressed` on `NoteEdge` exist only to make override work — never surface them in the UI, never draw a manual link differently.
-- **Backlinks are always shown.** Edges store direction but display both ways, or half of every note's connections are invisible.
+- **Edges store direction and it is never displayed.** Both ends of a connection are equal wherever one is shown, or half of every note's connections are invisible. **`→ n.11` is no longer one of those places** — phase 13 took the id links off every row, because a bare id gives the reader nothing to decide with. What still shows the graph: the markdown export (`[[n.03]] · [[n.09]]`), settings' connection count, `NotePicker`'s already-joined filter, and the crossing card. `docs/decisions.md` §22.
 - **`LinkWriter.pin` is the only writer of `isPinned`**, reached from `→ link` on a review card and from nowhere else. Pinning a pair the reader once disconnected un-suppresses it: both flags record a deliberate act and this is the newer one.
 - **There is exactly one place a reader can contradict the app**, and it is `[x] not related` on the crossing card in review. It goes through `ConfirmSheet` and `Eraser.suppress` like every other delete in the app — the flag is the memory of the deletion, because every recompute is a full one and would otherwise score the same pair and find it just as strong. **It is an affordance, never a question**: it does not gate paging and skipping it costs nothing, so §10's promise that nobody is asked to link anything is unbroken. It is also the linking system's only feedback loop; before it, the app guessed at meaning and nothing anywhere could tell it it was wrong.
 - **Deleting a connection doesn't delete the edge.** `Eraser.suppress` sets `isSuppressed` and keeps the row, for the reason above. `CrossingFinder` skips suppressed edges, which is what makes the answer stick.
@@ -92,9 +94,10 @@ Notes connect themselves. The user is never asked to link anything and there is 
 - **At most one a day, and it rotates.** `crossings[daySeed % count]` — `daySeed` advances by one a day, so the reader walks the ranked list an entry at a time and it cycles rather than repeating one pair forever. **Never pin the strongest**, including in the fallback when every candidate overlaps the day's own eight notes: that shows one pair every day on a small library, which is exactly what the rotation exists to prevent, and a small library is where the overlap happens.
 - **Paging past a crossing surfaces nothing.** `ReviewWriter` is not called for it. The crossing is extra, and marking both notes surfaced would quietly reshape tomorrow's eight — `ReviewSetBuilder` scores on that field.
 - **Two notes at `noteBody`, never `reviewBody`.** Every other review card is one note filling the screen at 18pt; at 18pt each the second half of a crossing is below the fold before the reader has a reason to look for it, and the gap between them is the point of the card.
-- **A hairline between the halves, never an arrow.** `NoteEdge` stores a direction and the app has displayed both ways since phase 6; a `→` here would be the first place it contradicted that.
+- **A `LabeledRule` between the halves carrying the gap, never an arrow.** `NoteEdge` stores a direction and the app has displayed both ways since phase 6; a `→` here would be the first place it contradicted that, and a label is not a direction. It is labeled rather than bare because a bare hairline means *these are separate items* everywhere else in the app, which is the opposite of what this card says.
+- **The head names the claimant, not the claim** — `[◇] crossing` over `the app connected these two notes`, and it is capped by `chromeTypeSize()`. Not *the same idea*: that would be a claim the model makes, which §21 rules out, and it is the app's line that `[x] not related` contradicts. No ids.
 - **The card opens notes; it does not duplicate their actions.** Tapping either half opens it where `star` and `add a thought` already live. `ActionRow`'s own note records that four labels overflow a phone at 13pt mono.
-- **`RelativeTime.gap` renders the distance** — `29 days apart`, `7 months apart` — beside `label` / `dayLabel` / `elapsed`, numerals and lowercase like the rest of them.
+- **`RelativeTime.gap` renders the distance** — `29 days apart`, `7 months apart` — beside `label` / `dayLabel` / `elapsed`, numerals and lowercase like the rest of them. **It sits in the seam, not the foot**: below both notes it read as chrome, and it is the fact that lands.
 - **Whether any crossing is *true* is unverified and cannot be verified here.** It rides on the same scores everything else does, and `docs/issues.md` §14 means every one anybody has read came out of the fallback embedder. Read `AffinityDumpTests` on a device.
 
 ## Data model rules
@@ -106,7 +109,7 @@ Every `@Model` must stay **CloudKit-compatible**, even though sync is off. Enabl
 - **No `@Attribute(.unique)`** — CloudKit rejects unique constraints.
 - Embeddings are stored as `Data` (packed `Float32`), not `[Float]`.
 
-`Note.shortID` is a monotonic `Int` from `UserDefaults`, rendered as `n.11`. Ids are never reused after a delete — a dangling `→ n.07` pointing at a *different* note is worse than one pointing at nothing.
+`Note.shortID` is a monotonic `Int` from `UserDefaults`, rendered as `n.11`. Ids are never reused after a delete — a dangling `[[n.07]]` in an exported document, pointing at a *different* note, is worse than one pointing at nothing.
 
 ## Keep these pure
 
@@ -141,8 +144,9 @@ Marginalia/
     BookDraft                what's typed → what a Book stores. Pure
     TypedPage                `"p. 214"` → `214`, for every page field. Pure —
                              and `CaptureDraft` really does call it now
-    NoteWriter               the one path a note takes to exist, and `refile`,
-                             the one path it takes to change books
+    NoteWriter               the one path a note takes to exist, `refile`, the
+                             one path it takes to change books, and `update`, the
+                             one path it takes to change its own words
     BookWriter               the one path a book takes to exist, and changes by
     ReviewWriter             the one path a follow-up, a star and a surfacing
                              take. Surfacing counts once per day, never at build
@@ -154,6 +158,9 @@ Marginalia/
                              about both sides
     Preferences              appearance, reminder time, reminder on/off — the
                              keys, once, plus `Appearance` and `ClockTime`. Pure
+    ReviewSession            where the reader is in the day's review — the day,
+                             the ordered ids, the card, the crossing's pair.
+                             The reason review reopens where you left it
     RelativeTime             `2 mins ago`, `aug 01`, `0:07`, `7 months apart`
     ConnectionIndex          edges → who connects to whom, both directions
     LinkWriter               the one path an edge takes to exist, and `.linking()`,
@@ -164,7 +171,8 @@ Marginalia/
                              BookPickerField — the one book picker, shared by the
                              sheet and MoveNoteSheet, where the Inbox is
                              `— no book —` rather than a row — and MoveNoteSheet,
-                             which is how a note leaves the Inbox
+                             which is how a note leaves the Inbox, and
+                             EditNoteSheet, the only way a note's own words change
     Review/                  ReviewView, ReviewCard + ShareCard, ReviewSetBuilder,
                              FollowUpSheet — and CrossingFinder, which picks the
                              day's crossing (pure), with CrossingCard +
@@ -214,6 +222,7 @@ Tools/
 | `-captureMore 1` | opens the capture sheet the way `→ full note` does, over the stream. With `-captureDraft`, carrying that draft |
 | `-bookPicker 1` | opens every book picker's list — the half a closed field never shows. Pair it with `-captureMore`, `-captureSheet` or `-moveNote` |
 | `-moveNote <id>` | opens `move to book…` over the stream for `n.<id>` |
+| `-editNote <id>` | opens `edit` over the stream for `n.<id>` — a context menu can't be reached from the command line, so this is the only way to see the sheet |
 | `-captureBar <recording\|transcribing>` | the recording rows, without a microphone |
 | `-captureSheet <quote\|thought\|voice\|scan>` | opens the full sheet over the first book's detail |
 | `-scanner 1` | with `-captureSheet scan`, opens the text scanner — **the simulator has no camera**, so what you see is the written fallback |
@@ -225,6 +234,7 @@ Tools/
 | `-reviewCard <n>` | opens review on the nth card of the day's set |
 | `-reviewCrossing 1` | with `-startTab review`, opens review on the crossing card — the ninth, which is otherwise reachable only by swiping past all eight |
 | `-reviewEnd 1` | opens review on the closing card |
+| `-reviewYesterday 1` | backdates the stored review session by a day, so the next launch reads as a new one — **the only way to see the midnight rollover**, since `simctl` can't move the clock. Read in `open()` rather than `openAtLaunch()`, because it has to run before the resume |
 | `-followUp 1` | opens the follow-up composer over the current card |
 | `-confirmDelete <book\|note>` | opens the delete confirmation over book detail |
 | `-confirmDelete connection` | with `-startTab review`, the disconnect confirmation over the crossing card — `[x] not related` is a button on the ninth card, and the simulator can neither swipe to one nor tap the other. Stands alone: `ReviewView.openAtLaunch` positions itself on the crossing, so `-reviewCrossing 1` isn't needed alongside it |
@@ -302,16 +312,18 @@ Tests use **Swift Testing** (`@Test`, `#expect`), not XCTest.
 - **So does anything handing a closure to a system framework**, and this one is a crash rather than a compile error. `SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor` makes such a closure `@MainActor`; UIKit, AVFoundation, Speech and Vision call them on their own threads; Swift 6 traps. `Theme` is `nonisolated` for exactly this reason — it cost five identical `EXC_BREAKPOINT` crashes before anyone read the report. **Mark the closure `@Sendable` at the call site**, every time: it costs nothing where the compiler had already inferred it and removes a crash where it hadn't. `docs/issues.md` §1 declared this audit complete for two phases while `SFSpeechRecognizer.requestAuthorization` sat three lines below the one line it had checked (§22).
 - **Nothing expensive in a `body`.** An `ImageRenderer` inside `ShareCardLink.body` drew a multi-megabyte bitmap for every realized review card on every redraw — a render pass nested inside a render pass — and it is the best candidate for the crash at the end of the set. The same rule caught three cheaper versions of itself in the same pass: `ConnectionIndex.build` read from inside a `ForEach` rebuilds per row, and `ReviewSetBuilder.set` behind a computed property runs over the whole library per redraw. **Build it once above the loop, or hold it in `@State`.** `docs/issues.md` §23.
 - **Two siblings in a `VStack` where one of them scrolls is a feedback loop waiting to happen.** Review's foot hid a line on the last card, which grew the paging scroll view by 27pt, which changed every page's height while one was mid-flight. Hide with `.opacity`, never by removing from the layout. The deleted map had the same shape twice over, which is why the rule is written as a rule and not as one bug.
-- **Notes are written in exactly one place.** `NoteWriter.save` allocates the id, trims the body, and falls back to the Inbox. A second write path would drift from it — add a caller, not a copy. **Books likewise go through `BookWriter`**, whether they arrived by search, by barcode, or typed in.
+- **Notes are written in exactly one place.** `NoteWriter.save` allocates the id, trims the body, and falls back to the Inbox. A second write path would drift from it — add a caller, not a copy.
+- **And edited in exactly one place.** `NoteWriter.update` takes the body, the page and the tags — never the kind, because how a note was captured is a fact about the note and not about the keystrokes. **A changed body clears `embedding` *and* `embeddedAt`, and those are two different bugs, not one.** `embedding` is what `LinkWriter.embed` reads as `hasVector`, so a note that keeps it is skipped by the pass meant to re-embed it; `embeddedAt` is what `.linking()` counts as `pending`, and without clearing it the recompute never fires at all. A changed page or tag clears neither — `AffinityEngine` scores tags separately and never reads a page. `docs/decisions.md` §24.
+- **Books likewise go through `BookWriter`**, whether they arrived by search, by barcode, or typed in.
 - **And deleted in exactly one place.** `Eraser` exists because `context.delete(note)` is not enough: `NoteEdge.from` and `.to` have no inverse, so SwiftData nils them instead of removing the edge, and an edge with one end missing is a connection that can never be drawn and never be cleaned up. Follow-ups and a book's notes *are* cascaded by the schema; the edges of every note a book takes with it are not.
 - **Every delete goes through a confirmation, and the Inbox refuses.** `Eraser.delete(book:)` returns `false` for it, for the same reason `BookWriter.apply` won't restatus it — it's found by status, and deleting it would take every quick capture with it while the next one silently built a second drawer.
 - **The Inbox can't be edited.** It's found by status and it's where every unfiled capture falls back to, so `BookWriter.apply` refuses to change its status and book detail doesn't offer `edit` on it. An Inbox marked `reading` would quietly stop being one and the next quick capture would build a second.
 - **A lookup result fills the form; it never saves straight through.** Open Library gets authors and page counts wrong often enough that the last word has to belong to the reader — and it holds a separate work record per translation, so `BookLookup` collapses repeats of the same title and author.
-- **A transcript is never saved unseen, and neither is a scan.** On-device recognition is wrong often enough that it lands in an editable field, both in the bar and in the sheet; OCR off a printed page is the same bet and lands in the same kind of field. Editing either leaves the note `[v] voice` or `[s] scan`: how it was captured is a fact about the note, not about the keystrokes.
+- **A transcript is never saved unseen, and neither is a scan.** On-device recognition is wrong often enough that it lands in an editable field, both in the bar and in the sheet; OCR off a printed page is the same bet and lands in the same kind of field. Editing either leaves the note a `voice` or a `scan`: how it was captured is a fact about the note, not about the keystrokes.
 - **A scan is drawn as a passage and marked as a scan.** `NoteKind.isPassage` is what the quote rule keys on, and it's true for `.quote` and `.scan` — a scan is somebody else's words off a page. The marker still says `[s]`, by the rule above. Never test `kind == .quote` to decide how a body is drawn.
 - **The page number is typed, never inferred.** A folio or a running head is text like any other in the frame, and `ScannedPassage` deliberately doesn't hunt for one — a page number that's wrong one time in five is worse than a field the reader fills in.
 - **A note has a page; a book does not have a bookmark.** `Book.currentPage`, `Book.progress` and the progress bar came out in phase 11 — the only way to move that number was four taps through `edit`, so it was always stale, and deriving it from a note's page would be the app's first inference about the reader. `Book.pageCount` stays: it's how long the book is, which is a fact, and it reads as `499pp` in book detail's byline. `docs/decisions.md` §17.
-- **The day's review set is built once and held in `@State`.** Rebuilding it every redraw would reshuffle the deck the moment the reader starred something, because a star is one of the things the set is scored on.
+- **The day's review set is built once a day and stored**, in `ReviewSession` (`UserDefaults`, keyed on `ReviewSetBuilder.daySeed`), not in `@State`. Rebuilding it every redraw would reshuffle the deck the moment the reader starred something, because a star is one of the things the set is scored on — and holding it in `@State` was worse than it looked: `RootView` is a `switch tab`, so leaving review destroys it, **and the rebuild is not the same set.** `ReviewSetBuilder` scores on `lastSurfacedAt`, which paging past a card writes, so every card actually read scores ~0 on the way back and falls out of the eight. The more of the set you read, the less of it came back. The set has to be remembered, not recomputed: `docs/decisions.md` §23.
 - **Don't name a property `set`.** `private var counter: String { set.count … }` fails to parse — Swift reads `set` at the start of a property body as the setter keyword.
 - **`Spacer` collapses inside a `ScrollView`.** Content there sizes to itself, so vertical centering is a `.frame(minHeight:)` against a `GeometryReader`, which is how the review card does it.
 - **A cancelled `.task(id:)` still finishes what it was awaiting.** `Task.detached` is not cancelled with its awaiter, so the superseded pass resumes when the detached work completes and writes its result — after the new one. On the map it drew one book's nine notes at the coordinates they'd held in the whole-library graph: a clump in the corner of an empty screen, under a perfectly correct header. **Guard on `Task.isCancelled` before assigning**, in any `.task(id:)` that hands work to a detached task. The screen this was found on is deleted; the rule is not about that screen.

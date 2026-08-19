@@ -53,6 +53,7 @@ History is one commit per phase on `main` — `git log --oneline` is the authori
 | 12 | The map comes out; a crossing becomes a card | **done** · `docs/decisions.md` §21 · `docs/phase-12.md` |
 | 12b | The device run — the embedding verdict | **not started** · needs an iPhone, and it gates 12c. No longer a gate on a screen |
 | 12c | A bundled CoreML embedder | **designed, not started** · conditional on 12b |
+| 13 | The app stops saying things twice — `[t] thought` → `thought`, `→ n.11` off every row, the crossing card's seam | **done** · `docs/decisions.md` §22 |
 
 Full detail for every phase is in `docs/specs/2026-08-13-marginalia-design.md`. The reasoning behind the choices is in `docs/decisions.md` — **don't re-litigate those.**
 
@@ -166,7 +167,7 @@ Kept as a record, because `docs/decisions.md` §21 supersedes §20 one day after
 - **Manual linking, at last.** `LinkWriter.pin` is the only writer of `isPinned`, reached from `→ link` on a review card, which opens a picker over the library — the search sheet the spec asked for, built on the search machinery that had just been written. Pinning a pair the app already found adopts that edge and keeps its score; pinning a pair the reader once **disconnected** un-suppresses it, because both flags record a deliberate act and this is the newer one.
 - **The recompute, measured.** `docs/issues.md` §15 asked for a number instead of a paragraph and now has a table. **0.71 µs a pair at `-O`** — 356 ms at a thousand notes, ~9 seconds at five thousand, off the main actor throughout. The incremental path the spec described is **not needed**, and that's now a measurement rather than an opinion.
 - **And half that cost was work in the wrong place.** `AffinityEngine` was normalizing tags and re-deriving vector magnitudes inside the pair loop — O(N) jobs done O(N²) times. Hoisting them per subject took it from 1.50 µs a pair to 0.71, with the graph **unchanged edge for edge at every size measured**, which is the check that made it an optimization rather than a change.
-- **The two routes.** A source line's book title opens the book, through a `marginalia://book/…` link resolved by the same route `→ n.11` already took — **a book is addressed by one of its notes**, because books have no id of their own and inventing one to shorten a URL would be a schema change in the service of a link. And `[◇] connections` opens a note's local map, from a stream row's long-press menu and from a third row on the review card.
+- **The two routes.** A source line's book title opens the book, through a `marginalia://book/…` link resolved by the same route `→ n.11` already took — **a book is addressed by one of its notes**, because books have no id of their own and inventing one to shorten a URL would be a schema change in the service of a link. And `[◇] connections` opens a note's local map, from a stream row's long-press menu and from a third row on the review card. *(Both of the other two are gone: `[◇] connections` with the map in phase 12, `→ n.11` with the id links in phase 13. The book title is the whole scheme now.)*
 
 ### The bug the screenshot caught
 
@@ -229,7 +230,7 @@ A cancelled `.task(id:)` **still finishes what it was awaiting**. `Task.detached
 - **`LinkWriter`** — the one path an edge takes to exist, and the mirror of `NoteWriter`. It embeds what needs it, rescores the library, and diffs: an edge that still holds keeps its identity and takes a new score, one that no longer holds is deleted, dangling and self-joined and duplicated edges are swept. Both expensive halves run off the main actor and only plain values cross.
 - **It's a full recompute, not the spec's delta.** Embedding one new note and comparing it against every stored vector gets *that* note's edges right, but can't notice that it displaced somebody else's eighth-best neighbour or filled their sixth slot. At the sizes this app holds, being right is free. Above a few thousand notes it wants the incremental path and a background `ModelActor` — a phase 8 job, written down rather than pretended away.
 - **One trigger, in one place.** `.linking()` on the root view watches the note count and the unembedded count. That single rule covers the first-launch backfill and every capture after it, and a delete frees degree budget that the next pass hands to somebody else. Overlapping passes queue rather than drop — a dropped pass would leave the note that caused it unembedded until something else changed.
-- **Backlinks needed no work.** `ConnectionIndex` already read edges both ways and all three surfaces already drew them; they were drawing an empty index. Seen in the app: `n.40 → n.08 · n.27` on the stream, `→ n.03 · n.05` on a review card, in both appearances.
+- **Backlinks needed no work.** `ConnectionIndex` already read edges both ways and all three surfaces already drew them; they were drawing an empty index. Seen in the app: `n.40 → n.08 · n.27` on the stream, `→ n.03 · n.05` on a review card, in both appearances. **Those lines came off every row in phase 13** — `docs/decisions.md` §22 — for a reason that has nothing to do with the index being right: a bare id told the reader nothing about what it pointed at. `ConnectionIndex` still runs, for the export and the note picker.
 - **`AffinityDumpTests`** — the phase's actual deliverable. Prints every seed note's five best candidates, the score, and whether the constraints let it through, plus degree and score distributions. Off unless `MARGINALIA_DUMP` is set; every line starts with `|` so it survives an `xcodebuild` log.
 
 ### What reading the output actually said
@@ -248,7 +249,7 @@ On `NLEmbedding.sentenceEmbedding`, over the forty seed notes: 30 connections fo
 ### Standing until later
 
 - ~~**Nothing creates a link by hand.**~~ Phase 8: `LinkWriter.pin`, reached from `→ link` on a review card. The composer half of the spec's answer — the keyboard accessory bar — is still unbuilt and now the only part outstanding.
-- **A note can't be edited, so a note's vector can't go stale by editing.** When editing arrives, whatever writes the new text has to clear `embeddedAt` — the queue is the only thing that would notice.
+- ~~**A note can't be edited, so a note's vector can't go stale by editing.**~~ Phase 15: `NoteWriter.update`, reached from `edit` on a row's long press. **The prescription this entry carried was half of the answer and would have shipped a silent bug.** It said to clear `embeddedAt`, "the queue is the only thing that would notice" — but there are two queues and they read different fields. `LinkWriter.embed` skips any candidate where `hasVector` is true, and `hasVector` is `embedding != nil`; a note that kept its vector would be skipped by the very pass meant to re-embed it, and `vector(from:)` would go on handing `AffinityEngine` the old note's meaning. Clearing `embeddedAt` alone re-*triggers* the recompute and re-embeds nothing. Both fields have to go, for those two separate reasons, and `NoteWriterTests` now asserts each one with the reason written next to it.
 
 ### Unverified, and honestly so
 
@@ -275,7 +276,7 @@ Between phase 5 and phase 6, six of the thirteen entries in `docs/issues.md` wer
 ## What phase 5 built
 
 - **`ReviewSetBuilder`** — pure, `[Note]` + `Date` → the day's set. `daysUnseen + starBonus + jitter`, then the three caps: 8 total, 2 per book, and one card spent on a book currently being read even when nothing from it scored. A note never surfaced counts as a year unseen; a star is worth a week, which wins between two notes with the same history and loses to a month of neglect. The jitter is a hash of the day and the note id — `Double.random` would reshuffle on every redraw.
-- **The set is built once, on arrival, and held in `@State`.** This is not incidental: the set is scored partly on `isStarred`, so a set rebuilt every redraw would reshuffle under the thumb the moment the reader starred a card.
+- **The set is built once a day and held.** Within a redraw this is not incidental: the set is scored partly on `isStarred`, so a set rebuilt every redraw would reshuffle under the thumb the moment the reader starred a card. **`@State` turned out to be the wrong place to hold it** — `RootView` is a `switch` rather than a `TabView`, so leaving the tab destroyed it, and the rebuild wasn't even the same set once `lastSurfacedAt` had been written by reading it. It now lives in `ReviewSession` (`UserDefaults`), keyed on the day. `docs/decisions.md` §23.
 - **`ReviewWriter`** — the one path a follow-up, a star, and a surfacing take. **Surfacing counts once per calendar day per note**, which the spec didn't say and which matters: swiping back and forth through the day's set is one reading of each card, not six, and an inflated `surfaceCount` would quietly bury a note for months.
 - **Paging is vertical**, which is what the hint has always asked for. `ScrollView` + `scrollTargetBehavior(.paging)` + `scrollPosition`, not a rotated `TabView`. A card is surfaced when the position moves off it — paged past, exactly as specified, never at build time.
 - **The card** — centered and open, no margin. Metadata, the note at 18/1.7, source, connections, thread, then the actions. Centering inside a scroll view is a `minHeight` frame against a `GeometryReader`; `Spacer` collapses there.
@@ -338,7 +339,7 @@ Between phase 5 and phase 6, six of the thirteen entries in `docs/issues.md` wer
 - **`CaptureSheet`** — type selector, inline book picker, body, page, tags. Phase 4 opens it from book detail.
 - **Four launch arguments** for states the simulator can't be tapped into — see the table in `CLAUDE.md`.
 
-**A transcript is never saved unseen.** It lands in an editable field in both places, and editing it leaves the note `[v] voice` — how it was captured is a fact about the note, not about the keystrokes.
+**A transcript is never saved unseen.** It lands in an editable field in both places, and editing it leaves the note a `voice` — how it was captured is a fact about the note, not about the keystrokes.
 
 ### Unverified, and honestly so
 
@@ -449,7 +450,7 @@ Learned the hard way in phases 1 and 2.
   ```bash
   xcrun simctl shutdown all && xcrun simctl boot "iPhone 17"
   ```
-- **`simctl openurl` is not the in-app path.** Opening `marginalia://note/20` from outside raises the system's *Open in "marginalia"?* alert, which blocks the simulator until it's dismissed by hand. In-app taps are intercepted by `OpenURLAction` in `RootView` and never reach the system. Use `-openNote` to screenshot that path.
+- **`simctl openurl` is not the in-app path.** Opening `marginalia://book/20` from outside raises the system's *Open in "marginalia"?* alert, which blocks the simulator until it's dismissed by hand. In-app taps are intercepted by `OpenURLAction` in `RootView` and never reach the system. **The note form of the scheme is gone** — it existed only behind the `→ n.11` links, and went with them in phase 13. `-openNote` still works and never parsed a URL; it seeds `focus` directly.
 - **Reinstall before screenshotting a seed change.** The seed only runs against an empty store, so an existing install keeps the old notes.
   ```bash
   xcrun simctl uninstall booted com.marginalia.app

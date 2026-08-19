@@ -330,3 +330,98 @@ A **crossing** — the same idea reached from two different books, months apart 
 **The argument against, recorded rather than answered: §20 is one day old.** Deleting it the next morning is either good judgment or thrash, and the difference is whether *no reason to open it* is a durable read or a first impression. It was taken as durable, because it is the same complaint §20 recorded about *its* predecessor, answered one level deeper. §11 wrote the escape clause — *"if the map doesn't earn its place in use, it moves back inside Books"* — §20 invoked it by rebuilding, and this invokes it as written.
 
 **And the honest failure mode, which is not a screen problem.** If the crossing card is opened for a month and skipped every time, the conclusion is not that it needs a better card. It is that automatic linking is interesting to build and not interesting to read — which is §10's own flagged risk coming true: *because nobody types a link, nobody learns the habit; if automatic linking underdelivers there is no fallback behavior to lean on.* That would be worth knowing, and there is now one screen where it can be observed instead of three where it could not.
+
+## 22. The app stops saying things twice, and starts saying the one thing it wasn't
+
+**2026-08-19 · settled** · touches §10, §13 and §21
+
+Three complaints against the review tab, read together because they are the same complaint: the app repeats itself where it has nothing to add, and stays quiet where it does.
+
+### `[t] thought` becomes `thought`
+
+**The marker is redundant exactly when the word beside it is the marker's own name.** Run the vocabulary through that test and it sorts itself: `[+] add a thought`, `[ ] star`, `[x] not related`, `[↻] keep going`, `[x] cancel` are all a glyph and a **verb**, where the bracket is the affordance and, in `[ ]` / `[*]`, literally the checkbox. `[~] stream` and `[=] books` are a tab's identity, and the glyph is the only mark it has. `[t] thought` is a glyph and **the glyph's own name** — one fact, spelled twice, and the word spells it better than the letter does.
+
+It isolates to a single line: `RowMapping.swift`'s `meta` was the only place in the app where a kind marker was glued to its own label as a plain label. Everything else that pairs one with a word is a control.
+
+**This is house precedent, not a new idea.** `MarkdownExport` has said since it was written that the export emits *"the word, not the marker — a bracketed glyph is a thing the app draws, not a thing a document says"*, and `MarkdownExportTests` asserts the export contains no `[t]`. The only thing decided here is that the same reasoning applies to what the app draws.
+
+**Rejected: taking the glyphs out of the capture sheet's type selector too.** There they are a segmented *control*, the bracket is the option's mark, and it is the one place in the app a reader ever learns what `[t]` means. `BookFormSheet`'s status markers stay for the same reason. §13's rule is unchanged: every marker is still bracket-plus-character, and there are still no dingbats.
+
+**The cost, named:** `[t] thought · 1 hr` is drawn by the archived prototype, and `CLAUDE.md` names the prototype as the authority on **look**. This is a deliberate override of that authority — the first one — and it is recorded here rather than left to drift. The prototype stays the authority on everything it has not been overridden on.
+
+### `→ n.11` comes off every row
+
+A bare id is a bad link label. It gives the reader nothing to decide with: you cannot tell what is behind `→ n.11`, so tapping it is a coin flip, and on the review card it was a fifth thing competing with five actions. The prototype never drew them — they arrived in phase 2 — and no screen ever showed the reader what one pointed at without navigating there.
+
+**The linking engine does not become invisible, and that is what made this affordable.** The export still writes every connection as `[[n.03]] · [[n.09]]`, settings still prints a live count, `NotePicker` still filters on the graph, and the crossing card is still the app's own reading of it. `AffinityEngine`, `LinkWriter`, `NoteEdge` and `ConnectionIndex` are untouched. What stopped is the drawing, not the computing.
+
+**It also removed real work from three `body` passes.** `StreamView`, `SearchView` and `BookDetailView` each held a live `@Query` over every edge in the library and rebuilt an O(edges) index on every redraw, to render a line of ids. All three queries are gone. That is the same rule that caught `ImageRenderer` in phase 11 — `CLAUDE.md`, *nothing expensive in a `body`*.
+
+**`NoteLink` lost its note form** with the last producer of it: no `marginalia://note/11`, no `.onOpenURL`. `marginalia://book/11` behind a book title is the whole scheme now. Opening a note by id still happens — from `-openNote` and from a tapped reminder — and neither ever went through a URL.
+
+**The accepted cost:** `→ link` on a review card now writes an edge whose effect is invisible until a future crossing rotation reaches it, and only if the pair crosses books. That is an action with no feedback, it is known, and it is not being solved by putting the ids back. If manual linking turns out to matter, the answer is a surface that shows a note's connections as *notes* — which is what `→ n.11` never was.
+
+**§21 is not being re-litigated.** It listed the backlinks under every note among what survived the map's deletion; that was an inventory of what still existed, not an argument that it earned its place. The argument that killed the map — *no reason to open it* — is the same one applied here one level smaller: no reason to tap it.
+
+### The crossing card says what it is
+
+The card's only claim that its two notes were related was `n.08 · n.40 · [◇] crossing` at 13pt `textAsh`: the palest text on the card, in the position the eye skips, arriving **before** either note, so *crossing* had nothing yet to attach to. And the thing physically between the two halves was a bare `Hairline` — the same 12% rule the app uses everywhere else to mean *these are separate items*. The strongest visual signal on the card argued against the card.
+
+Meanwhile `29 days apart` — which §21 calls the fact that lands, *you thought this in August and again in March and never noticed* — sat in the foot, below both notes, beside a destructive action, reading as chrome.
+
+**So the claim moved into the seam.** `LabeledRule` replaces the bare hairline: `──── 29 days apart ────`. A labeled break is what turns a divider from a boundary into a relationship, it is standard terminal furniture rather than a new idiom, it is still `Theme.hairline` at 12%, and **it is still not an arrow** — §21's rule holds, because a label is not a direction. `design-system.md` used to end that rule with *this card adds no vocabulary*; the honest correction is that the bare hairline was the **wrong** vocabulary, not none.
+
+**The head names the claimant, not the claim.** `[◇] crossing` over `the app connected these two notes`. §21 is exact that the three things carrying this card are facts and *none of them is a claim the model makes* — and *the same idea, in two books* would have been one, on scores `issues.md` §14 says nobody has ever verified. That the app drew a line is a fact. It is also the fact `[x] not related` operates on: a reader can contradict the app, not an idea.
+
+**The two ids came off the head** for the same reason they came off every row.
+
+**The head stops growing, and it is the fifth and last thing in the app that does.** Uncapped, the sentence took four lines at `accessibility-extra-extra-extra-large` and pushed the seam off the bottom of the screen — the card explaining itself at the price of not showing what it was explaining. `chromeTypeSize()` puts it back at the fold `issues.md` §25 recorded, and the seam now lands *above* that fold, where the gap in the foot never did. Both notes stay uncapped. This is the rule working as written: a signpost that fills the room it points out of is worse at its job.
+
+**`disconnect n.07 and n.11?` became `disconnect these two notes?`** — the card no longer shows those ids, so naming them was precision about something the reader had never seen. What actually goes is in the consequence line, which is what the question is for.
+
+### What was deliberately not done
+
+**No color, no dingbat, no badge, no box around the pair, and no explanatory paragraph.** Phase 12's standing warning is that there have been three drawings of this idea and each was better than the last and none was opened; a fourth would be the same mistake with a different shape. This adds one rule and one sentence, and if the card is skipped for a month the conclusion is still the one §21 wrote down — not that it needs a better card.
+
+## 23. The day's set becomes a stored fact, not a re-derivation
+
+**2026-08-19 · settled** · fixes §4 rather than changing it
+
+§4 has said since phase 5 that the day's set is "**fixed per calendar day so leaving and returning doesn't reshuffle it**." That was implemented as *held in `@State`* — and `RootView` is a `switch tab` rather than a `TabView`, so leaving the tab tears `ReviewView` down and destroys the set, the position, the crossing and the reject flag together. Every return rebuilt from scratch at card 1. Reported from a device: *"doesn't seem to stay updated to the swipe the person was on or if they finished for the day."*
+
+**The rebuild was not even the same set, and that is the part worth writing down.** `ReviewSetBuilder` scores mostly on `daysUnseen`, which reads `lastSurfacedAt`; paging past a card writes exactly that field. So every card the reader *actually read* scored ~0 on the way back and dropped out of the top eight, and unread notes took its place. **The more of the set you read, the less of it came back.** The builder is day-stable over a library that hasn't been read — which is not the library anybody has after opening review. No amount of tuning the builder fixes this: the day's set has to be *remembered*, not recomputed.
+
+So `ReviewSession` stores the day, the ordered ids, the position and the crossing's pair in `UserDefaults`, for the reason `Preferences` gives — none of it is a note, and none of it should sync to another device as content. `ReviewSetBuilder` and `ReviewWriter` are untouched and still pure.
+
+- **The resume is literal.** Wherever the reader was standing, including the closing card, which is how "finished for the day" is remembered — there is no separate completion flag and no furthest-read tracking. Nathaniel's framing, and it is the right one: *"like a normal app would do."*
+- **The crossing card comes back too, rejection and all.** `CrossingFinder.find` deliberately does *not* filter suppressed edges, unlike `all`: `ReviewView` already refuses to remove the card or re-pick the pair within a session, and coming back from another tab must not put a fresh claim under a thumb that just answered the question. The suppression lands on tomorrow's `pick`, where it always did.
+- **A set that lost notes to a delete is discarded below the minimum**, rather than restored short — three surviving cards of eight would otherwise draw "not enough notes to review yet" over a library of forty.
+- **Midnight now resets the cards, including for an app left open.** This supersedes `docs/issues.md` §11, which called the gap harmless and asked nobody to chase it. That was true of a set obviously rebuilt on every arrival; it stopped being true the moment the position became something the app remembers on purpose — `.task` runs on *appear*, and a phone left on review overnight foregrounds rather than re-appearing, so it would have woken on yesterday's eight at yesterday's card, looking deliberate. A `scenePhase` check rebuilds when the stored day isn't today.
+- **The accepted cost**, taken knowingly: mid-set at 11:58pm, away three minutes, back at 12:01am is a new set at card 1. Correct per "fixed per calendar day," and a conditional to dodge it would be the kind of cleverness that becomes the next bug.
+
+**Rejected: keeping `ReviewView` alive across tab switches** (a real `TabView`, or `ZStack` + `.opacity`). It fixes the position in a few lines, but not the set across a relaunch, and it leaves all three tabs' `@Query`s live and re-evaluating bodies on every `context.save()` — the class of defect §23 of `docs/issues.md` was written about. Persistence, not view lifetime.
+
+---
+
+## 24. A note can be edited, and the edit is silent
+
+**Phase 15.** Nothing in the app could correct a note. A typo was permanent, and so were the two things the app itself warns are unreliable: a transcript from on-device recognition and a line of OCR off a printed page. The app is careful to land both in an *editable field before the save* — `docs/planning.md` phase 3 and phase 9 both say so — and then offered nothing after it. Delete and retype was the only recovery, behind a long press with no visible affordance.
+
+For an app whose whole premise is that a note is worth meeting again in six weeks, a note you can't correct is the wrong kind of permanent.
+
+`NoteWriter.update` is the one path a note takes to change its own words, for the same reason `save` is the one path it takes to exist and `refile` the one path it takes to change books. `EditNoteSheet` is the only thing that calls it, reached from `edit` on a row's long press — the same menu as `move to book…` and `delete`, and `edit` sits first because it's the only one of the three that is neither destructive nor a move.
+
+- **The type selector, the recorder and the scanner are not on it.** They're capture-time controls. How a note was captured is a fact about the note rather than about the keystrokes — the same rule that already keeps an edited transcript a `voice` — so `update` doesn't take a kind and a draft carrying one can't smuggle it in.
+- **The book isn't on it either.** `move to book…` is its own path through `refile`, on the same long press. Folding it in would be a second way to do one thing.
+- **The edit is silent.** No `editedAt`, no `edited` on the row, and `createdAt` is untouched, so the note holds its id and its place in the stream. §22's rule — the app doesn't spend a line saying what the reader already knows they just did — and it kept the schema at V1 on the day V1 was named.
+- **A changed body clears the embedding; a changed page or tag doesn't.** `AffinityEngine` scores tags as their own term and never reads a page, so only words are worth re-embedding a library over.
+
+**Both halves of the embedding get cleared, and the reason is not one reason twice.** `docs/planning.md` had been carrying a prescription for this since phase 6 — clear `embeddedAt`, "the queue is the only thing that would notice" — and it was half the answer:
+
+- `embedding` is what `LinkWriter.embed` reads as `hasVector`, and it skips every candidate that has one. Keep it and the re-embedding pass skips the single note that needed it, while `vector(from:)` goes on scoring the reader against words they deleted.
+- `embeddedAt` is what `.linking()` counts as `pending`. An edit changes neither the library's note count nor its pending count on its own, so the modifier's `queue` compares equal and **the recompute never fires at all.**
+
+Clear only the second and you re-trigger a pass that re-embeds nothing. Clear only the first and nothing triggers the pass. `NoteWriterTests` asserts each field with its reason written beside it, because a regression in either is silent.
+
+**Book detail was consolidated to one `.sheet` on the way through.** It already carried two, which `StreamView` documents as "a coin-toss over which one presents"; `edit` would have made it three. It now has one `BookDetailSheet` value, the way the stream has one `StreamSheet`.
+

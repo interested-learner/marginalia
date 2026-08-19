@@ -212,13 +212,29 @@ At `accessibility-extra-extra-extra-large`, in both light and dark (`/tmp/ax5-cr
 
 **What that does and doesn't settle.** A static screenshot cannot tell "clipped, nothing more to see" apart from "scrollable, and this is the top of it" — both look identical in a single capture. So this entry says only what the image shows, not which of those two it is. The construction argument above is a reason to expect the scroll works; it is not a finger on a device confirming it does. **Whether the inner scroll actually engages on the crossing card at AX5 is unconfirmed**, and a screenshot cannot settle it — it needs a device, or a driven simulator (§12's XCUITest gap covers exactly this kind of question), to actually attempt the swipe.
 
+**Phase 13 changed what is above the fold, and deliberately not where the fold is.** The card's head gained a sentence (`the app connected these two notes`) and the gap moved out of the foot into the seam between the halves as a `LabeledRule` — `docs/decisions.md` §22. Uncapped, that head ran to four lines at AX5 and pushed the fold up past the seam, which was strictly worse than what this entry describes; `chromeTypeSize()` on the head puts the fold back exactly where the images above show it, cutting the second note after `Attention is a`. **Verified by screenshot in both appearances at AX5, before and after the cap.**
+
+What did improve: `29 days apart` is now *above* the fold, where in the foot it never was. So a reader at this text size who cannot reach the second half can at least reach the card's statement about the pair. `[x] not related` is still below the fold and still unproven.
+
 **If it turns out the scroll does work, there's still a design question sitting under this**, not a bug: is scrolling past a screen's worth of content the right affordance for a card whose entire second half — and its only action — is invisible on arrival, with nothing on screen hinting there's more below? The design system already folds the margin past `isAccessibilitySize` (`CLAUDE.md`'s design rule 9) rather than leaving it to scroll off, so there's precedent in this app for an accessibility-size-specific layout change rather than relying on scroll alone. Which way a two-note card should fold — stack differently, shrink something, drop something — is an open design question this phase deliberately didn't answer. Don't answer it here either; find out first whether it needs answering.
+
+### 27. A sheet's save button is below the fold at the largest accessibility size
+
+**Found in phase 15 while screenshotting `EditNoteSheet`, and it is not that sheet's bug.** At `accessibility-extra-extra-extra-large` the edit sheet shows its header and a body field that fills the screen; the page field, the tag field and `save changes` are all below the fold. `CaptureSheet` was screenshotted at the same size immediately afterwards and is in the same state — worse, in fact, since the type selector and the book picker sit above its field too, so `save note` is further down. It has been that way since phase 3 and nobody had looked.
+
+Both use the same construction — `GeometryReader { ScrollView { VStack.frame(minHeight: proxy.size.height) } }` — with a `BodyField` that is `maxHeight: .infinity`, so the field absorbs the slack and the `TextEditor`'s own content at AX5 is tall enough to push everything after it past the bottom.
+
+**This is §25's caveat again and it is worth repeating: a screenshot cannot tell "clipped, nothing more to see" apart from "scrollable, and this is the top of it."** The construction is the one that scrolls elsewhere in the app, so the expectation is that it does here. That is a reason to expect it works, not a finger confirming it. **Unconfirmed, and it needs the same thing §25 needs** — a device or a driven simulator that actually attempts the swipe.
+
+**Deliberately not given a bespoke fix.** The obvious move — cap the body field's height on the edit sheet — would make the newest sheet in the app the only one that lays out differently at accessibility sizes, for a problem the sheet it was modelled on has too. If it turns out the scroll doesn't engage, both sheets want the same answer, and `docs/design-system.md`'s folding margin is the precedent for an accessibility-size-specific layout rather than relying on scroll alone.
 
 ### 7. ~~`fatalError` on a store that won't open~~ — fixed
 
 Replaced by `StoreFailureView`. See §0.
 
-**What's left, and it's real:** the *silent* half of the fallback. If the disk store won't open but the in-memory one will, the app comes up on an empty library and says nothing, and notes written into it vanish on quit. That's arguably worse than the crash was — it's just quieter. Naming it on screen is the follow-on job, and it needs a decision about what the app should do rather than only a screen.
+~~**What's left, and it's real:** the *silent* half of the fallback.~~ **Fixed in phase 15, and the decision it needed was to delete the fallback rather than to name it.** `MarginaliaApp` no longer opens a temporary store when the real one won't open — a library the app can't reach now lands on `StoreFailureView`, which already said the right thing ("your notes have not been deleted") and was simply never routed to. An app that can't reach the library has to refuse writes it can't keep.
+
+`Library.open` is the one place that decision lives, and `LibraryOpenTests` pins it — the guarantee here is a *refusal*, which is invisible by construction and is exactly the class of regression this project keeps shipping. `Library.prepare` was folded into it on the way: it used to be called with `try?`, so a store that opened but wouldn't prepare carried on with an unreserved id counter and would hand out `n.11` twice.
 
 ### 8. ~~Nothing deletes anything~~ — fixed
 
@@ -230,13 +246,27 @@ Notes, books and follow-ups all delete, through `Eraser` and a confirmation. See
 
 Named on the first save, allowed on the second. See §0.
 
+### 26. ~~Review forgot the swipe you were on, and the set you were in~~ — fixed
+
+Reported from a device: *"doesn't seem to stay updated to the swipe the person was on or if they finished for the day. Even if I go from books to review and swipe, then back to books, then back to review, it refreshes it."*
+
+Two defects wearing one coat. `ReviewView` held the set and the position in `@State`, and `RootView` is a `switch tab` rather than a `TabView`, so leaving the tab destroyed both — every return rebuilt at card 1. **And the rebuild returned a different set**, because `ReviewSetBuilder` scores on `lastSurfacedAt` and paging past a card writes it: each card actually read scored ~0 on the way back and fell out of the eight. The more of the set you read, the less of it came back.
+
+**Neither half was visible in a screenshot or a passing suite**, and both contradicted `docs/decisions.md` §4, which has promised "fixed per calendar day so leaving and returning doesn't reshuffle it" since phase 5. The tests proved the builder was day-stable, which it is — over a library nobody has read. Fixed by `ReviewSession`; see `docs/decisions.md` §23.
+
 ### 10. `surfaceCount` and `lastSurfacedAt` have no way back
 
 If review surfaces a note you didn't actually read — the app was open on the tab while you did something else — the note is pushed weeks down the queue with no way to undo it. Not urgent, but worth knowing before tuning the set in a later phase.
 
-### 11. The card set doesn't notice midnight
+### 11. ~~The card set doesn't notice midnight~~ — fixed, and the reasoning that filed it was wrong
 
-`ReviewView` builds the day's set once, on arrival, and holds it. That is deliberate and correct within a session (see `docs/planning.md` §phase 5), but an app left open across midnight keeps yesterday's set until the tab is revisited. Harmless; noted so nobody "fixes" the holding behavior to chase it.
+**This entry used to say the gap was harmless and ask nobody to chase it.** That rested on the day's set being rebuilt on every arrival, which made a stale set self-correcting the moment the reader left the tab. Phase 14 made the set something the app *remembers* (`docs/decisions.md` §23), and the same behavior stopped being harmless: waking up on yesterday's eight notes at yesterday's card reads as deliberate rather than as a stale view.
+
+It was also worse than the entry described. `.task` runs on **appear**, and an app backgrounded on the review tab overnight *foregrounds* — it does not re-appear — so the common path was not the reader sitting on the tab at 11:59pm, it was opening the phone the next morning.
+
+The day now lives in `review.day` and is checked in two places: `ReviewSession.resume` on appear, and a `scenePhase` check on foreground. **The remaining gap is only the reader actively looking at review as midnight ticks**, which nothing wakes; that one is genuinely harmless, because any move off the tab or out of the app corrects it.
+
+Known cost, taken deliberately: mid-set at 11:58pm, away three minutes, back at 12:01am is a new set at card 1.
 
 ### 15. ~~The recompute is O(N²) and nothing has measured it~~ — measured, and it's fine
 

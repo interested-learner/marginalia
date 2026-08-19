@@ -14,8 +14,6 @@ struct NoteRowData: Identifiable {
     /// make that much of the line open the book. Empty on book detail, where the
     /// title is already at the top of the screen and isn't in the line at all.
     var bookTitle: String = ""
-    /// Connected notes, by short id. Rendered `→ n.09`.
-    var links: [Int] = []
     /// Threaded beneath the note, oldest first — shown everywhere the note is.
     var followUps: [FollowUpRowData] = []
     /// Only the review card acts on this, but the row is the only thing a view
@@ -47,6 +45,8 @@ struct NoteRow: View {
     /// Files the note under a different book. `nil` hides the action — book
     /// detail doesn't offer it, because the answer there is already on screen.
     var onMove: (() -> Void)?
+    /// Rewrites the note's own words, page and tags. `nil` hides the action.
+    var onEdit: (() -> Void)?
 
     var body: some View {
         VStack(spacing: 0) {
@@ -66,13 +66,10 @@ struct NoteRow: View {
                             .fixedSize(horizontal: false, vertical: true)
                     }
 
-                    // Source and connections are one paragraph so they wrap
-                    // together. An HStack pushes the links onto the wrong line
-                    // whenever the source is long enough to break.
                     Text(sourceLine)
                         .font(Typography.source)
                         .foregroundStyle(Theme.textMute)
-                        .tint(Theme.textMute)   // links stay in-palette, never iOS blue
+                        .tint(Theme.textMute)   // the title link stays in-palette, never iOS blue
                         .fixedSize(horizontal: false, vertical: true)
 
                     // Under the source, because the source belongs to the note
@@ -88,6 +85,12 @@ struct NoteRow: View {
             // confirmation is the app's own; this is only the way in.
             .contentShape(Rectangle())
             .contextMenu {
+                // `edit` first: it is the only one of the three that is neither
+                // destructive nor a move, and it is the one a reader who spots
+                // a typo is reaching for.
+                if let onEdit {
+                    Button("edit \(note.idLabel)", action: onEdit)
+                }
                 if let onMove {
                     Button("\(Glyphs.forward) move to book…", action: onMove)
                 }
@@ -100,32 +103,23 @@ struct NoteRow: View {
         }
     }
 
-    /// `Thinking, Fast and Slow · p.214 · #systems · → n.09`
+    /// `Thinking, Fast and Slow · p.214 · #systems`
     ///
-    /// Connections carry a `marginalia://note/…` link so they stay tappable
-    /// while still flowing inline; `RootView` intercepts the scheme. The book's
-    /// title carries `marginalia://book/…` for the same reason and by the same
-    /// route — the whole line has to stay one wrapping paragraph, so everything
-    /// tappable in it is a link rather than a button.
+    /// The book's title carries a `marginalia://book/…` link so it stays
+    /// tappable while still flowing inline; `RootView` intercepts the scheme.
+    /// The line has to stay one wrapping paragraph, so what is tappable in it is
+    /// a link rather than a button.
     ///
-    /// **The title isn't underlined.** `docs/design-system.md` underlines the
-    /// connections and says only that the book is tappable; a rule under every
-    /// title would put a second underline on most rows in the app.
+    /// **The title isn't underlined**, and now nothing on the row is. It used to
+    /// carry no rule so as not to compete with the connections beside it
+    /// (`· → n.09`, underlined); those came out in phase 13 and the reasoning
+    /// survives them — an underline under every book title on every row is a
+    /// rule through most of the stream. `docs/decisions.md` §22.
     private var sourceLine: AttributedString {
         var line = AttributedString(note.source)
 
         if !note.bookTitle.isEmpty, let title = line.range(of: note.bookTitle) {
             line[title].link = NoteLink.url(forBookOf: note.id)
-        }
-
-        for shortID in note.links {
-            line += AttributedString(" · ")   // separator stays unadorned
-            // Non-breaking, or a wrap drops the arrow on one line and the id it
-            // points at on the next.
-            var part = AttributedString("\(Glyphs.forward)\u{00A0}\(Glyphs.noteID(shortID))")
-            part.underlineStyle = .single
-            part.link = NoteLink.url(for: shortID)
-            line += part
         }
         return line
     }

@@ -208,7 +208,7 @@ struct NoteWriterTests {
 
     /// Everything about the note except which shelf it sits on. The id above
     /// all: a note that changed books and changed id would break every
-    /// `→ n.11` ever written about it.
+    /// `[[n.11]]` ever exported about it.
     @Test func movingANoteChangesNothingElseAboutIt() throws {
         let (context, counter) = try library()
         var draft = CaptureDraft(kind: .quote, text: "a passage")
@@ -244,5 +244,146 @@ struct NoteWriterTests {
 
         #expect(note.book?.title == "Meditations")
         #expect(try context.fetchCount(FetchDescriptor<Note>()) == 41)
+    }
+
+    // MARK: Editing
+
+    /// A helper that puts a note in the store already embedded, which is the
+    /// state every note is in by the time anybody edits one.
+    private func embedded(
+        _ context: ModelContext,
+        _ counter: ShortIDCounter,
+        text: String = "attention is a finite budget",
+        page: Int? = 214,
+        tags: [String] = ["attention", "systems"]
+    ) throws -> Note {
+        let note = try #require(try NoteWriter.save(
+            CaptureDraft(kind: .quote, text: text,
+                         page: page.map(String.init) ?? "",
+                         tags: tags.joined(separator: " ")),
+            in: context, counter: counter))
+        note.embedding = NoteEmbedding.pack([0.5, 0.5])
+        note.embeddedAt = .now
+        note.embeddingSource = .sentence
+        try context.save()
+        return note
+    }
+
+    @Test func anEditRewritesTheBody() throws {
+        let (context, counter) = try library()
+        let note = try embedded(context, counter)
+
+        let changed = try NoteWriter.update(
+            note, to: CaptureDraft(text: "attention is a finite resource"), in: context)
+
+        #expect(changed)
+        #expect(note.text == "attention is a finite resource")
+    }
+
+    @Test func anEditRewritesThePageAndTheTags() throws {
+        let (context, counter) = try library()
+        let note = try embedded(context, counter)
+
+        try NoteWriter.update(
+            note,
+            to: CaptureDraft(text: note.text, page: "p. 215", tags: "#attention, #memory"),
+            in: context)
+
+        #expect(note.page == 215)
+        #expect(note.tags == ["attention", "memory"])
+    }
+
+    /// The whole reason `update` isn't a two-line setter. A note whose words
+    /// changed carries a vector for words it no longer says.
+    @Test func rewritingTheBodyClearsTheEmbedding() throws {
+        let (context, counter) = try library()
+        let note = try embedded(context, counter)
+
+        try NoteWriter.update(
+            note, to: CaptureDraft(text: "something else entirely"), in: context)
+
+        // `embedding` is what `LinkWriter.embed` reads as `hasVector` — keep it
+        // and the re-embedding pass skips the one note that needs it.
+        #expect(note.embedding == nil)
+        // `embeddedAt` is what `.linking()` counts as `pending` — keep it and
+        // the recompute is never triggered at all.
+        #expect(note.embeddedAt == nil)
+        #expect(note.embeddingSource == nil)
+        #expect(note.vector(from: .sentence) == nil)
+    }
+
+    /// And the other half of that rule: a page or a tag is not a word.
+    /// `AffinityEngine` scores tags as their own term and never reads a page,
+    /// so neither is worth re-embedding a library over.
+    @Test func changingOnlyThePageKeepsTheEmbedding() throws {
+        let (context, counter) = try library()
+        let note = try embedded(context, counter)
+
+        try NoteWriter.update(
+            note, to: CaptureDraft(text: note.text, page: "215",
+                                   tags: note.tags.joined(separator: " ")),
+            in: context)
+
+        #expect(note.page == 215)
+        #expect(note.embedding != nil)
+        #expect(note.embeddedAt != nil)
+    }
+
+    /// How a note was captured is a fact about the note, not about the
+    /// keystrokes — the same rule that keeps an edited transcript a `voice`.
+    /// `update` doesn't take a kind, and a draft carrying one can't smuggle it.
+    @Test func anEditNeverChangesHowTheNoteWasCaptured() throws {
+        let (context, counter) = try library()
+        let note = try embedded(context, counter)
+        #expect(note.kind == .quote)
+
+        try NoteWriter.update(
+            note, to: CaptureDraft(kind: .thought, text: "rewritten"), in: context)
+
+        #expect(note.kind == .quote)
+    }
+
+    /// An edit is silent: the note holds its place in the stream and its id,
+    /// and nothing anywhere says `edited`.
+    @Test func anEditKeepsTheIdTheBookAndThePlaceInTheStream() throws {
+        let (context, counter) = try library()
+        let note = try embedded(context, counter)
+        let id = note.shortID
+        let written = note.createdAt
+        let book = note.book
+
+        try NoteWriter.update(note, to: CaptureDraft(text: "rewritten"), in: context)
+
+        #expect(note.shortID == id)
+        #expect(note.createdAt == written)
+        #expect(note.book === book)
+    }
+
+    /// Emptying the field is not how a note is deleted — `Eraser` is, through a
+    /// confirmation. A save that would blank a note is refused and changes
+    /// nothing.
+    @Test func anEditCannotEmptyANote() throws {
+        let (context, counter) = try library()
+        let note = try embedded(context, counter)
+
+        let changed = try NoteWriter.update(note, to: CaptureDraft(text: "   \n "), in: context)
+
+        #expect(!changed)
+        #expect(note.text == "attention is a finite budget")
+    }
+
+    /// Opening the sheet and closing it again is not a write, so it doesn't
+    /// churn the embedding or the graph.
+    @Test func anEditThatChangesNothingIsNotAWrite() throws {
+        let (context, counter) = try library()
+        let note = try embedded(context, counter)
+
+        let changed = try NoteWriter.update(
+            note,
+            to: CaptureDraft(text: note.text, page: "214", tags: "attention systems"),
+            in: context)
+
+        #expect(!changed)
+        #expect(note.embedding != nil)
     }
 }

@@ -166,14 +166,19 @@ struct EraserTests {
         #expect(ConnectionIndex.build(edges: [edge]).isEmpty)
     }
 
-    @Test func aConnectionNamesBothItsEndsInReadingOrder() throws {
+    /// **The question doesn't name the two ids**, because the crossing card it
+    /// is asked from no longer draws them — `docs/decisions.md` §22. It would be
+    /// precise about something the reader has never seen on that screen. What
+    /// goes is in the consequence, which is what the question is for.
+    @Test func aConnectionAsksAboutTheTwoNotesWithoutNamingThem() throws {
         let context = try store()
-        // Stored high → low, to prove the sentence doesn't read off the edge.
         let edge = NoteEdge(from: note(11, in: context), to: note(7, in: context))
         context.insert(edge)
 
-        #expect(Erasure.connection(edge).title == "disconnect n.07 and n.11?")
+        #expect(Erasure.connection(edge).title == "disconnect these two notes?")
+        #expect(Erasure.connection(edge).title.contains("n.07") == false)
         #expect(Erasure.connection(edge).confirmTitle.contains("disconnect"))
+        #expect(Erasure.connection(edge).consequence.contains("only the line between them goes"))
     }
 
     // MARK: What the confirmation is about to do

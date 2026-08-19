@@ -18,7 +18,9 @@ struct CrossingCardData {
 ///
 /// **A hairline between the halves, never an arrow.** `NoteEdge` stores a
 /// direction and the app has displayed both ways since phase 6; a `→` here would
-/// be the first place it contradicted that.
+/// be the first place it contradicted that. It is a `LabeledRule` rather than a
+/// bare one — see the seam below for why a plain divider was saying the wrong
+/// thing — and a label is not a direction.
 struct CrossingCard: View {
     let crossing: CrossingCardData
     /// True once the reader has said the pair isn't one. The card stays where it
@@ -47,12 +49,16 @@ struct CrossingCard: View {
 
     private var card: some View {
         VStack(alignment: .leading, spacing: 16) {
-            Text("\(crossing.a.idLabel) · \(crossing.b.idLabel) · \(Glyphs.crossing) crossing")
-                .font(Typography.meta)
-                .foregroundStyle(Theme.textAsh)
+            head
 
             half(crossing.a)
-            Hairline()
+            // **The seam carries the claim.** A bare `Hairline` here is the
+            // same rule the app uses everywhere else to mean *these are
+            // separate items*, which is the opposite of what this card says.
+            // `29 days apart` is the fact that lands (`docs/decisions.md` §21)
+            // and it used to sit in the foot, below both notes, reading as
+            // chrome — so it moved to the one place the reader has to cross.
+            LabeledRule(label: crossing.gap)
             half(crossing.b)
 
             foot
@@ -61,6 +67,42 @@ struct CrossingCard: View {
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(.horizontal, 20)
         .padding(.vertical, 24)
+    }
+
+    /// `[◇] crossing` over the sentence that says who is claiming it.
+    ///
+    /// **The two ids came out.** They said nothing a reader could use — the
+    /// same reason `→ n.11` came off every row — and the two books are
+    /// already named in the halves' own source lines.
+    ///
+    /// **The sentence names the app, not the idea.** `docs/decisions.md` §21 is
+    /// exact that the three things carrying this card are facts and none of
+    /// them is a claim the model makes; *the same idea* would have been one,
+    /// on scores `docs/issues.md` §14 says nobody has ever verified. That the
+    /// app drew a line is a fact, and it is also the thing `[x] not related`
+    /// operates on: a reader can contradict the app, not an idea.
+    private var head: some View {
+        VStack(alignment: .leading, spacing: 4) {
+            Text("\(Glyphs.crossing) crossing")
+                .font(Typography.meta)
+                .foregroundStyle(Theme.textAsh)
+
+            Text("the app connected these two notes")
+                .font(Typography.source)
+                .foregroundStyle(Theme.textMute)
+                .fixedSize(horizontal: false, vertical: true)
+        }
+        // **The head is a signpost, so it stops growing** — the fifth and last
+        // place in the app that does, beside the tab bar, `ScreenHeader`,
+        // review's foot and the capture bar's two markers.
+        //
+        // Uncapped it cost four lines at `accessibility-extra-extra-extra-large`
+        // and pushed the seam — the whole point of the card — off the bottom of
+        // the screen, so the card explained itself at the price of not showing
+        // the thing it was explaining. `docs/design-system.md` puts it as a
+        // rule: a signpost that fills the room it points out of is worse at its
+        // job. Both notes below stay uncapped and get every point they ask for.
+        .chromeTypeSize()
     }
 
     /// **`noteBody`, not `reviewBody`.** Every other review card is one note
@@ -91,12 +133,10 @@ struct CrossingCard: View {
         .onTapGesture { onOpen(note.id) }
     }
 
+    /// **The one action, and nothing else.** The gap used to share this row;
+    /// it is now the seam between the halves, where the reader passes it.
     private var foot: some View {
         HStack(spacing: 20) {
-            Text(crossing.gap)
-                .font(Typography.source)
-                .foregroundStyle(Theme.textMute)
-
             if rejected {
                 Text("disconnected")
                     .font(Typography.source)

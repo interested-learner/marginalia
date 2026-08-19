@@ -51,7 +51,7 @@ Sizes are **one step up from the prototype**, which was drawn for a browser wind
 
 **Every size scales with Dynamic Type.** Define the scale once in `Typography` against a text style and let it move with the reader's setting — never `.system(size:)` with a fixed number. Layouts must survive the accessibility sizes without clipping, and note bodies wrap rather than truncate.
 
-**Chrome stops growing at `xLarge`; content never stops.** `Typography.chromeCeiling` and the `chromeTypeSize()` modifier. It goes on the tab bar, `ScreenHeader`, review's foot **and the capture bar's two marker buttons** — and on nothing else. Everything that is the reading — every note body, quote, source line, thread, book title and field — is uncapped.
+**Chrome stops growing at `xLarge`; content never stops.** `Typography.chromeCeiling` and the `chromeTypeSize()` modifier. It goes on the tab bar, `ScreenHeader`, review's foot, the capture bar's two marker buttons **and the crossing card's head** — and on nothing else. Everything that is the reading — every note body, quote, source line, thread, book title and field — is uncapped.
 
 The last three were added in phase 11, all three found by looking at one screenshot at the largest accessibility size, and all three are the same argument the first three were:
 
@@ -125,13 +125,13 @@ The active tab is marked by a **2pt `ink` border on its top edge, offset up 1pt*
 The device that carries the app's name. Stream rows and book-detail notes place the id in a **48pt leading column with a `hairline` down its trailing edge**, so the column reads as an actual margin and the id annotates the text beside it.
 
 ```
-n.11 │ [v] voice · 2 min ago
+n.11 │ voice · 2 min ago
      │ Attention is a finite budget and
      │ switching costs are paid in
      │ comprehension.
      │ Thinking, Fast and Slow · p.214
 ─────────────────────────────────────
-n.09 │ [q] quote · #stoicism
+n.09 │ quote · #stoicism
      │ ┃ "Confine thyself to
      │ ┃  the present."
      │ Meditations · p.47
@@ -155,9 +155,11 @@ Padding `8 × 12`, minimum height 36, radius 4, 13pt.
 The margin column plus a content column. Padding `12 × 20`, `hairline` beneath.
 
 - Margin — id at 13 `textAsh`, with the rule as described above
-- Metadata — type label and relative time, 13 `textAsh`
+- Metadata — type label and relative time, 13 `textAsh`. **The word alone, with no marker beside it** — `thought · 3 days ago`, never `[t] thought`. A glyph is redundant exactly when the word next to it is the glyph's own name; `docs/decisions.md` §22
 - Body — 15/1.6 `textBody`, or the quote rule below if the note is a quote
-- Source — book · page · tag, 13 `textMute`, tappable to open the book. Connections (`→ n.09`) follow on the same line, underlined at 2pt offset. **The title is tappable and not underlined** — the connections carry the rule, and a second one under every title would put an underline on most rows in the app. Both are links inside one `AttributedString` rather than buttons, because the line has to stay one wrapping paragraph
+- Source — book · page · tag, 13 `textMute`, tappable to open the book. A link inside an `AttributedString` rather than a button, because the line has to stay one wrapping paragraph. **The title is tappable and not underlined**, so nothing on a row is: an underline under every book title would be a rule through most of the stream
+
+  **Connections used to follow on the same line** — `· → n.09`, underlined. They came off every row in phase 13 (`docs/decisions.md` §22): a bare id gives the reader nothing to decide with. The graph is still computed, still exported as `[[n.09]]`, and still read by the crossing card; it is no longer drawn on a row
 
 ### Quote rule
 
@@ -169,7 +171,19 @@ Text is 15/1.6 in **`ink`** (not `textBody`), indented 12pt from the rule, with 
 
 The prototype used a `surfaceSoft` filled block here. That was the one element borrowed from messaging UI rather than print, and it competed with the page in dark mode. `surfaceSoft` remains in use for inputs and pressed states.
 
-**A scan wears the rule too.** `[s] scan` is a passage read off a printed page — somebody else's words, exactly like a typed quote — so it's drawn the same way, everywhere the note appears. Its *metadata* still says `[s] scan`, because how a note was captured is a fact about the note. `NoteKind.isPassage` is the test; `kind == .quote` is not.
+**A scan wears the rule too.** A scan is a passage read off a printed page — somebody else's words, exactly like a typed quote — so it's drawn the same way, everywhere the note appears. Its *metadata* still says `scan` and never `quote`, because how a note was captured is a fact about the note. `NoteKind.isPassage` is the test; `kind == .quote` is not.
+
+### Labeled rule
+
+A `Hairline` with a word in the break: `──── 29 days apart ────`. `LabeledRule`, in `Design/Components/Rules.swift`.
+
+**The divider as a statement rather than a boundary**, and that is the whole of why it exists. Everywhere else in this app a hairline means *these are separate things* — between the two halves of a crossing it has to mean the opposite, and a label in the break is what turns it around. Same 12% `Theme.hairline`, no new weight, no fill.
+
+Label at 13 `textMute`, 12pt clear on each side, the two rules taking the remaining width equally. The label carries `layoutPriority(1)`, or two flexible hairlines take the width from it and wrap it to a word a line.
+
+**It folds past `isAccessibilitySize`** — the one conditional the margin also carries. At those sizes the label runs to two and three lines with the rules through the middle of it, and a rule with a paragraph in it has stopped being a rule. Folded, the hairline goes above the label and spans the full width, which is what a divider does everywhere else.
+
+**Used in exactly one place**, the crossing card's seam. `docs/decisions.md` §22.
 
 ### Date group header
 
@@ -321,7 +335,8 @@ There was a third row, `[◇] connections`, opening this note's corner of the ma
 The ninth card of the daily review, when the library has one to show: **two notes from two different books that the app connected by meaning**, and the gap in time between them. `docs/decisions.md` §21.
 
 ```
-n.08 · n.40 · [◇] crossing
+[◇] crossing
+the app connected these two notes
 
 good error messages assume the
 system is at fault, not the person
@@ -329,32 +344,39 @@ using it
 
 — The Design of Everyday Things · p.62 · #systems
 
-──────────────────────────────────
+────────── 29 days apart ──────────
 
 you are already part of the machine
 you think you are repairing
 
 — Zen and the Art of Motorcycle Maintenance · p.210 · #systems
 
-29 days apart   [x] not related
+[x] not related
 ```
 
 - **Centred and open like the review card**, and for the same reason: **no margin**. The margin belongs to screens where a row is one of many.
-- **The head is one line of metadata** at 13 `textAsh`: both ids and the marker — `n.08 · n.40 · [◇] crossing`.
+- **The head is the marker and a sentence**: `[◇] crossing` at 13 `textAsh` over `the app connected these two notes` at 13 `textMute`, 4pt apart. **It names the claimant, not the claim** — that the app drew a line is a fact, where *the same idea, in two books* would be a claim the model makes, which §21 rules out. It is also the fact `[x] not related` operates on: a reader can contradict the app, not an idea. **The two ids came off**, for the same reason they came off every row — `docs/decisions.md` §22.
+- **The head stops growing** — `chromeTypeSize()`, and the fifth and last place in the app that does. Uncapped, the sentence ran to four lines at AX5 and pushed the seam off the bottom of the screen: the card explaining itself at the price of not showing what it was explaining. Both notes below stay uncapped.
 - **Both halves are `noteBody`, not `reviewBody`.** Every other review card is one note filling the screen at 18pt; two at 18pt puts the second below the fold before the reader has a reason to look for it, and the gap between them is the point of the card. Body `ink`, source `textMute` behind an em dash — identical to everywhere else, and **a passage half wears the quote rule and no quote marks**, by `NoteKind.isPassage`.
-- **A `Hairline` between them, and never an arrow.** `NoteEdge` stores a direction and the app has displayed both ways since phase 6; a `→` here would be the first place it contradicted that. It is the same 12% hairline as every divider — this card adds no vocabulary.
-- **The foot is the gap and the one action**: `29 days apart` at 13 `textMute`, then `[x] not related` as a link button. Once pressed it becomes the past tense — `disconnected` at 13 `textAsh` — and the card stays where it is rather than vanishing under the thumb.
+- **A `LabeledRule` between them, carrying the gap, and never an arrow.** `NoteEdge` stores a direction and the app has displayed both ways since phase 6; a `→` here would be the first place it contradicted that, and **a label is not a direction**. It is the same 12% `Theme.hairline` as every divider.
+
+  **It is a labeled rule and not a bare one because a bare one was saying the wrong thing.** Everywhere else in this app a hairline means *these are separate items*, which is the opposite of what this card is about — the strongest visual signal on it argued against it. This block used to end *this card adds no vocabulary*; the correction is that the bare hairline was the **wrong** vocabulary rather than none. A labeled break is terminal furniture, not a new idiom.
+
+  And it is `29 days apart` in the break because that is the fact that lands — §21's *you thought this in August and again in March and never noticed*. In the foot it sat below both notes beside a destructive action and read as chrome; in the seam the reader passes it crossing from one half to the other.
+- **The foot is the one action**: `[x] not related` as a link button. Once pressed it becomes the past tense — `disconnected` at 13 `textAsh` — and the card stays where it is rather than vanishing under the thumb.
 - **`[x] not related` goes through `ConfirmSheet` and `Eraser.suppress`**, like every other delete in the app. It is an affordance, never a question: it does not gate paging and skipping it costs nothing.
 - **Tapping either half opens that note.** Everything a note can do — `star`, `add a thought` — is where the note is; the card does not carry six actions for two notes.
 - **It scrolls only when it overflows**, the same guard `ReviewCard` carries: a vertical scroll view nested inside the vertical *paging* scroll view swallows the page gesture otherwise.
 
-**Two full notes on one screen is the first card in this app designed to hold two**, and the accessibility sizes are where that will be decided. As of phase 12 it has been read in both appearances **and** at `accessibility-extra-extra-extra-large` — and at AX5 it broke: the second note is cut off after its first line and the card's only action, `[x] not related`, falls below the fold. Whether the inner scroll actually reaches it is unconfirmed. `docs/issues.md` §25 has the images and the detail.
+**Two full notes on one screen is the first card in this app designed to hold two**, and the accessibility sizes are where that will be decided. It has been read in both appearances **and** at `accessibility-extra-extra-extra-large`, and at AX5 it still breaks: the second note is cut off after its first line and `[x] not related` falls below the fold. Whether the inner scroll actually reaches it is unconfirmed. `docs/issues.md` §25 has the images and the detail.
+
+Phase 13 did not fix that and did not make it worse — the fold lands in the same place, because the head is capped. What it did change is *what is above* the fold: the seam and its `29 days apart` now are, where the gap in the foot never was. So at the largest text size the reader now reaches the card's statement even if they never reach its second half.
 
 ### Note picker
 
 The one place a reader makes a connection. A full-height sheet — `link n.04` and `[x]` over one field and the library, newest first.
 
-- Rows are compact: `n.40 · [v] voice · 3 mins ago` over three lines of the note and its source. **No margin column** — this is a list of things to choose, not a list of things to read.
+- Rows are compact: `n.40 · voice · 3 mins ago` over three lines of the note and its source. **No margin column** — this is a list of things to choose, not a list of things to read.
 - The note itself and everything it's already joined to are left off the list. A pair the reader once *disconnected* stays on it: they're allowed to change their mind.
 - An empty field lists the whole library rather than nothing. It's a picker first and a search second.
 - **Nothing here says the link will look different afterwards, because it won't.** A hand-made connection is drawn exactly like one the app found.
@@ -368,7 +390,7 @@ The foot carries the progress bar and the hint `↑ swipe up for next`. The hint
 A note's later thoughts, under the note they answer. Shown **everywhere the note is shown** — stream, book detail, and the review card — or `[+] add a thought` would appear to do nothing.
 
 ```
-n.04 │ [q] quote · jul 09
+n.04 │ quote · jul 09
      │ ┃ "Human error usually is a result of
      │ ┃  poor design."
      │ The Design of Everyday Things · p.68
@@ -393,7 +415,7 @@ search                                     [7]
 [ notes, books, authors, #tags…             ]
 ──────────────────────────────────────────────
 Thinking, Fast and Slow
-n.31 │ [t] thought · 5 days ago
+n.31 │ thought · 5 days ago
      │ …
 ```
 

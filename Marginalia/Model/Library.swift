@@ -4,7 +4,30 @@ import SwiftData
 /// The store, and what has to be true about it before the first screen draws.
 enum Library {
 
-    static let schema = Schema([Book.self, Note.self, FollowUp.self, NoteEdge.self])
+    static let schema = Schema(versionedSchema: LibrarySchemaV1.self)
+
+    /// The one place the app decides whether it has a library, and the whole of
+    /// what has to be true before the first screen draws.
+    ///
+    /// **There is no in-memory fallback here, deliberately.** Opening a
+    /// temporary store when the real one won't open gives the reader an app
+    /// that looks fine, takes every note they write, and drops all of them on
+    /// quit. `docs/issues.md` §7. A throw from here reaches `StoreFailureView`,
+    /// which says the notes are still on the disk and prints what went wrong.
+    ///
+    /// `makeContainer` is an injection point for the tests, and nothing else
+    /// passes it — a store that refuses to open is otherwise reachable only by
+    /// corrupting one.
+    static func open(
+        noteLimit: Int? = nil,
+        makeContainer: () throws -> ModelContainer = { try .marginalia() }
+    ) throws -> ModelContainer {
+        let store = try makeContainer()
+        // A library that won't prepare is a library that would hand out `n.11`
+        // twice, so it fails exactly the way one that won't open does.
+        try prepare(store.mainContext, noteLimit: noteLimit)
+        return store
+    }
 
     /// Runs on every launch. Seeds an empty store, then makes sure the id
     /// counter is ahead of everything already in it.
@@ -95,7 +118,47 @@ extension ModelContainer {
     static func marginalia(inMemory: Bool = false) throws -> ModelContainer {
         try ModelContainer(
             for: Library.schema,
+            migrationPlan: LibraryMigration.self,
             configurations: ModelConfiguration(isStoredInMemoryOnly: inMemory)
         )
     }
+}
+
+// MARK: Versions
+
+/// The schema as it shipped first.
+///
+/// **Why this exists before there is anything to migrate.** An unversioned
+/// `Schema` stamps no version into the store, so the day a model changes in a
+/// way SwiftData can't infer, the store simply won't open — and with no
+/// in-memory fallback (see `MarginaliaApp`) that is every existing reader
+/// looking at `StoreFailureView` after an update they didn't ask for. Naming
+/// version 1 costs nothing today and is the only thing a version 2 can migrate
+/// *from*.
+enum LibrarySchemaV1: VersionedSchema {
+    nonisolated(unsafe) static let versionIdentifier = Schema.Version(1, 0, 0)
+
+    static var models: [any PersistentModel.Type] {
+        [Book.self, Note.self, FollowUp.self, NoteEdge.self]
+    }
+}
+
+/// How the store gets from one version to the next. One version so far, so
+/// there are no stages yet.
+///
+/// **Adding a version 2 is a specific piece of work, not an edit to this list.**
+/// SwiftData migrates between *snapshots* of the model types, so a `V2` has to
+/// carry its own copies of whatever changed rather than pointing at the live
+/// ones — otherwise both versions describe the same current types and the
+/// migration is a no-op that silently does nothing. The additive cases
+/// (a new property with a default, a new model) are `.lightweight`; anything
+/// that renames, retypes or moves data is `.custom` and needs the `willMigrate`
+/// / `didMigrate` pair to carry it across.
+///
+/// Whatever the change, it wants a test that opens a store written by the
+/// previous version and reads it back — `docs/issues.md` §7 is the reminder of
+/// what the failure looks like when nobody checks.
+enum LibraryMigration: SchemaMigrationPlan {
+    static var schemas: [any VersionedSchema.Type] { [LibrarySchemaV1.self] }
+    static var stages: [MigrationStage] { [] }
 }

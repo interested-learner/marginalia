@@ -186,6 +186,58 @@ struct CrossingFinderTests {
         #expect(picked.count > 2)
     }
 
+    // MARK: Finding one back by its pair
+
+    /// How a stored session gets its ninth card back. `docs/decisions.md` §4:
+    /// the day's set is fixed per calendar day, and the crossing is card nine
+    /// of it.
+    @Test func findReturnsTheCrossingForApair() {
+        let one = book("Norman"), two = book("Pirsig")
+        let a = note(1, in: one), b = note(2, in: two)
+
+        let found = CrossingFinder.find(pair: (1, 2), in: [edge(a, b, 0.6)])
+
+        #expect(found?.a.shortID == 1)
+        #expect(found?.b.shortID == 2)
+    }
+
+    /// `NoteEdge` stores a direction and the app has never displayed one, so
+    /// which end was stored first cannot decide whether the card comes back.
+    @Test func findMatchesThePairInEitherOrder() {
+        let one = book("Norman"), two = book("Pirsig")
+        let edges = [edge(note(1, in: one), note(2, in: two), 0.6)]
+
+        #expect(CrossingFinder.find(pair: (2, 1), in: edges) != nil)
+    }
+
+    /// **Unlike `all`, which skips suppressed edges.** A crossing the reader
+    /// disconnected keeps its slot for the rest of the day — `ReviewView`
+    /// refuses to remove the card or re-pick the pair within a session, and
+    /// coming back from another tab must not put a fresh claim under a thumb
+    /// that just answered the question.
+    @Test func findStillReturnsAsuppressedCrossing() {
+        let one = book("Norman"), two = book("Pirsig")
+        let edges = [edge(note(1, in: one), note(2, in: two), 0.6, suppressed: true)]
+
+        #expect(CrossingFinder.all(from: edges).isEmpty)
+        #expect(CrossingFinder.find(pair: (1, 2), in: edges) != nil)
+    }
+
+    @Test func findReturnsNothingForApairThatIsNotConnected() {
+        let one = book("Norman"), two = book("Pirsig")
+        let edges = [edge(note(1, in: one), note(2, in: two), 0.6)]
+
+        #expect(CrossingFinder.find(pair: (1, 3), in: edges) == nil)
+    }
+
+    /// `Eraser` exists because a deleted note leaves its edges with one end
+    /// nil, and an edge with one end missing can never be drawn.
+    @Test func findReturnsNothingForAdanglingEdge() {
+        let dangling = NoteEdge(from: nil, to: nil, score: 0.6)
+
+        #expect(CrossingFinder.find(pair: (1, 2), in: [dangling]) == nil)
+    }
+
     /// Three crossings over six books, so every note is in exactly one.
     private func threeCrossings() -> [NoteEdge] {
         let books = (0..<6).map { book("b\($0)") }

@@ -15,6 +15,60 @@ struct Hairline: View {
     }
 }
 
+/// A hairline that carries a word: `──── 29 days apart ────`.
+///
+/// **The divider as a statement rather than a boundary.** Everywhere else in
+/// this app a `Hairline` means *these are separate things*, which is exactly
+/// what the crossing card's seam must not say — the two halves of a crossing
+/// are the one thing the card is about. A label in the break is what turns the
+/// rule around, and it is the same 12% `Theme.hairline` doing it: no new
+/// weight, no fill, and still not an arrow.
+///
+/// The label sits at `Typography.source` / `Theme.textMute`, the weight the gap
+/// already had in the crossing card's foot. Nothing got louder; it moved.
+///
+/// **It folds past `isAccessibilitySize`**, the one conditional `MarginColumn`
+/// also carries. At those sizes the label wraps to two and three lines and the
+/// rules run through the middle of it — a rule with a paragraph in it has
+/// stopped being a rule. Folded, the hairline goes above the label and spans
+/// the full width, which is what a divider does everywhere else in the app.
+struct LabeledRule: View {
+    let label: String
+
+    @Environment(\.dynamicTypeSize) private var typeSize
+
+    var body: some View {
+        if typeSize.isAccessibilitySize { folded } else { ruled }
+    }
+
+    private var ruled: some View {
+        HStack(spacing: 12) {
+            Hairline()
+
+            text
+                // Two flexible hairlines will otherwise take the width from the
+                // label and wrap it to one word a line.
+                .layoutPriority(1)
+
+            Hairline()
+        }
+    }
+
+    private var folded: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Hairline()
+            text
+        }
+    }
+
+    private var text: some View {
+        Text(label)
+            .font(Typography.source)
+            .foregroundStyle(Theme.textMute)
+            .fixedSize(horizontal: false, vertical: true)
+    }
+}
+
 /// The device that carries the app's name.
 ///
 /// Puts the note id in a 48pt leading column with a hairline down its trailing

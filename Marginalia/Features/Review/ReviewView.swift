@@ -4,9 +4,15 @@ import SwiftData
 /// One note per screen, swiped vertically through a set chosen fresh each day.
 /// No keep/skip/later — see `docs/decisions.md` §4.
 ///
-/// **The set is built once, on arrival, and held.** Rebuilding it every redraw
-/// would reshuffle the deck under the reader's thumb the moment they starred
-/// something, because a star is one of the things the set is scored on.
+/// **The set is built once a day and stored**, in `ReviewSession`. Rebuilding it
+/// every redraw would reshuffle the deck under the reader's thumb the moment
+/// they starred something, because a star is one of the things the set is
+/// scored on — and `@State` alone was the wrong place to hold it. `RootView` is
+/// a `switch tab` rather than a `TabView`, so leaving review destroys every
+/// `@State` here, **and the rebuild is not the same set**: `ReviewSetBuilder`
+/// scores on `lastSurfacedAt`, which paging past a card writes, so every card
+/// actually read scores ~0 on the way back and falls out of the eight.
+/// `docs/decisions.md` §23.
 struct ReviewView: View {
     /// A note handed over by a tapped reminder. The card opens on it when it's
     /// in the day's set, and on the first card when it isn't — a notification
@@ -26,6 +32,14 @@ struct ReviewView: View {
 
     @Environment(\.modelContext) private var context
     @Environment(\.colorScheme) private var scheme
+    /// The midnight rollover's only cue. `.task` runs on *appear*, and an app
+    /// left on this tab overnight never re-appears — it foregrounds.
+    @Environment(\.scenePhase) private var phase
+
+    /// Where the reader was, across tab switches and launches. `RootView` is a
+    /// `switch` rather than a `TabView`, so leaving this tab destroys every
+    /// `@State` below and none of them can be the memory.
+    private let session = ReviewSession()
 
     @State private var today: [Note] = []
     /// Whether `[↻] keep going` would find anything. Held rather than computed:
@@ -74,6 +88,11 @@ struct ReviewView: View {
         // A reminder tapped while review is already on screen. The `.task`
         // covers arriving from another tab; this covers not moving at all.
         .onChange(of: card) { _, _ in arrive() }
+        // Foregrounding, which is the one way this view sees a new day without
+        // being rebuilt. `rollOver` is a no-op on the same day.
+        .onChange(of: phase) { _, current in
+            if current == .active { rollOver() }
+        }
         .sheet(item: $composing) { note in
             FollowUpSheet(note: note)
                 .presentationBackground(Theme.canvas)
@@ -96,10 +115,8 @@ struct ReviewView: View {
     private var cards: some View {
         ScrollView(.vertical) {
             LazyVStack(spacing: 0) {
-                let connections = self.connections
                 ForEach(Array(today.enumerated()), id: \.offset) { index, note in
-                    ReviewCard(note: row(note, connections: connections),
-                               actions: actions(for: note, connections: connections))
+                    ReviewCard(note: row(note), actions: actions(for: note))
                         .containerRelativeFrame(.vertical)
                         .id(index)
                 }
@@ -131,6 +148,12 @@ struct ReviewView: View {
             // at the closing card and on `keep going` too — anywhere the deck
             // moves. Surfacing is the narrower event and keeps its own guard.
             if previous != current { Haptics.paged() }
+
+            // **Above the guard below**, which returns early on the crossing and
+            // the closing card — the two places the reader is most likely to
+            // leave from, and the ones that say "finished for the day".
+            record()
+
             // **Paging past a crossing surfaces nothing**, and this guard
             // already does it: the crossing card's index is `today.count`, so it
             // fails the bound. That is deliberate rather than lucky — marking
@@ -183,13 +206,90 @@ struct ReviewView: View {
 
     private func open() {
         if today.isEmpty {
-            today = ReviewSetBuilder.set(from: notes, on: .now)
+            // Before the resume, or it would read a day it is about to change.
+            if UserDefaults.standard.bool(forKey: "reviewYesterday") { session.backdate() }
+
+            if !resume() { build() }
             more = hasMore
-            crossing = CrossingFinder.pick(from: edges, on: .now,
-                                           avoiding: Set(today.map(\.shortID)))
+            // **After the restore**, so a launch argument still overrides a
+            // stored position — it is a debugging device and has to win. And
+            // `record()` after it, so the position it lands on is the one kept:
+            // that is what makes `-reviewCard 4`, relaunch, still `4 of 8` a
+            // test of this feature rather than of the argument.
             openAtLaunch()
+            record()
         }
         arrive()
+    }
+
+    /// The day's set, chosen fresh. Also the midnight rollover, which is why
+    /// `position` is reset here rather than by the caller.
+    private func build() {
+        today = ReviewSetBuilder.set(from: notes, on: .now)
+        crossing = CrossingFinder.pick(from: edges, on: .now,
+                                       avoiding: Set(today.map(\.shortID)))
+        position = 0
+    }
+
+    /// Today's set as the reader left it, or `false` when there is nothing to
+    /// come back to.
+    ///
+    /// **The set is restored rather than rebuilt**, and that is the point:
+    /// `ReviewSetBuilder` scores on `lastSurfacedAt`, which paging past a card
+    /// writes, so a rebuild after reading returns a *different* eight. Every
+    /// card actually read scores ~0 and falls out. `docs/decisions.md` §4 has
+    /// promised the opposite since phase 5.
+    private func resume() -> Bool {
+        guard let stored = session.resume(on: .now) else { return false }
+
+        // Empty when too few of the stored notes still exist — a set that lost
+        // notes to a delete between visits is no longer the day's set.
+        let kept = ReviewSession.rehydrate(stored.set, from: notes)
+        guard !kept.isEmpty else { return false }
+
+        today = kept
+        crossing = stored.crossing.flatMap {
+            CrossingFinder.find(pair: ($0.a, $0.b), in: edges)
+        }
+        // No stored flag: the suppression is already in the store, and it is
+        // the same fact. A pair the reader disconnected comes back disconnected
+        // rather than as a fresh claim.
+        rejected = crossing?.edge.isSuppressed ?? false
+        // Clamped, because `kept` may be shorter than what was stored.
+        position = min(max(stored.position, 0), lastIndex)
+        return true
+    }
+
+    /// Every key, every time — four of them written together can't disagree
+    /// about which day they belong to.
+    private func record() {
+        session.record(
+            set: today.map(\.shortID),
+            position: index,
+            crossing: crossing.map { ReviewSession.Pair($0.a.shortID, $0.b.shortID) },
+            on: .now
+        )
+    }
+
+    /// Midnight, for an app that was left open. Leaving the tab tears this view
+    /// down and `open()` handles the new day on the way back, but backgrounding
+    /// does not — so a phone left on review overnight would wake up on
+    /// yesterday's eight, at yesterday's card, looking deliberate.
+    ///
+    /// **This supersedes `docs/issues.md` §11**, which called the midnight gap
+    /// harmless and asked nobody to chase it. That was true of a set obviously
+    /// rebuilt on every arrival; it stopped being true when the position became
+    /// something the app remembers on purpose.
+    ///
+    /// The cost, taken knowingly: mid-set at 11:58pm, away three minutes, back
+    /// at 12:01am is a new set at card 1. A conditional to dodge that would be
+    /// the kind of cleverness that becomes the next bug.
+    private func rollOver() {
+        guard session.isStale(on: .now) else { return }
+        build()
+        more = hasMore
+        rejected = false
+        record()
     }
 
     /// A tapped reminder. Switching tabs rebuilds this view, so the handover
@@ -227,6 +327,9 @@ struct ReviewView: View {
         today += next
         more = hasMore
         position = landing
+        // The set grew, and the extension is part of today's set — coming back
+        // to eight cards after reading twelve would be its own kind of reset.
+        record()
         Haptics.paged()
     }
 
@@ -256,11 +359,11 @@ struct ReviewView: View {
 
     // MARK: A card
 
-    private func row(_ note: Note, connections: [Int: [Int]]) -> NoteRowData {
-        NoteRowData(note, connections: connections[note.shortID] ?? [])
+    private func row(_ note: Note) -> NoteRowData {
+        NoteRowData(note)
     }
 
-    private func actions(for note: Note, connections: [Int: [Int]]) -> ReviewActions {
+    private func actions(for note: Note) -> ReviewActions {
         ReviewActions(
             addThought: { composing = note },
             toggleStar: {
@@ -268,15 +371,11 @@ struct ReviewView: View {
                 Haptics.starred()
             },
             openBook: note.book.map { book in { onOpenBook(book) } },
-            shareCard: { ShareableCard(note: row(note, connections: connections), scheme: scheme) },
+            shareCard: { ShareableCard(note: row(note), scheme: scheme) },
             link: { linking = note }
         )
     }
 
-    /// Built **once per body pass and handed down**, never read from inside the
-    /// `ForEach`. As a computed property reached per row it rebuilt the whole
-    /// edge index for every card on screen, every redraw.
-    private var connections: [Int: [Int]] { ConnectionIndex.build(edges: edges) }
 
     // MARK: Where you are
 
@@ -311,6 +410,11 @@ struct ReviewView: View {
     /// `-reviewCard 3` opens on the third card, `-reviewEnd 1` on the closing
     /// card, `-followUp 1` with the composer already open over it, and
     /// `-confirmDelete connection` the disconnect confirmation over the crossing.
+    ///
+    /// `-reviewYesterday 1` is the odd one out and is read in `open()` rather
+    /// than here, because it has to backdate the stored day *before* the resume
+    /// reads it. `simctl` cannot move the clock, so it is the only way to see a
+    /// new day's set from the command line.
     private func openAtLaunch() {
         let defaults = UserDefaults.standard
 

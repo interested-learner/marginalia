@@ -19,7 +19,7 @@ enum Eraser {
     ///
     /// The id is **not** returned to the counter. A gap in the sequence reads as
     /// a deleted note, which is exactly what it is; a reused id would make an
-    /// old `→ n.07` point at a different note than the one it was written about.
+    /// old `[[n.07]]` point at a different note than the one it was written about.
     static func delete(_ note: Note, in context: ModelContext) throws {
         try prune(edgesTouching: [note], in: context)
         context.delete(note)
@@ -119,7 +119,11 @@ enum Erasure: Identifiable {
         case .note(let note): "delete \(note.idLabel)?"
         case .followUp: "delete this thought?"
         case .book(let book): "delete \(book.title)?"
-        case .connection(let edge): "disconnect \(Erasure.ends(of: edge))?"
+        // **Not the two ids.** The crossing card no longer draws them, so
+        // naming them here would be precise about something the reader has
+        // never seen on this screen. The consequence line below says exactly
+        // what goes, which is what the question is actually for.
+        case .connection: "disconnect these two notes?"
         }
     }
 
@@ -130,7 +134,7 @@ enum Erasure: Identifiable {
         switch self {
         case .note(let note):
             "the note and any thread under it go with it. "
-                + "\(note.idLabel) is retired rather than reused, so an old \(Glyphs.forward) \(note.idLabel) "
+                + "\(note.idLabel) is retired rather than reused, so an old reference to it "
                 + "will never point at a different note."
         case .followUp:
             "just this thought. the note it hangs under stays where it is."
@@ -150,14 +154,6 @@ enum Erasure: Identifiable {
         case .connection: "\(Glyphs.close) disconnect"
         default: "\(Glyphs.close) delete"
         }
-    }
-
-    /// `n.07 and n.11`, in the order the ids read rather than the order the edge
-    /// happens to store — direction is stored and never displayed.
-    private static func ends(of edge: NoteEdge) -> String {
-        let ids = [edge.from?.shortID, edge.to?.shortID].compactMap { $0 }.sorted()
-        guard ids.count == 2 else { return "these notes" }
-        return "\(Glyphs.noteID(ids[0])) and \(Glyphs.noteID(ids[1]))"
     }
 
     /// A thread row identifies itself by its **position in the thread**, so this

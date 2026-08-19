@@ -17,7 +17,6 @@ struct SearchView: View {
     let onOpenNote: (Int) -> Void
 
     @Query(sort: \Note.createdAt, order: .reverse) private var notes: [Note]
-    @Query private var edges: [NoteEdge]
 
     /// `-search "attention"` fills the field at launch — the simulator can't be
     /// typed into from the command line, and results are the whole screen.
@@ -45,11 +44,7 @@ struct SearchView: View {
                                 // The book is named by the group header above,
                                 // so the source line drops it — the same rule
                                 // book detail follows.
-                                NoteRow(note: NoteRowData(
-                                    note,
-                                    connections: connections[note.shortID] ?? [],
-                                    showingBook: false
-                                ))
+                                NoteRow(note: NoteRowData(note, showingBook: false))
                             }
                             .buttonStyle(PressedRow())
                         }
@@ -104,7 +99,6 @@ struct SearchView: View {
         return group.notes.compactMap { index[$0] }
     }
 
-    private var connections: [Int: [Int]] { ConnectionIndex.build(edges: edges) }
 
     private var emptyMessage: String {
         query.isEmpty

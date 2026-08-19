@@ -3,9 +3,10 @@ import Foundation
 /// Hands out the `n.11` ids, from a monotonic counter rather than from
 /// `max(shortID) + 1`.
 ///
-/// Ids are **never reused after a delete**. A dangling `→ n.07` pointing at a
-/// *different* note is worse than one pointing at nothing, and a counter derived
-/// from the store would do exactly that the moment the newest note is deleted.
+/// Ids are **never reused after a delete**. A dangling `[[n.07]]` in an exported
+/// document, pointing at a *different* note, is worse than one pointing at
+/// nothing, and a counter derived from the store would do exactly that the
+/// moment the newest note is deleted.
 struct ShortIDCounter {
     private static let key = "note.nextShortID"
 

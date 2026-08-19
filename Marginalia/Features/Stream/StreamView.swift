@@ -4,7 +4,7 @@ import SwiftData
 /// Every note across every book, newest first. The capture bar is pinned at the
 /// foot and present the whole time — that persistence is the point.
 struct StreamView: View {
-    /// A `→ n.11` tapped anywhere in the app lands here.
+    /// Opening a note by id lands here — a tapped reminder, or `-openNote`.
     @Binding var focus: Int?
     /// Whether the capture field has the keyboard. Owned by `RootView`, which
     /// takes the tab bar off the screen while it does.
@@ -14,7 +14,6 @@ struct StreamView: View {
     let onSettings: () -> Void
 
     @Query(sort: \Note.createdAt, order: .reverse) private var notes: [Note]
-    @Query private var edges: [NoteEdge]
     @Query private var books: [Book]
 
     @Environment(\.modelContext) private var context
@@ -63,6 +62,8 @@ struct StreamView: View {
                 switch which {
                 case .move(let note):
                     MoveNoteSheet(note: note, books: shelf)
+                case .edit(let note):
+                    EditNoteSheet(note: note)
                 case .fullNote(let kind):
                     // The draft is handed over, not moved — the bar keeps it
                     // until `onSaved` says a note actually exists, so cancelling
@@ -104,11 +105,6 @@ struct StreamView: View {
 
             ScrollViewReader { scroll in
                 ScrollView {
-                    // Built once per body pass and handed to every row. Read
-                    // from inside the `ForEach` it rebuilt the whole edge index
-                    // per row, per redraw.
-                    let connections = self.connections
-
                     LazyVStack(spacing: 0) {
                         if groups.isEmpty {
                             EmptyState(message: emptyMessage)
@@ -117,10 +113,11 @@ struct StreamView: View {
                             GroupHeader(label: group.label)
                             ForEach(group.items) { note in
                                 NoteRow(
-                                    note: NoteRowData(note, connections: connections[note.shortID] ?? []),
+                                    note: NoteRowData(note),
                                     onDelete: { erasing = .note(note) },
                                     onDeleteFollowUp: { erasing = .thought($0, of: note) },
-                                    onMove: { sheet = .move(note) }
+                                    onMove: { sheet = .move(note) },
+                                    onEdit: { sheet = .edit(note) }
                                 )
                                 .id(note.shortID)
                             }
@@ -148,6 +145,16 @@ struct StreamView: View {
             sheet = .fullNote(.thought)
             return
         }
+        // `-editNote <id>` opens `edit` over the stream, the way a long press
+        // does. Same device as `-moveNote`, and for the same reason: a context
+        // menu is unreachable from the command line, so without this the sheet
+        // could never be screenshotted at all.
+        let editing = defaults.integer(forKey: "editNote")
+        if editing > 0 {
+            sheet = notes.first { $0.shortID == editing }.map { .edit($0) }
+            return
+        }
+
         let wanted = defaults.integer(forKey: "moveNote")
         guard wanted > 0 else { return }
         sheet = notes.first { $0.shortID == wanted }.map { .move($0) }
@@ -209,9 +216,6 @@ struct StreamView: View {
         StreamGrouping.groups(filtered, date: \.createdAt)
     }
 
-    /// Edges store a direction; both ends show the connection.
-    private var connections: [Int: [Int]] { ConnectionIndex.build(edges: edges) }
-
     private var emptyMessage: String {
         notes.isEmpty ? "no notes yet — capture the first one below"
                       : "nothing tagged \(Glyphs.tag(tag))"
@@ -219,17 +223,19 @@ struct StreamView: View {
 }
 
 
-/// The two sheets the stream can put up, as one value.
+/// The three sheets the stream can put up, as one value.
 ///
 /// `.sheet` twice on the same view presents whichever SwiftUI feels like, so
 /// re-filing a note and escalating a draft share a modifier and an identity.
 private enum StreamSheet: Identifiable {
     case move(Note)
+    case edit(Note)
     case fullNote(NoteKind)
 
     var id: String {
         switch self {
         case .move(let note): "move.\(note.shortID)"
+        case .edit(let note): "edit.\(note.shortID)"
         case .fullNote(let kind): "full.\(kind.rawValue)"
         }
     }

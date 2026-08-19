@@ -10,12 +10,12 @@ struct BookDetailView: View {
     let book: Book
     let onBack: () -> Void
 
-    @Query private var edges: [NoteEdge]
-
     @Environment(\.modelContext) private var context
 
-    @State private var capturing = false
-    @State private var editing = false
+    /// One sheet, not three. Two `.sheet` modifiers on the same view is a
+    /// coin-toss over which one presents — `StreamView` says so and this screen
+    /// had two of them before `edit` on a note would have made it three.
+    @State private var sheet: BookDetailSheet?
     /// What a long press — or `delete` in the header — asked to remove.
     @State private var erasing: Erasure?
 
@@ -31,24 +31,16 @@ struct BookDetailView: View {
             header
 
             ScrollView {
-                // Built once per body pass and handed to every row. Read from
-                // inside the `ForEach` it rebuilt the whole edge index per row,
-                // per redraw.
-                let connections = self.connections
-
                 LazyVStack(spacing: 0) {
                     if notes.isEmpty {
                         EmptyState(message: "no notes yet — add the first one below")
                     }
                     ForEach(notes) { note in
                         NoteRow(
-                            note: NoteRowData(
-                                note,
-                                connections: connections[note.shortID] ?? [],
-                                showingBook: false
-                            ),
+                            note: NoteRowData(note, showingBook: false),
                             onDelete: { erasing = .note(note) },
-                            onDeleteFollowUp: { erasing = .thought($0, of: note) }
+                            onDeleteFollowUp: { erasing = .thought($0, of: note) },
+                            onEdit: { sheet = .note(note) }
                         )
                     }
                 }
@@ -57,17 +49,20 @@ struct BookDetailView: View {
             addBar
         }
         .background(Theme.canvas)
-        .sheet(isPresented: $capturing) {
-            CaptureSheet(book: book, kind: sheetAtLaunch ?? .thought)
-                .presentationBackground(Theme.canvas)
-                .presentationCornerRadius(0)
-                .presentationDragIndicator(.hidden)
-        }
-        .sheet(isPresented: $editing) {
-            BookFormSheet(editing: book)
-                .presentationBackground(Theme.canvas)
-                .presentationCornerRadius(0)
-                .presentationDragIndicator(.hidden)
+        .sheet(item: $sheet) { which in
+            Group {
+                switch which {
+                case .capture:
+                    CaptureSheet(book: book, kind: sheetAtLaunch ?? .thought)
+                case .book:
+                    BookFormSheet(editing: book)
+                case .note(let note):
+                    EditNoteSheet(note: note)
+                }
+            }
+            .presentationBackground(Theme.canvas)
+            .presentationCornerRadius(0)
+            .presentationDragIndicator(.hidden)
         }
         // Deleting the book deletes the screen you're standing on, so the
         // confirmation hands back to the library rather than leaving detail
@@ -98,7 +93,7 @@ struct BookDetailView: View {
                     // with two of them and deleting it is the other, so neither
                     // is offered — its notes are still deletable one at a time.
                     if book.status != .inbox {
-                        MarkerButton(title: "edit", kind: .link) { editing = true }
+                        MarkerButton(title: "edit", kind: .link) { sheet = .book }
                         // A link, not a red button. `danger` belongs to the
                         // confirmation, never to the thing that opens one.
                         MarkerButton(title: "delete", kind: .link) { erasing = .book(book) }
@@ -118,7 +113,7 @@ struct BookDetailView: View {
     /// `-confirmDelete book` opens the book's confirmation, `-confirmDelete note`
     /// the first note's. `-captureSheet quote` still opens the capture sheet.
     private func openAtLaunch() {
-        if sheetAtLaunch != nil { capturing = true }
+        if sheetAtLaunch != nil { sheet = .capture }
 
         switch UserDefaults.standard.string(forKey: "confirmDelete") {
         case "book": erasing = .book(book)
@@ -153,7 +148,7 @@ struct BookDetailView: View {
     private var addBar: some View {
         VStack(spacing: 0) {
             Hairline()
-            MarkerButton(title: "\(Glyphs.add) add note") { capturing = true }
+            MarkerButton(title: "\(Glyphs.add) add note") { sheet = .capture }
                 .padding(.horizontal, 20)
                 .padding(.vertical, 12)
         }
@@ -166,5 +161,24 @@ struct BookDetailView: View {
         (book.notes ?? []).sorted { $0.createdAt > $1.createdAt }
     }
 
-    private var connections: [Int: [Int]] { ConnectionIndex.build(edges: edges) }
+}
+
+/// The three sheets book detail can put up, as one value — for the reason
+/// `StreamSheet` exists, which this screen was already one short of needing.
+///
+/// `.note` is an edit of a note on this screen; `.book` is an edit of the book
+/// itself. There is no `move to book…` here: the answer is the screen you are
+/// standing on.
+private enum BookDetailSheet: Identifiable {
+    case capture
+    case book
+    case note(Note)
+
+    var id: String {
+        switch self {
+        case .capture: "capture"
+        case .book: "book"
+        case .note(let note): "note.\(note.shortID)"
+        }
+    }
 }

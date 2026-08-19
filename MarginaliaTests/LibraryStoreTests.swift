@@ -262,3 +262,52 @@ struct LibraryStoreTests {
         #expect(note.kind == .thought)
     }
 }
+
+/// `Library.open` — the one place the app decides whether it has a library.
+///
+/// These exist because the thing worth guaranteeing is a *refusal*: until phase
+/// 15 a store that wouldn't open was answered by quietly opening a temporary one
+/// instead, and the reader lost every note they wrote into it on quit
+/// (`docs/issues.md` §7). A regression here is silent by construction, which is
+/// exactly the kind this project keeps shipping — so it gets a test rather than
+/// the absence of a call.
+struct LibraryOpenTests {
+
+    private struct StoreRefused: Error, CustomStringConvertible {
+        var description: String { "the store refused to open" }
+    }
+
+    @Test func openReturnsAPreparedLibrary() throws {
+        let store = try Library.open { try .marginalia(inMemory: true) }
+
+        // `prepare` ran: the seed is in there, Inbox included.
+        let books = try store.mainContext.fetchCount(FetchDescriptor<Book>())
+        #expect(books > 0)
+    }
+
+    @Test func openHonoursTheNoteLimit() throws {
+        let store = try Library.open(noteLimit: 2) { try .marginalia(inMemory: true) }
+
+        let notes = try store.mainContext.fetchCount(FetchDescriptor<Note>())
+        #expect(notes == 2)
+    }
+
+    /// The whole point. A container that won't open has to come back as a throw
+    /// — never as a working library the reader can write into.
+    @Test func openThrowsRatherThanFallingBackToMemory() {
+        #expect(throws: StoreRefused.self) {
+            try Library.open { throw StoreRefused() }
+        }
+    }
+
+    /// And the reason survives, because `StoreFailureView` prints it and that is
+    /// the one thing a bug report needs.
+    @Test func theFailureCarriesWhatTheStoreSaid() {
+        do {
+            _ = try Library.open { throw StoreRefused() }
+            Issue.record("open should have thrown")
+        } catch {
+            #expect("\(error)".contains("refused to open"))
+        }
+    }
+}

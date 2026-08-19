@@ -3,18 +3,28 @@ import SwiftData
 
 @main
 struct MarginaliaApp: App {
-    /// `nil` when neither the real store nor a temporary one would open. That
-    /// used to be a `fatalError`, which shipped the user a crash log instead of
-    /// a sentence — see `docs/issues.md` §7.
+    // **There is no in-memory fallback, and adding one back is a data-loss bug.**
+    //
+    // Until phase 15 a store that wouldn't open was answered by opening a
+    // temporary one instead, on the reasoning that an empty library beats a
+    // crash log. It does — but the reader was never told, so what they got was
+    // an app that looked fine, accepted every note they wrote into it, and
+    // dropped all of them on quit. `docs/issues.md` §7 called that "arguably
+    // worse than the crash was — it's just quieter", and it was right.
+    //
+    // `StoreFailureView` is the answer instead: it says the notes are still
+    // there and prints what the store actually said. An app that can't reach
+    // the library has to refuse to take writes it can't keep.
+
+    /// `nil` when the library on disk would not open. That used to be a
+    /// `fatalError`, which shipped the user a crash log instead of a sentence —
+    /// see `docs/issues.md` §7.
     private let container: ModelContainer?
     /// What the store said on the way down, kept so the failure screen can show
     /// it rather than making the reader guess.
     private let failure: String?
 
     init() {
-        // A store that won't open would otherwise take the whole app down. In
-        // development that's usually a schema change, and an in-memory library
-        // is a far more useful thing to land in than a crash log.
         var opened: ModelContainer?
         var problem: String?
 
@@ -26,23 +36,14 @@ struct MarginaliaApp: App {
             problem = "-storeFailure — no store was opened on purpose."
         } else {
             do {
-                opened = try ModelContainer.marginalia()
+                opened = try Library.open(noteLimit: Self.seedLimit)
             } catch {
-                do {
-                    opened = try ModelContainer.marginalia(inMemory: true)
-                } catch let fallback {
-                    problem = "\(error.localizedDescription)"
-                        + " — and then: \(fallback.localizedDescription)"
-                }
+                problem = error.localizedDescription
             }
         }
 
         self.container = opened
         self.failure = problem
-
-        if let opened {
-            try? Library.prepare(opened.mainContext, noteLimit: Self.seedLimit)
-        }
 
         // Before any notification can be tapped. Without a delegate a tap only
         // foregrounds the app and the note the reminder was about is lost.
@@ -200,24 +201,19 @@ struct RootView: View {
             guard let shortID = note.userInfo?[NotificationScheduler.noteKey] as? Int else { return }
             openReview(shortID)
         }
-        // Tapping a connection inside a source line, and arriving from outside
-        // the app, are the same journey and take the same route.
+        // Tapping a book title inside a source line. The line has to stay one
+        // wrapping paragraph, so the title is a link rather than a button, and
+        // this is where the link lands.
         .environment(\.openURL, OpenURLAction { url in
             guard let target = NoteLink.target(from: url) else { return .systemAction }
             follow(target)
             return .handled
         })
-        .onOpenURL { url in
-            guard let shortID = NoteLink.shortID(from: url) else { return }
-            open(shortID)
-        }
     }
 
-    /// Where a link in a source line goes. Both kinds arrive here.
+    /// Where a link in a source line goes. There is one kind left.
     private func follow(_ target: NoteLink.Target) {
         switch target {
-        case .note(let shortID):
-            open(shortID)
         case .book(of: let shortID):
             // A book has no id of its own, so the link names one of its notes.
             // One fetch, on a tap, rather than a schema change to shorten a URL.
@@ -251,12 +247,16 @@ struct RootView: View {
     }
 }
 
-/// `marginalia://note/11` — the scheme behind a `→ n.11` on a source line, and
-/// `marginalia://book/11` behind the book title on the same line.
+/// `marginalia://book/11` — the scheme behind the book title on a source line.
 ///
-/// Both have to stay inline in a wrapping paragraph, so they're rendered as
-/// links in an `AttributedString` rather than as buttons. This is the other half
-/// of that.
+/// It has to stay inline in a wrapping paragraph, so it's rendered as a link in
+/// an `AttributedString` rather than as a button. This is the other half of that.
+///
+/// **There was a `marginalia://note/11` beside it**, behind the `→ n.11`
+/// connections every row used to carry. Those came out in phase 13
+/// (`docs/decisions.md` §22) and the note form went with them — nothing produced
+/// it any more. Opening a note by id is still a thing the app does, from
+/// `-openNote` and from a tapped reminder; neither ever went through a URL.
 ///
 /// **A book is addressed by one of its notes, not by an id of its own.** Books
 /// have no `shortID` — only notes do — and giving them one to make a URL work
@@ -266,13 +266,8 @@ nonisolated enum NoteLink {
     static let scheme = "marginalia"
 
     enum Target: Equatable {
-        case note(Int)
         /// The book that note was written from.
         case book(of: Int)
-    }
-
-    static func url(for shortID: Int) -> URL? {
-        URL(string: "\(scheme)://note/\(shortID)")
     }
 
     static func url(forBookOf shortID: Int) -> URL? {
@@ -282,14 +277,8 @@ nonisolated enum NoteLink {
     static func target(from url: URL) -> Target? {
         guard url.scheme == scheme, let shortID = Int(url.lastPathComponent) else { return nil }
         switch url.host {
-        case "note": return .note(shortID)
         case "book": return .book(of: shortID)
         default: return nil
         }
-    }
-
-    static func shortID(from url: URL) -> Int? {
-        guard case .note(let shortID) = target(from: url) else { return nil }
-        return shortID
     }
 }
