@@ -201,6 +201,10 @@ Marginalia/
                              `.reminders()`, the one place scheduling happens
     MarkdownExport           the library as one document. Pure
   Resources/Fonts/           JetBrains Mono (SIL OFL)
+  Resources/PrivacyInfo.xcprivacy
+                             the privacy manifest. **Required** — `UserDefaults`
+                             is a required-reason API and an upload without this
+                             is rejected automatically
 MarginaliaTests/
 Tools/
   MakeAppIcon.swift          the icon, as source. `swift Tools/MakeAppIcon.swift`
@@ -309,6 +313,8 @@ Tests use **Swift Testing** (`@Test`, `#expect`), not XCTest.
     test -only-testing:MarginaliaTests/AffinityBenchmarkTests 2>&1 | grep '^|'
   ```
 - **The simulator gets the fallback embedder, always.** `NLContextualEmbedding`'s assets are present but can't compile — `/var/db/com.apple.naturallanguaged` isn't writable from an app sandbox there, and the log says `Permission denied` before the fallback takes over. Nothing seen on this machine is evidence about the model the app is actually built around. See `docs/issues.md` §14.
+- **`PrivacyInfo.xcprivacy` has to keep matching the code, and nothing checks it.** `UserDefaults` is the only required-reason API the app touches today (`CA92.1`), and the only declared data type is the book search text `BookLookup` sends to openlibrary.org. **Adding a network call, an SDK, or a read of a file timestamp / disk space / system boot time / active keyboards means editing that file in the same commit** — App Store Connect rejects on the manifest, not on the code, so the failure arrives weeks later at upload time and says nothing about which line caused it. The manifest must also agree with the App Privacy answers in App Store Connect, which live outside this repo.
+- **Don't let the About screen out-promise the binary.** It said "no network" for four phases while `BookLookup` called openlibrary.org. It now names that one call. Anything that starts talking to a server has to appear there, in the manifest, and in the nutrition label together.
 - **Permissions are requested at first use**, never at launch. Microphone, speech recognition, camera and notifications each prompt at the moment the feature is invoked. That rule is why `NotificationScheduler` has both `isAuthorized` (never prompts, used by the scheduler on every launch) and `authorize` (prompts, used only by the toggle in settings) — a scheduler that asked would break the rule every time the app opened, and the screenshot that caught it is the only reason anybody noticed.
 - **The simulator cannot test** microphone, transcription, camera OCR, or barcode scanning. Those need the device. Don't claim they work from a simulator run.
 - **Open Library needs no API key** and imposes no attribution requirement. Manual book entry must always remain available — treat lookup failure as routine, not exceptional.

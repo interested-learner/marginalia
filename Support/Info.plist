@@ -53,6 +53,12 @@
 	</array>
 
 	<!-- One font, three weights. See Design/Typography.swift -->
+	<!-- Export compliance. The app's only network call is HTTPS to
+	     openlibrary.org via URLSession, which is exempt; there is no bundled
+	     cryptography of any kind. Without this key every single upload stalls on
+	     the manual questionnaire in App Store Connect. -->
+	<key>ITSAppUsesNonExemptEncryption</key>
+	<false/>
 	<key>UIAppFonts</key>
 	<array>
 		<string>JetBrainsMono-Regular.ttf</string>

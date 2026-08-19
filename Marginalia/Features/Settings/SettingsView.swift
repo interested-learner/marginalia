@@ -163,9 +163,19 @@ struct SettingsView: View {
     private var about: some View {
         SettingsSection("about") {
             Caption("marginalia \(version) — notes taken from books.")
-            Caption("everything stays on this phone. no account, no network, "
-                 + "no analytics. the connections between notes are worked out "
+            Caption("your notes stay on this phone. no account, no analytics, "
+                 + "no tracking. the connections between them are worked out "
                  + "here, by a model that ships with the phone.")
+            // **The one network call, said plainly.** This paragraph used to
+            // read "no network", which the app contradicts every time somebody
+            // searches for a book — `BookLookup` has talked to openlibrary.org
+            // since phase 4. A privacy claim the binary breaks is worth more
+            // than a rejection: it's the sentence a reader decided to trust.
+            Caption("the one exception is adding a book: the title or isbn you "
+                 + "search for goes to open library to fill the form in. "
+                 + "nothing else leaves, and nothing about you goes with it.")
+            Caption("your notes are only on this phone — there is no sync and "
+                 + "no backup yet, so export is worth doing.")
             Caption("JetBrains Mono is used under the SIL Open Font License. "
                  + "book data comes from Open Library.")
         }

@@ -1,0 +1,60 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<!-- The app has no analytics, no SDKs, no identifiers and no ad network.
+	     Nothing here is aspirational: there is no code in the tree that could
+	     track anybody. -->
+	<key>NSPrivacyTracking</key>
+	<false/>
+	<key>NSPrivacyTrackingDomains</key>
+	<array/>
+
+	<!-- The one thing that leaves the device. `BookLookup` sends what the
+	     reader typed into the add-book field, or a scanned ISBN, to
+	     openlibrary.org so the form can be filled in. No key, no account, and
+	     nothing about the reader goes with it — but it is a search the reader
+	     performed, it does leave the phone, and declaring it is cheaper than
+	     arguing about whether a service provider counts.
+
+	     Notes, books, tags, follow-ups, voice recordings, transcripts, scanned
+	     passages and every embedding are not here because they never leave the
+	     device at all. Transcription is on-device, OCR is on-device, and the
+	     linking model runs on-device. -->
+	<key>NSPrivacyCollectedDataTypes</key>
+	<array>
+		<dict>
+			<key>NSPrivacyCollectedDataType</key>
+			<string>NSPrivacyCollectedDataTypeSearchHistory</string>
+			<key>NSPrivacyCollectedDataTypeLinked</key>
+			<false/>
+			<key>NSPrivacyCollectedDataTypeTracking</key>
+			<false/>
+			<key>NSPrivacyCollectedDataTypePurposes</key>
+			<array>
+				<string>NSPrivacyCollectedDataTypePurposeAppFunctionality</string>
+			</array>
+		</dict>
+	</array>
+
+	<!-- Required-reason APIs. Audited across the whole app target: UserDefaults
+	     is the only category the app touches. No file timestamps, no disk
+	     space, no system boot time, no active keyboards.
+
+	     CA92.1 — "access information from the app itself". The domain holds the
+	     appearance setting, the reminder time and switch, the short-id counter
+	     and the day's ReviewSession. None of it is shared with anything, and
+	     there is no app group. -->
+	<key>NSPrivacyAccessedAPITypes</key>
+	<array>
+		<dict>
+			<key>NSPrivacyAccessedAPIType</key>
+			<string>NSPrivacyAccessedAPICategoryUserDefaults</string>
+			<key>NSPrivacyAccessedAPITypeReasons</key>
+			<array>
+				<string>CA92.1</string>
+			</array>
+		</dict>
+	</array>
+</dict>
+</plist>
